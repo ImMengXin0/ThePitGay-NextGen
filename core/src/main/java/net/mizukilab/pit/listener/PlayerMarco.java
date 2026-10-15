@@ -57,6 +57,7 @@ import org.bukkit.metadata.MetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.BlockIterator;
+import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 
 import java.lang.reflect.Field;
 import java.text.DecimalFormat;
@@ -104,19 +105,15 @@ public class PlayerMarco implements Listener {
                     if(!profile.isLoaded()){
                         return;
                     }
-                    if(isSaving(profileOper)){
-                        return;
-                    }
                     if(profile.isLogin()) {
-                        PlayerInv playerInv = PlayerInv.fromPlayerInventory(event.getPlayer().getInventory());
-                        profile.disallow();
                         checkIllegalProfile(profile);
                         profile.setLogin(false);
-
-                        profile.setInventoryUnsafe(playerInv).allow();
                         triggerDeath(event, profile);
+                        profile.setInventory(PlayerInv.fromPlayerInventory(event.getPlayer().getInventory()));
                         profile.setBounty(0);
                     }
+                    // Queue behind any in-flight save, including an autosave during quit.
+                    profileOper.save(true, true);
                 });
     }
 
@@ -149,12 +146,12 @@ public class PlayerMarco implements Listener {
         if (load.getProfileFormatVersion() == 0) {
             PitProfileUpdater.updateVersion0(load);
         }
-        Collection<PotionEffect> activePotionEffects = player.getActivePotionEffects();
-        activePotionEffects.forEach(i -> {
-            player.removePotionEffect(i.getType());
-        });
         if (player.isOnline()) {
             Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
+                if (!player.isOnline()) return;
+                for (PotionEffect effect : player.getActivePotionEffects()) {
+                    player.removePotionEffect(effect.getType());
+                }
                 PlayerUtil.postResetPlayer(player);
                 new PitProfileLoadedEvent(load,op).callEvent();
                 if(player.isOnline()) { //twice check && Async check;
@@ -173,6 +170,23 @@ public class PlayerMarco implements Listener {
         load.setLastLoginTime(System.currentTimeMillis());
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerSpawnLocation(PlayerSpawnLocationEvent event) {
+        if (!PitInternalImpl.getLoaded()) {
+            return;
+        }
+        Location spawn = ThePit.getInstance().getMapSelector().getRandomLocation();
+        if (spawn == null) {
+            return;
+        }
+        if (spawn.getWorld() == null) {
+            ThePit.getInstance().getLogger().warning("地图出生点的世界未加载，无法设置玩家初始出生位置。");
+            return;
+        }
+        // Spigot applies this location before login packets; the player has no connection yet.
+        event.setSpawnLocation(spawn.clone());
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
@@ -186,17 +200,13 @@ public class PlayerMarco implements Listener {
         loadData(event);
     }
     @EventHandler
-    public void onInitSpawn(PlayerInitialSpawnEvent spawn){
-        Location randomLocation = ThePit.getInstance().getMapSelector().getRandomLocation();
-        if(randomLocation != null) {
-            spawn.setSpawnLocation(randomLocation);
-        }
-    }
-
-
-    @EventHandler
     public void onProfileLoadComplete(PitProfileLoadedEvent event) {
         PlayerProfile profile = event.getPlayerProfile();
+        PerkData megaStreak = profile.getChosePerk().get(5);
+        if (megaStreak != null && cn.charlotte.pit.perk.PerkFactory.isRegistrationBlocked(megaStreak.getPerkInternalName())) {
+            // Leave the slot ready to choose again, while preserving purchase/unlock records.
+            profile.getChosePerk().remove(5);
+        }
         Player player = Bukkit.getPlayer(profile.getPlayerUuid());
 
         if (player == null || !player.isOnline()) {
@@ -239,6 +249,7 @@ public class PlayerMarco implements Listener {
         profile.applyExperienceToPlayer(player);
 
         PlayerUtil.resetPlayer(player, false, false);
+        net.mizukilab.pit.trade.TradeInventory.claimReturns(player, profile);
     }
 
     private void processAccountStatus(PlayerProfile profile, Player player) {
@@ -322,7 +333,7 @@ public class PlayerMarco implements Listener {
                 }
                 //check if player is equipping a mythic pants
                 final String internalName1 = ItemUtil.getInternalName(armorContents[slot]);
-                if (internalName1 != null && (internalName1.equalsIgnoreCase("mythic_leggings") || internalName1.equals("armageddon_boots") || internalName1.equals("angel_chestplate") || internalName1.equals("kings_helmet"))) {
+                if (internalName1 != null && (internalName1.equalsIgnoreCase("mythic_leggings") || internalName1.equals("armageddon_boots") || internalName1.equals("angel_chestplate") || internalName1.equals("angel_boots") || internalName1.equals("angel_helmet") || internalName1.equals("angel_leggings") || internalName1.equals("kings_helmet"))) {
                     return;
                 }
                 armorContents[slot] = itemStack;
@@ -331,7 +342,7 @@ public class PlayerMarco implements Listener {
                 player.playSound(player.getLocation(), Sound.HORSE_ARMOR, 1F, 1F);
             } else if (itemStack.getType().name().contains("DIAMOND")) {
                 final String internalName1 = ItemUtil.getInternalName(armorContents[slot]);
-                if (internalName1 != null && (internalName1.equalsIgnoreCase("mythic_leggings") || internalName1.equals("armageddon_boots") || internalName1.equals("angel_chestplate") || internalName1.equals("kings_helmet"))) {
+                if (internalName1 != null && (internalName1.equalsIgnoreCase("mythic_leggings") || internalName1.equals("armageddon_boots") || internalName1.equals("angel_chestplate") || internalName1.equals("angel_boots") || internalName1.equals("angel_helmet") || internalName1.equals("angel_leggings") || internalName1.equals("kings_helmet"))) {
                     //check if player is equipping a mythic pants
                     InventoryUtil.addInvReverse(player.getInventory(), itemStack);
                     return;

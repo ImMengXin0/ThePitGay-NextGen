@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public abstract class Menu {
 
     public static final Map<UUID, Menu> currentlyOpenedMenus = new ConcurrentHashMap<>();
+    private static final Map<UUID, Inventory> currentlyOpenedInventories = new ConcurrentHashMap<>();
     private Map<Integer, Button> buttons = new HashMap<>();
     private boolean autoUpdate = false;
     private boolean updateAfterClick = true;
@@ -25,6 +26,19 @@ public abstract class Menu {
     private Button placeholderButton = Button.placeholder(Material.STAINED_GLASS_PANE, (byte) 15, " ");
     public static Menu find(Player player) {
         return currentlyOpenedMenus.get(player.getUniqueId());
+    }
+
+    public static Menu find(Player player, Inventory inventory) {
+        // ContainerChest exposes a new CraftInventory wrapper for the same backing
+        // inventory. Bukkit equality compares that backing inventory, not its title.
+        return inventory != null && inventory.equals(currentlyOpenedInventories.get(player.getUniqueId()))
+                ? find(player) : null;
+    }
+
+    static void forget(Player player, Menu menu) {
+        if (currentlyOpenedMenus.remove(player.getUniqueId(), menu)) {
+            currentlyOpenedInventories.remove(player.getUniqueId());
+        }
     }
     private ItemStack createItemStack(Player player, Button button) {
         ItemStack item = button.getButtonItem(player);
@@ -64,7 +78,8 @@ public abstract class Menu {
                 } else {
                     int previousSize = player.getOpenInventory().getTopInventory().getSize();
 
-                    if (previousSize == size && player.getOpenInventory().getTopInventory().getTitle().equals(title)) {
+                    if (previousMenu == this && find(player, player.getOpenInventory().getTopInventory()) == this
+                            && previousSize == size && player.getOpenInventory().getTopInventory().getTitle().equals(title)) {
                         inventory = player.getOpenInventory().getTopInventory();
                         update = true;
                     } else {
@@ -80,6 +95,7 @@ public abstract class Menu {
             inventory.setContents(new ItemStack[inventory.getSize()]);
 
             currentlyOpenedMenus.put(player.getUniqueId(), this);
+            currentlyOpenedInventories.put(player.getUniqueId(), inventory);
 
             for (Map.Entry<Integer, Button> buttonEntry : this.buttons.entrySet()) {
                 inventory.setItem(buttonEntry.getKey(), createItemStack(player, buttonEntry.getValue()));
@@ -97,7 +113,12 @@ public abstract class Menu {
             if (update) {
                 player.updateInventory();
             } else {
-                player.openInventory(inventory);
+                if (player.openInventory(inventory) == null) {
+                    forget(player, this);
+                    this.setClosedByMenu(true);
+                    this.onClose(player);
+                    return;
+                }
             }
 
             this.onOpen(player);
@@ -139,6 +160,11 @@ public abstract class Menu {
 
     public void onClickEvent(InventoryClickEvent event) {
 
+    }
+
+    /** Read-only menus may navigate through buttons but cannot transfer items. */
+    public boolean isReadOnly() {
+        return false;
     }
 
     public boolean isAutoUpdate() {

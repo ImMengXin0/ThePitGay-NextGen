@@ -54,7 +54,6 @@ public class StatusViewerMenu extends Menu {
             inventory = profile.getInventory();
             player.sendMessage(CC.translate("&c这名玩家离线,这将查询离线档案!"));
         } else {
-            profile.save(Bukkit.getPlayer(profile.getPlayerUuid()));
             inventory = PlayerInv.fromPlayerInventory(Bukkit.getPlayer(profile.getPlayerUuid()).getInventory());
         }
         Map<Integer, Button> button = new HashMap<>();
@@ -310,6 +309,7 @@ public class StatusViewerMenu extends Menu {
                 new WarehouseViewerMenu(profile).openMenu(player);
             }
         });
+        button.put(33, new EnchantingViewerButton(profile));
         return button;
     }
 }

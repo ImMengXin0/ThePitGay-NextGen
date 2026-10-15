@@ -45,12 +45,13 @@ class EnchantBookButton(
         if (item == null || item.type == Material.AIR) {
             return
         }
-        if (InventoryUtil.isInvFull(player)) {
+        val emptySlot = player.inventory.firstEmpty()
+        if (emptySlot < 0) {
             player.sendMessage("&c你的背包已满.")
             return
         }
+        player.inventory.setItem(emptySlot, item)
         profile.enchantingBook = null
-        player.inventory.addItem(item)
         player.playSound(player.location, Sound.CHICKEN_EGG_POP, 1f, 0.65f)
         menu!!.openMenu(player)
     }

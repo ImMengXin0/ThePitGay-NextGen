@@ -33,7 +33,7 @@ public class Bounty extends BukkitRunnable {
     public void delete(Collection<HologramDisplay> sets) {
         sets.removeIf(holo -> {
             if (!holo.hologram.isSpawned()) {
-                return false;
+                return true;
             }
             holo.hologram.deSpawn();
             return true;

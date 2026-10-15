@@ -15,7 +15,6 @@ import java.util.List;
  * @Date: 2021/1/1 21:18
  */
 public abstract class AbstractPerk {
-    int hashCode = Counters.PERK_ID.getAndIncrement();
     public abstract String getInternalPerkName();
 
     public abstract String getDisplayName();
@@ -59,15 +58,13 @@ public abstract class AbstractPerk {
 
     @Override
     public int hashCode() {
-        return hashCode;
+        return java.util.Objects.hashCode(getInternalPerkName());
     }
 
     @Override
     public boolean equals(Object obj) {
-        if(obj instanceof AbstractPerk other) {
-            return hashCode() == other.hashCode() || getInternalPerkName().equals(other.getInternalPerkName());
-        }
-        return false;
+        return this == obj || obj instanceof AbstractPerk other
+                && java.util.Objects.equals(getInternalPerkName(), other.getInternalPerkName());
     }
 
     public int getPlayerLevel(Player player) {

@@ -2,6 +2,7 @@ package net.mizukilab.pit.enchantment.type.rage
 
 import com.google.common.util.concurrent.AtomicDouble
 import net.mizukilab.pit.enchantment.AbstractEnchantment
+import net.mizukilab.pit.enchantment.param.item.ArmorOnly
 import net.mizukilab.pit.enchantment.rarity.EnchantmentRarity
 import net.mizukilab.pit.parm.listener.IAttackEntity
 import net.mizukilab.pit.parm.listener.IPlayerDamaged
@@ -14,6 +15,7 @@ import org.bukkit.potion.PotionEffectType
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Skip
+@ArmorOnly
 class Brakes : AbstractEnchantment(), IAttackEntity, IPlayerDamaged {
     override fun getEnchantName(): String {
         return "停下!"
@@ -36,8 +38,8 @@ class Brakes : AbstractEnchantment(), IAttackEntity, IPlayerDamaged {
     }
 
     override fun getUsefulnessLore(enchantLevel: Int): String {
-        return "&7攻击目标的玩家如果拥有 &f速度&7 且效果为 &fI&7 级及以上, /s&7将其效果等级降至&f I&7 级." +
-                if (enchantLevel > 1) "/s&7高处玩家攻击你时减少 &9${if (enchantLevel == 2) "5" else "10"}%  &7" else ""
+        return "&7攻击拥有 &f速度 II&7 及以上效果的玩家时,/s&7将其效果等级降至 &fI&7 级." +
+                if (enchantLevel > 1) "/s&7高处玩家攻击你时伤害减少 &9${if (enchantLevel == 2) "5" else "10"}%&7." else ""
     }
 
     override fun handleAttackEntity(
@@ -67,7 +69,7 @@ class Brakes : AbstractEnchantment(), IAttackEntity, IPlayerDamaged {
         boostDamage: AtomicDouble,
         cancel: AtomicBoolean?
     ) {
-        if (attacker is Player) {
+        if (enchantLevel > 1 && attacker is Player) {
             if (attacker.location.y > myself.location.y) {
                 boostDamage.set(boostDamage.get() * (1 - if (enchantLevel == 2) 0.05 else 0.1))
             }

@@ -40,3 +40,11 @@ bin/
 .DS_Store
 
 confusion
+# Local verification, server dependencies and private configuration
+/audit/
+/core/logs/
+/core/libs/*.jar
+/libs/pandaspigot-*.jar
+/test-fixtures/
+.env
+.env.*

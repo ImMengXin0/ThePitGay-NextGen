@@ -6,6 +6,11 @@ import java.util.List;
 
 public interface AssembleAdapter {
 
+    /** Optional per-refresh preparation; legacy adapters need not implement it. */
+    default void beginUpdate() { }
+
+    default void endUpdate() { }
+
     /**
      * Get's the scoreboard title.
      *

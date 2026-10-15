@@ -77,11 +77,12 @@ public class AsyncTickHandler extends BukkitRunnable {
             onActionBarTick();
         }
         if(tick % 3600 == 0){
-            long minecraftTick = TimeUtil.getRealTimeToMCTick();
-            Bukkit.getWorlds().forEach(world -> world.setTime(minecraftTick));
+            Bukkit.getScheduler().runTask(instance, () -> {
+                long minecraftTick = TimeUtil.getRealTimeToMCTick();
+                Bukkit.getWorlds().forEach(world -> world.setTime(minecraftTick));
+            });
         }
         ((ProfileOperator) instance.getProfileOperator()).tick();
-        instance.getEnchTable().asyncTick();
         while(true) {
             Runnable runnable = taskList.pollFirst();
             if (runnable == null) {
@@ -96,6 +97,10 @@ public class AsyncTickHandler extends BukkitRunnable {
 
     }
     public void onActionBarTick(){
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(instance, this::onActionBarTick);
+            return;
+        }
         StringBuilder stringBuilder = new StringBuilder();
         ThePit.getInstance().getProfileOperator().forEach(i -> {
             PlayerProfile profile = i.profile();
@@ -181,7 +186,7 @@ public class AsyncTickHandler extends BukkitRunnable {
 
         final long now = System.currentTimeMillis();
         Bukkit.getLogger().info("Auto saved player backups, time: " + (now - last) + "ms");
-        Bukkit.getOnlinePlayers().forEach(player -> {
+        Bukkit.getScheduler().runTask(instance, () -> Bukkit.getOnlinePlayers().forEach(player -> {
 
             if (player.hasPermission("pit.admin")) return;
             ((ProfileOperator) instance.getProfileOperator()).operatorStrict(player).ifPresent(operator -> {
@@ -202,6 +207,6 @@ public class AsyncTickHandler extends BukkitRunnable {
                 }
             });
 
-        });
+        }));
     }
 }

@@ -12,7 +12,7 @@ public class MythicBook {
         return new ItemBuilder(Material.PAPER)
                 .name("&d附魔卷轴")
                 .deathDrop(false)
-                .canDrop(true)
+                .canDrop(false)
                 .canSaveToEnderChest(true)
                 .internalName("mythic_reel")
                 .uuid(UUID.randomUUID())

@@ -5,6 +5,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * @Author: EmptyIrony
@@ -16,10 +17,16 @@ public class TradeMonitorRunnable extends BukkitRunnable {
 
     @Override
     public void run() {
-        tradeRequests.removeIf(tradeRequest -> tradeRequest.getCooldown().hasExpired());
+        tradeRequests.removeIf(tradeRequest -> tradeRequest.getCooldown().hasExpired()
+                || !tradeRequest.getPlayer().isOnline() || !tradeRequest.getTarget().isOnline());
     }
 
     public static List<TradeRequest> getTradeRequests() {
         return tradeRequests;
+    }
+
+    public static void removeRequests(UUID player) {
+        tradeRequests.removeIf(request -> request.getPlayer().getUniqueId().equals(player)
+                || request.getTarget().getUniqueId().equals(player));
     }
 }

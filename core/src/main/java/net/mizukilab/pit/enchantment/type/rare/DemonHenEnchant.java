@@ -4,7 +4,6 @@ import cn.charlotte.pit.ThePit;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AtomicDouble;
 
-import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
 import net.minecraft.server.v1_8_R3.MathHelper;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.IActionDisplayEnchant;
@@ -15,10 +14,8 @@ import net.mizukilab.pit.parm.AutoRegister;
 import net.mizukilab.pit.parm.listener.IPlayerKilledEntity;
 import net.mizukilab.pit.parm.listener.IPlayerShootEntity;
 import net.mizukilab.pit.util.cooldown.Cooldown;
-import net.mizukilab.pit.util.item.ItemUtil;
 import net.mizukilab.pit.util.time.TimeUtil;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_8_R3.CraftWorld;
@@ -30,8 +27,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.server.PluginDisableEvent;
+import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.Nullable;
@@ -46,43 +45,44 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @BowOnly
 @AutoRegister
 public class DemonHenEnchant extends AbstractEnchantment implements IActionDisplayEnchant, IPlayerShootEntity, Listener, IPlayerKilledEntity {
-    private final Map<UUID, Cooldown> cooldown = new Reference2ObjectArrayMap<>();
+    private final Map<UUID, Cooldown> cooldown = new java.util.concurrent.ConcurrentHashMap<>();
     Set<Entity> masters = new CopyOnWriteArraySet<>();
     Set<Map.Entry<Entity, LivingEntity>> entitySet = new CopyOnWriteArraySet<>();
-    BukkitTask scheduledTask = Bukkit.getScheduler().runTaskTimerAsynchronously(ThePit.getInstance(), () -> {
-        Set<Map.Entry<Entity, LivingEntity>> entities = new HashSet<>();
-        entitySet.forEach(s -> {
+    BukkitTask scheduledTask = Bukkit.getScheduler().runTaskTimer(ThePit.getInstance(), this::tickHens, 0, 20);
+
+    void tickHens() {
+        cooldown.entrySet().removeIf(entry -> entry.getValue().hasExpired());
+        for (Map.Entry<Entity, LivingEntity> s : entitySet) {
             LivingEntity i = s.getValue();
+            if (!i.isValid() || i.isDead() || i.getTicksLived() >= 300
+                    || (s.getKey() instanceof Player owner && !owner.isOnline())) {
+                entitySet.remove(s);
+                i.remove();
+                continue;
+            }
             if (i.isOnGround()) {
-                entities.add(s);
+                entitySet.remove(s);
                 Location location = i.getLocation();
-                if (i.isDead()) {
-                    return;
-                }
                 final float healthScaled = (float) (i.getHealth() / i.getMaxHealth());
                 i.remove();
 
                 World world = location.getWorld();
                 Collection<Entity> nearbyEntities = world.getNearbyEntities(location, 3, 3, 3);
 
-                Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
-                    masters.add(s.getKey());
+                masters.add(s.getKey());
+                try {
                     ((CraftWorld) world).getHandle().createExplosion(((CraftEntity) s.getKey()).getHandle(), location.getX(), location.getY(), location.getZ(),
                             (1.25F * healthScaled), false, false);
                     float xyz = (float) ((Math.random() - 0.5) * 2);
                     nearbyEntities.forEach(a -> {
-                        if (a instanceof Player player) {
-                            player.setVelocity(new Vector(xyz, Math.abs(xyz), xyz));
-                            return;
-                        }
-                        a.setVelocity(new Vector(xyz, Math.abs(xyz), xyz));
+                        if (a.isValid()) a.setVelocity(new Vector(xyz, Math.abs(xyz), xyz));
                     });
+                } finally {
                     masters.remove(s.getKey());
-                });
+                }
             }
-        });
-        entitySet.removeAll(entities);
-    }, 0, 20);
+        }
+    }
     @Override
     public String getEnchantName() {
         return "恶魔鸡";
@@ -136,6 +136,40 @@ public class DemonHenEnchant extends AbstractEnchantment implements IActionDispl
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         cooldown.remove(e.getPlayer().getUniqueId());
+        removeHens(entry -> entry.getKey().getUniqueId().equals(e.getPlayer().getUniqueId()));
+        masters.remove(e.getPlayer());
+    }
+
+    @EventHandler
+    public void onHenDeath(EntityDeathEvent event) {
+        if (entitySet.stream().anyMatch(entry -> entry.getValue().equals(event.getEntity()))) {
+            event.getDrops().clear();
+            event.setDroppedExp(0);
+            removeHens(entry -> entry.getValue().equals(event.getEntity()));
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onChunkUnload(ChunkUnloadEvent event) {
+        Set<Entity> unloading = new HashSet<>(Arrays.asList(event.getChunk().getEntities()));
+        removeHens(entry -> unloading.contains(entry.getValue()));
+    }
+
+    @EventHandler
+    public void onDisable(PluginDisableEvent event) {
+        if (event.getPlugin() != ThePit.getInstance()) return;
+        scheduledTask.cancel();
+        removeHens(entry -> true);
+        masters.clear();
+        cooldown.clear();
+    }
+
+    private void removeHens(java.util.function.Predicate<Map.Entry<Entity, LivingEntity>> predicate) {
+        entitySet.removeIf(entry -> {
+            if (!predicate.test(entry)) return false;
+            entry.getValue().remove();
+            return true;
+        });
     }
 
     public Location getHenLocation(Location location) {
@@ -160,7 +194,7 @@ public class DemonHenEnchant extends AbstractEnchantment implements IActionDispl
 
     @Override
     public void handlePlayerKilled(int enchantLevel, Player myself, Entity target, AtomicDouble coins, AtomicDouble experience) {
-        if (target.getLastDamageCause().getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) {
+        if (target.getLastDamageCause() != null && target.getLastDamageCause().getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) {
             coins.set(coins.get() * 0.2);
             experience.set(experience.get() * 0.2);
         }

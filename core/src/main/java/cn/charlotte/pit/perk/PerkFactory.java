@@ -1,5 +1,6 @@
 package cn.charlotte.pit.perk;
 
+import cn.charlotte.pit.ThePit;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.SneakyThrows;
@@ -17,6 +18,7 @@ import java.util.Map;
  */
 public class PerkFactory {
 
+    private PerkFactory delegate;
     private final List<AbstractPerk> perks;
     private final List<IPlayerDamaged> playerDamageds;
     private final List<IAttackEntity> attackEntities;
@@ -46,68 +48,92 @@ public class PerkFactory {
 
     @SneakyThrows
     public void init(Collection<Class<?>> classes) {
+        // Older addons construct a temporary factory for an additional streak.
+        // Once a live core registry exists, that facade must feed the registry used by menus/ticks.
+        ThePit plugin = ThePit.getInstance();
+        PerkFactory active = plugin == null ? null : plugin.getPerkFactory();
+        if (active != null && active != this) {
+            delegate = active;
+            active.init(classes);
+            return;
+        }
         for (Class<?> clazz : classes) {
             if (AbstractPerk.class.isAssignableFrom(clazz)) {
-                Object instance = clazz.getConstructor().newInstance();
-                perks.add((AbstractPerk) instance);
-
-                final AbstractPerk perk = (AbstractPerk) instance;
-
-                perkMap.put(((AbstractPerk) instance).getInternalPerkName(), (AbstractPerk) instance);
-
-                PublicUtil.register(clazz, instance, playerDamageds, attackEntities, iItemDamages, playerBeKilledByEntities, playerKilledEntities, playerRespawns, playerShootEntities);
-                if (ITickTask.class.isAssignableFrom(clazz)) {
-                    final ITickTask task = (ITickTask) instance;
-                    tickTasks.put(perk, task);
-                }
-                if (IPlayerAssist.class.isAssignableFrom(clazz)) {
-                    playerAssists.add((IPlayerAssist) instance);
-                }
+                registerPerk((AbstractPerk) clazz.getConstructor().newInstance());
             }
         }
     }
 
+    public void registerPerk(AbstractPerk perk) {
+        if (delegate != null) { delegate.registerPerk(perk); return; }
+        // The addon also registers through a temporary factory; reject before any listeners/callbacks.
+        if (isRegistrationBlocked(perk.getInternalPerkName())) return;
+        AbstractPerk previous = perkMap.get(perk.getInternalPerkName());
+        if (previous == perk) return;
+        if (previous != null) removePerk(previous);
+        perks.add(perk);
+        perkMap.put(perk.getInternalPerkName(), perk);
+        PublicUtil.register(perk.getClass(), perk, playerDamageds, attackEntities, iItemDamages,
+                playerBeKilledByEntities, playerKilledEntities, playerRespawns, playerShootEntities);
+        if (perk instanceof ITickTask task) tickTasks.put(perk, task);
+        if (perk instanceof IPlayerAssist assist) playerAssists.add(assist);
+    }
+
+    public static boolean isRegistrationBlocked(String internalName) {
+        return "crazy_dog_mode_mega_streak".equals(internalName);
+    }
+
+    public void removePerk(AbstractPerk perk) {
+        if (delegate != null) { delegate.removePerk(perk); return; }
+        PublicUtil.unregister(perk.getClass(), perk, playerDamageds, attackEntities, iItemDamages,
+                playerBeKilledByEntities, playerKilledEntities, playerRespawns, playerShootEntities);
+        perks.removeIf(value -> value == perk);
+        tickTasks.values().removeIf(value -> value == perk);
+        playerAssists.removeIf(value -> value == perk);
+        if (perkMap.get(perk.getInternalPerkName()) == perk) perkMap.remove(perk.getInternalPerkName());
+    }
+
     public List<AbstractPerk> getPerks() {
-        return perks;
+        return delegate == null ? perks : delegate.getPerks();
     }
 
     public List<IPlayerDamaged> getPlayerDamageds() {
-        return playerDamageds;
+        return delegate == null ? playerDamageds : delegate.getPlayerDamageds();
     }
 
     public List<IAttackEntity> getAttackEntities() {
-        return attackEntities;
+        return delegate == null ? attackEntities : delegate.getAttackEntities();
     }
 
     public List<IItemDamage> getiItemDamages() {
-        return iItemDamages;
+        return delegate == null ? iItemDamages : delegate.getiItemDamages();
     }
 
     public List<IPlayerBeKilledByEntity> getPlayerBeKilledByEntities() {
-        return playerBeKilledByEntities;
+        return delegate == null ? playerBeKilledByEntities : delegate.getPlayerBeKilledByEntities();
     }
 
     public List<IPlayerKilledEntity> getPlayerKilledEntities() {
-        return playerKilledEntities;
+        return delegate == null ? playerKilledEntities : delegate.getPlayerKilledEntities();
     }
 
     public List<IPlayerRespawn> getPlayerRespawns() {
-        return playerRespawns;
+        return delegate == null ? playerRespawns : delegate.getPlayerRespawns();
     }
 
     public List<IPlayerShootEntity> getPlayerShootEntities() {
-        return playerShootEntities;
+        return delegate == null ? playerShootEntities : delegate.getPlayerShootEntities();
     }
 
     public Map<AbstractPerk, ITickTask> getTickTasks() {
-        return tickTasks;
+        return delegate == null ? tickTasks : delegate.getTickTasks();
     }
 
     public List<IPlayerAssist> getPlayerAssists() {
-        return playerAssists;
+        return delegate == null ? playerAssists : delegate.getPlayerAssists();
     }
 
     public Map<String, AbstractPerk> getPerkMap() {
-        return perkMap;
+        return delegate == null ? perkMap : delegate.getPerkMap();
     }
 }

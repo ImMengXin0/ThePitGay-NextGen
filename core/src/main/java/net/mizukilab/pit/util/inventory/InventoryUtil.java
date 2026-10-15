@@ -402,7 +402,7 @@ public class InventoryUtil {
 
             //fixme: why remove the default item (sword & bow slot will reset)
 
-            if (ItemUtil.isDefaultItem(item)) {
+            if (ItemUtil.isDefaultItem(item) && ItemUtil.canReplace(item)) {
                 //player.getInventory().remove(item);
                 net.minecraft.server.v1_8_R3.ItemStack nmStackQuick = PublicUtil.toNMStackQuick(item);
                 if (nmStackQuick.getItem() instanceof ItemArmor) {
@@ -464,16 +464,16 @@ public class InventoryUtil {
             player.sendMessage(CC.translate("&c今从君之囊中寻得 &e" + illegalItems + "&c 异物，已悉数除却，恕罪"));
         }
         if (playerProfile.getPlayerOption().isOutfit()) {
-            if (ItemUtil.isDefaultItem(inventory.getHelmet())) {
+            if (ItemUtil.isDefaultItem(inventory.getHelmet()) && ItemUtil.canReplace(inventory.getHelmet())) {
                 inventory.setHelmet(new ItemStack(Material.AIR));
             }
-            if (ItemUtil.isDefaultItem(inventory.getChestplate())) {
+            if (ItemUtil.isDefaultItem(inventory.getChestplate()) && ItemUtil.canReplace(inventory.getChestplate())) {
                 inventory.setChestplate(new ItemStack(Material.AIR));
             }
-            if (ItemUtil.isDefaultItem(inventory.getLeggings())) {
+            if (ItemUtil.isDefaultItem(inventory.getLeggings()) && ItemUtil.canReplace(inventory.getLeggings())) {
                 inventory.setLeggings(new ItemStack(Material.AIR));
             }
-            if (ItemUtil.isDefaultItem(inventory.getBoots())) {
+            if (ItemUtil.isDefaultItem(inventory.getBoots()) && ItemUtil.canReplace(inventory.getBoots())) {
                 inventory.setBoots(new ItemStack(Material.AIR));
             }
 
@@ -515,21 +515,21 @@ public class InventoryUtil {
         if (playerProfile.getPlayerOption().isOutfit()) {
             int ironArmorSlot = random.nextInt(3);
 
-            if (inventory.getChestplate() == null || ItemUtil.isDefaultItem(inventory.getChestplate())) {
+            if (inventory.getChestplate() == null || (ItemUtil.isDefaultItem(inventory.getChestplate()) && ItemUtil.canReplace(inventory.getChestplate()))) {
                 if (ironArmorSlot == 0) {
                     inventory.setChestplate(new ItemBuilder(Material.IRON_CHESTPLATE).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 } else {
                     inventory.setChestplate(new ItemBuilder(Material.CHAINMAIL_CHESTPLATE).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 }
             }
-            if (inventory.getLeggings() == null || ItemUtil.isDefaultItem(inventory.getLeggings())) {
+            if (inventory.getLeggings() == null || (ItemUtil.isDefaultItem(inventory.getLeggings()) && ItemUtil.canReplace(inventory.getLeggings()))) {
                 if (ironArmorSlot == 1) {
                     inventory.setLeggings(new ItemBuilder(Material.IRON_LEGGINGS).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 } else {
                     inventory.setLeggings(new ItemBuilder(Material.CHAINMAIL_LEGGINGS).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 }
             }
-            if (inventory.getBoots() == null || ItemUtil.isDefaultItem(inventory.getBoots())) {
+            if (inventory.getBoots() == null || (ItemUtil.isDefaultItem(inventory.getBoots()) && ItemUtil.canReplace(inventory.getBoots()))) {
                 if (ironArmorSlot == 2) {
                     inventory.setBoots(new ItemBuilder(Material.IRON_BOOTS).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 } else {

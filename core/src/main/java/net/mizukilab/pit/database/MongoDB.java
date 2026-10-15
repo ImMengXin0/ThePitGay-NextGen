@@ -68,7 +68,8 @@ public class MongoDB {
                 .version(ServerApiVersion.V1)
                 .build()).uuidRepresentation(UuidRepresentation.STANDARD).applyConnectionString(connectionString);
         if (mongoUser != null && mongoPassword != null && !mongoUser.isEmpty() && !mongoPassword.isEmpty()) {
-            MongoCredential credential = MongoCredential.createCredential(mongoUser, certDatabase, mongoPassword.toCharArray());
+            String authDatabase = certDatabase == null || certDatabase.isBlank() ? databaseName : certDatabase;
+            MongoCredential credential = MongoCredential.createCredential(mongoUser, authDatabase, mongoPassword.toCharArray());
             thePit = builder1
                     .credential(credential).applicationName("ThePitSafe")
                     .build();
@@ -93,37 +94,8 @@ public class MongoDB {
         createIndex(invCollection, "uuidIndex", "uuid");
         createIndex(invCollection, "backupUuidIndex", "backupUuid");
 
-        //create trade index
-        MongoCollection<Document> trade = database.getCollection("trade");
-        boolean indexFound = false;
-        for (Document listIndex : trade.listIndexes()) {
-            if (listIndex.get("completeTime") != null) {
-                indexFound = true;
-                if (listIndex.getInteger("completeTime") == -1) {
-                    trade.createIndex(Filters.eq("completeTime", 1));
-                }
-            }
-        }
-
-        if (!indexFound) {
-            trade.createIndex(Filters.eq("timeStamp", 1));
-        }
-
-
-        MongoCollection<Document> inv = database.getCollection("inv");
-        indexFound = false;
-        for (Document listIndex : inv.listIndexes()) {
-            if (listIndex.get("timeStamp") != null) {
-                indexFound = true;
-                if (listIndex.getInteger("timeStamp") == -1) {
-                    trade.createIndex(Filters.eq("timeStamp", 1));
-                }
-            }
-        }
-        if (!indexFound) {
-            trade.createIndex(Filters.eq("timeStamp", 1));
-        }
-
+        ensureTimeIndex(tradeCollection, "completeTime");
+        ensureTimeIndex(invCollection, "timeStamp");
 
         JacksonMongoCollection.JacksonMongoCollectionBuilder builder = JacksonMongoCollection.builder();
         this.profileCollection = builder.build(this.database.getCollection("players", PlayerProfile.class), PlayerProfile.class, UuidRepresentation.JAVA_LEGACY);
@@ -143,6 +115,20 @@ public class MongoDB {
         createIndex(mailCollection, "uuidIndex", "uuid");
         log.info("Connected! (连接成功>>>>)");
         log.info("Costs " + ChronoUnit.MILLIS.between(connects, Instant.now()));
+    }
+
+    static void ensureTimeIndex(MongoCollection<Document> collection, String field) {
+        try (var indexes = collection.listIndexes().iterator()) {
+            while (indexes.hasNext()) {
+                Document index = indexes.next();
+                Document key = index.get("key", Document.class);
+                // Either direction supports a single-field sort. Preserve existing index names.
+                if (key != null && key.size() == 1 && key.get(field) instanceof Number order
+                        && Math.abs(order.doubleValue()) == 1.0
+                        && !index.containsKey("partialFilterExpression") && !Boolean.TRUE.equals(index.getBoolean("sparse"))) return;
+            }
+        }
+        collection.createIndex(Indexes.ascending(field));
     }
 
     private void createIndex(MongoCollection<?> collection, String indexName, String fieldName) {

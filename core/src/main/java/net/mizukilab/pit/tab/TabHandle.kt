@@ -14,14 +14,17 @@ import nya.Skip
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.scheduler.BukkitRunnable
+import java.util.UUID
 
 /**
  * @author Araykal
  * @since 2025/5/12
  */
 @Skip
-class TabHandle {
+open class TabHandle {
     var counter = 0
+    private data class SentTab(val player: Player, val header: String, val footer: String)
+    private val lastSent = HashMap<UUID, SentTab>()
 
     fun fetchTab() {
         object : BukkitRunnable() {
@@ -29,54 +32,60 @@ class TabHandle {
                 updateTabListForAllPlayers()
                 counter++
             }
-        }.runTaskTimerAsynchronously(
+        }.runTaskTimer(
             ThePit.getInstance(),
-            delay.toLong(),
-            tick.toLong()
+            delay.coerceAtLeast(0).toLong(),
+            tick.coerceAtLeast(1).toLong()
         )
     }
 
     private fun updateTabListForAllPlayers() {
-        if (Bukkit.getOnlinePlayers().isEmpty()) {
+        updatePlayers(Bukkit.getOnlinePlayers())
+    }
+
+    private fun updatePlayers(players: Collection<Player>) {
+        if (players.isEmpty()) {
+            lastSent.clear()
             return
         }
-        for (player in Bukkit.getOnlinePlayers()) {
-            updatePlayerTabList(player)
+        val onlineIds = players.mapTo(HashSet()) { it.uniqueId }
+        lastSent.keys.retainAll(onlineIds)
+        val currentValues = mutableMapOf<String, String>()
+        for ((key, values) in animation) {
+            if (values.isNotEmpty()) {
+                currentValues["{$key}"] = values[Math.floorMod(counter, values.size)]
+            }
+        }
+        // Only animation and common formatting are shared. PAPI remains per player.
+        val headerText = replaceVariables(head, currentValues).replace("&", "§").replace("/s", "§r")
+        val footerText = replaceVariables(part, currentValues).replace("&", "§").replace("/s", "§r")
+        for (player in players) {
+            updatePlayerTabList(player, headerText, footerText)
         }
     }
 
-    private fun updatePlayerTabList(player: Player) {
-        val currentValues = mutableMapOf<String, String>()
-
-        for ((key, values) in animation) {
-            if (values.isNotEmpty()) {
-                currentValues["{$key}"] = values[counter % values.size]
-            }
-        }
-
-        val headerText = replaceVariables(head, currentValues)
-        val footerText = replaceVariables(part, currentValues)
-
+    private fun updatePlayerTabList(player: Player, headerText: String, footerText: String) {
         try {
-            val packet = ProtocolLibrary.getProtocolManager()
-                .createPacket(PacketType.Play.Server.PLAYER_LIST_HEADER_FOOTER)
-            packet.chatComponents.write(
-                0,
-                WrappedChatComponent.fromText(
-                    PlaceholderAPI.setPlaceholders(player, headerText.replace("&", "§").replace("/s", "§r"))
-                )
-            )
-            packet.chatComponents.write(
-                1,
-                WrappedChatComponent.fromText(
-                    PlaceholderAPI.setPlaceholders(player, footerText.replace("&", "§").replace("/s", "§r"))
-                )
-            )
-            ProtocolLibrary.getProtocolManager().sendServerPacket(player, packet)
+            val header = if ('%' in headerText) PlaceholderAPI.setPlaceholders(player, headerText) else headerText
+            val footer = if ('%' in footerText) PlaceholderAPI.setPlaceholders(player, footerText) else footerText
+            val previous = lastSent[player.uniqueId]
+            if (previous?.player === player && previous.header == header && previous.footer == footer) return
+
+            sendTabPacket(player, header, footer)
+            // Only successful sends are remembered; reconnects always receive an initial packet.
+            lastSent[player.uniqueId] = SentTab(player, header, footer)
         } catch (e: Exception) {
             player.sendMessage("Error: §${e.message}")
             e.printStackTrace()
         }
+    }
+
+    protected open fun sendTabPacket(player: Player, header: String, footer: String) {
+        val manager = ProtocolLibrary.getProtocolManager()
+        val packet = manager.createPacket(PacketType.Play.Server.PLAYER_LIST_HEADER_FOOTER)
+        packet.chatComponents.write(0, WrappedChatComponent.fromText(header))
+        packet.chatComponents.write(1, WrappedChatComponent.fromText(footer))
+        manager.sendServerPacket(player, packet)
     }
 
     private fun replaceVariables(lines: List<String>, variables: Map<String, String>): String {

@@ -8,6 +8,7 @@ import net.mizukilab.pit.parm.AutoRegister
 import net.mizukilab.pit.util.PlayerUtil
 import net.mizukilab.pit.util.cooldown.Cooldown
 import org.bukkit.Bukkit
+import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -18,6 +19,16 @@ import org.bukkit.metadata.FixedMetadataValue
 @AutoRegister
 @ArmorOnly
 class Regularity : AbstractEnchantment(), Listener {
+    companion object {
+        private val followUp = ThreadLocal<Pair<Player, Player>>()
+
+        @JvmStatic
+        fun isFollowUp(attacker: Player, victim: Entity): Boolean {
+            val hit = followUp.get() ?: return false
+            return hit.first === attacker && hit.second === victim
+        }
+    }
+
     override fun getEnchantName(): String {
         return "狂暴连击"
     }
@@ -62,9 +73,10 @@ class Regularity : AbstractEnchantment(), Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
-
+    // RepairExTend captures this HIGH-phase reader so delayed hits exclude isolated Soul Eater damage.
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun damage(event: EntityDamageByEntityEvent) {
+        if (event.isCancelled) return
         val attacker = event.damager
         if (attacker !is Player) return
 
@@ -92,9 +104,19 @@ class Regularity : AbstractEnchantment(), Listener {
                 val boost = b(level) * 0.01
 
                 Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), {
-
+                    // Later listeners can cancel the hit (including the extension's detached event).
+                    if (event.isCancelled || !attacker.isOnline || !victim.isOnline || victim.isDead) {
+                        return@runTaskLater
+                    }
                     victim.noDamageTicks = 0
-                    victim.damage(event.damage * boost, attacker)
+                    // Scope the marker to synchronous damage dispatch, retaining nested stacked hits.
+                    val previous = followUp.get()
+                    followUp.set(attacker to victim)
+                    try {
+                        victim.damage(event.damage * boost, attacker)
+                    } finally {
+                        if (previous == null) followUp.remove() else followUp.set(previous)
+                    }
                     victim.setMetadata(
                         "regularity_cooldown",
                         FixedMetadataValue(ThePit.getInstance(), System.currentTimeMillis() + 1000L + 2)

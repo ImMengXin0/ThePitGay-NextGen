@@ -26,6 +26,10 @@ public class iSpigot implements Listener {
         INSTANCE = this;
     }
 
+    public void removeMovementHandler(MovementHandler handler) {
+        movementHandlers.removeIf(registered -> registered == handler);
+    }
+
     private void handleMove(Location from2, Location eventTo, Player player, List<MovementHandler> movementHandlers, PlayerMoveEvent event) {
         boolean shouldUpdateRot = from2.getPitch() != eventTo.getPitch() || from2.getYaw() != eventTo.getYaw();
         boolean shouldUpdatePos = from2.getX() != eventTo.getX() || from2.getY() != eventTo.getY() || from2.getZ() != eventTo.getZ();

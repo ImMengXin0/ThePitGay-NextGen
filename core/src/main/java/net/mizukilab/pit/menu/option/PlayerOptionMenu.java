@@ -64,6 +64,7 @@ public class PlayerOptionMenu extends Menu {
             button.put(19, new ProfileVisibilityButton());
             button.put(20, new InventoryVisibilityButton());
             button.put(21, new EnderChestVisibilityButton());
+            button.put(22, new EnchantingVisibilityButton());
 
             button.put(25, new TradeNotifyButton());
 

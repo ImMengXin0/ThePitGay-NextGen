@@ -1,10 +1,9 @@
 
 plugins {
     id("java")
-    id("com.palantir.git-version") version "0.12.3"
 }
-val gitVersion: groovy.lang.Closure<String> by extra
-version = gitVersion() // 自动调用 git describe
+// Keep local builds reproducible when the source is distributed without .git metadata.
+version = providers.gradleProperty("pluginVersion").orElse("4.4.9-20261015").get()
 extra["gitVersionString"] = version.toString()
 allprojects {
     extra["gitVersionString"] = version.toString()

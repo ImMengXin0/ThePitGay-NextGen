@@ -4,6 +4,7 @@ import cn.charlotte.pit.ThePit;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import net.mizukilab.pit.util.chat.CC;
+import net.mizukilab.pit.util.DatabaseTasks;
 import net.mizukilab.pit.util.inventory.InventoryUtil;
 import net.mizukilab.pit.util.menu.Button;
 import net.mizukilab.pit.util.menu.Menu;
@@ -26,9 +27,10 @@ public class AllSavedMythicItemsMenu extends Menu {
 
     private static final int ITEMS_PER_PAGE = 45;
 
-    private final int page;
+    private int page;
     private final String playerId; // 添加玩家ID字段
     private List<Document> items;
+    private long totalItems;
 
     public AllSavedMythicItemsMenu() {
         this(1, null);
@@ -39,22 +41,50 @@ public class AllSavedMythicItemsMenu extends Menu {
     }
 
     public AllSavedMythicItemsMenu(int page, String playerId) {
-        this.page = page;
+        this.page = Math.max(1, page);
         this.playerId = playerId;
-        this.setAutoUpdate(true);
+        this.setAutoUpdate(false);
     }
 
     public AllSavedMythicItemsMenu(List<Document> items, String playerId) {
-        this.items = items;
+        this.items = new ArrayList<>(items.subList(0, Math.min(items.size(), ITEMS_PER_PAGE)));
+        this.totalItems = items.size();
         this.page = 1;
         this.playerId = playerId;
         this.setAutoUpdate(false);
     }
 
     @Override
+    public void openMenu(Player player) {
+        if (!player.isOnline() || !player.hasPermission("pit.admin")) return;
+        if (items != null) {
+            super.openMenu(player);
+            return;
+        }
+        Menu previous = Menu.find(player);
+        DatabaseTasks.submit(player, () -> {
+            MongoCollection<Document> collection = ThePit.getInstance().getMongoDB().getDatabase().getCollection("saved_mythic_items");
+            Document filter = playerId == null ? new Document() : new Document("createdByName", playerId);
+            long total = collection.countDocuments(filter);
+            int lastPage = (int) Math.max(1, (total + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE);
+            int selectedPage = Math.min(page, lastPage);
+            List<Document> found = collection.find(filter).sort(new Document("createdAt", -1).append("_id", -1))
+                    .skip((selectedPage - 1) * ITEMS_PER_PAGE).limit(ITEMS_PER_PAGE).into(new ArrayList<>());
+            return new PageResult(selectedPage, total, found);
+        }, result -> {
+            if (!player.hasPermission("pit.admin") || Menu.find(player) != previous) return;
+            page = result.page;
+            totalItems = result.total;
+            items = result.items;
+            super.openMenu(player);
+        });
+    }
+
+    private record PageResult(int page, long total, List<Document> items) {}
+
+    @Override
     public String getTitle(Player player) {
-        loadItems();
-        int totalPages = (items.size() + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE;
+        long totalPages = Math.max(1, (totalItems + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE);
         if (playerId != null) {
             return CC.translate("&8(" + page + "/" + totalPages + ") " + playerId + " 保存的物品");
         }
@@ -69,9 +99,9 @@ public class AllSavedMythicItemsMenu extends Menu {
     @Override
     public Map<Integer, Button> getButtons(Player player) {
         Map<Integer, net.mizukilab.pit.util.menu.Button> buttons = new HashMap<>();
-        loadItems();
-        int startIndex = (page - 1) * ITEMS_PER_PAGE;
-        int endIndex = Math.min(startIndex + ITEMS_PER_PAGE, items.size());
+        if (items == null) return buttons;
+        int startIndex = 0;
+        int endIndex = items.size();
 
         int slot = 0;
         for (int i = startIndex; i < endIndex; i++) {
@@ -103,7 +133,7 @@ public class AllSavedMythicItemsMenu extends Menu {
         }
 
         // 下一页
-        if (endIndex < items.size()) {
+        if ((long) page * ITEMS_PER_PAGE < totalItems) {
             buttons.put(53, new Button() {
                 @Override
                 public ItemStack getButtonItem(Player player) {
@@ -147,27 +177,6 @@ public class AllSavedMythicItemsMenu extends Menu {
         return buttons;
     }
 
-    private void loadItems() {
-        if (this.items != null) {
-            return;
-        }
-        this.items = new ArrayList<>();
-        MongoCollection<Document> collection = ThePit.getInstance().getMongoDB().getDatabase().getCollection("saved_mythic_items");
-        
-        FindIterable<Document> iterable;
-        if (playerId != null) {
-            // 如果指定了玩家ID，则只加载该玩家的物品
-            iterable = collection.find(new Document("createdByName", playerId)).sort(new Document("createdAt", -1));
-        } else {
-            // 否则加载所有物品
-            iterable = collection.find().sort(new Document("createdAt", -1)); // 按创建时间倒序排序
-        }
-        
-        for (Document doc : iterable) {
-            this.items.add(doc);
-        }
-    }
-
     private static class ItemButton extends Button {
         private final Document document;
         private final int currentPage;
@@ -204,15 +213,14 @@ public class AllSavedMythicItemsMenu extends Menu {
             String uuid = document.getString("uuid");
             String encodedItem = document.getString("item");
 
+            if (!player.hasPermission("pit.admin")) return;
             if (clickType == ClickType.SHIFT_RIGHT) {
                 MongoCollection<Document> collection = ThePit.getInstance().getMongoDB().getDatabase().getCollection("saved_mythic_items");
-                collection.deleteOne(new Document("uuid", uuid));
-                player.sendMessage(CC.translate("&a成功删除物品!"));
-                if (playerId != null) {
-                    new AllSavedMythicItemsMenu(currentPage, playerId).openMenu(player);
-                } else {
-                    new AllSavedMythicItemsMenu(currentPage).openMenu(player);
-                }
+                Menu previous = Menu.find(player);
+                DatabaseTasks.submit(player, () -> collection.deleteOne(new Document("uuid", uuid)), result -> {
+                    player.sendMessage(CC.translate(result.getDeletedCount() > 0 ? "&a成功删除物品!" : "&c记录已不存在。"));
+                    if (Menu.find(player) == previous) new AllSavedMythicItemsMenu(currentPage, playerId).openMenu(player);
+                });
                 return;
             }
 

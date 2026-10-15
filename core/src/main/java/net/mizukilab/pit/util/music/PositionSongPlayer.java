@@ -1,11 +1,16 @@
 package net.mizukilab.pit.util.music;
 
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PositionSongPlayer extends SongPlayer {
 
-    private Location targetLocation;
+    private volatile Location targetLocation;
+    private record FrameNote(Sound sound, float volume, float pitch) { }
+    private List<FrameNote> frameNotes;
 
     public PositionSongPlayer(Song song) {
         super(song);
@@ -21,21 +26,34 @@ public class PositionSongPlayer extends SongPlayer {
 
     @Override
     public void playTick(Player p, int tick) {
-        if (!p.getWorld().getName().equals(targetLocation.getWorld().getName())) {
+        Location location = targetLocation;
+        if (location == null || location.getWorld() == null || !p.getWorld().equals(location.getWorld())) {
             // not in same world
             return;
         }
         byte playerVolume = NoteBlockPlayerMain.getPlayerVolume(p);
 
-        for (Layer l : song.getLayerHashMap().values()) {
-            Note note = l.getNote(tick);
-            if (note == null) {
-                continue;
-            }
-            p.playSound(targetLocation,
-                    Instrument.getInstrument(note.getInstrument()),
-                    (l.getVolume() * (int) volume * (int) playerVolume) / 1000000f,
-                    NotePitch.getPitch(note.getKey() - 33));
+        List<FrameNote> notes = frameNotes == null ? notesAt(tick) : frameNotes;
+        for (FrameNote note : notes) {
+            p.playSound(location, note.sound(), note.volume() * volume * playerVolume / 1000000f, note.pitch());
         }
+    }
+
+    private List<FrameNote> notesAt(int tick) {
+        List<FrameNote> notes = new ArrayList<>();
+        for (Layer layer : song.getLayerHashMap().values()) {
+            Note note = layer.getNote(tick);
+            if (note != null) notes.add(new FrameNote(Instrument.getInstrument(note.getInstrument()),
+                    layer.getVolume(), NotePitch.getPitch(note.getKey() - 33)));
+        }
+        return notes;
+    }
+
+    @Override
+    protected void playFrame(int tick) {
+        // Resolve sparse NBS layers once per frame while retaining virtual playTick dispatch.
+        frameNotes = notesAt(tick);
+        try { super.playFrame(tick); }
+        finally { frameNotes = null; }
     }
 }

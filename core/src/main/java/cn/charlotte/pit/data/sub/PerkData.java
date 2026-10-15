@@ -32,25 +32,20 @@ public class PerkData {
     }
 
     public ITickTask getITickTask(Map<String,AbstractPerk> globalMap,Map<AbstractPerk, ITickTask> tickTasks) {
-        if (iTickTask != null) {
-            return iTickTask;
-        }
-
         iTickTask = tickTasks.get(getHandle(globalMap));
         return iTickTask;
     }
 
     @JsonIgnore
     public AbstractPerk getHandle(Map<String, AbstractPerk> perks) {
-        if (handle != null) {
-            return handle;
-        }
         handle = perks.get(getPerkInternalName());
         return handle;
     }
 
     public void setPerkInternalName(String perkInternalName) {
         this.perkInternalName = perkInternalName;
+        this.handle = null;
+        this.iTickTask = null;
     }
 
     public int getLevel() {

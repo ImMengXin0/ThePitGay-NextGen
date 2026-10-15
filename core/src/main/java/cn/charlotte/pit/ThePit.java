@@ -25,6 +25,7 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.mizukilab.pit.Loader;
 import net.mizukilab.pit.actionbar.IActionBarManager;
+import net.mizukilab.pit.compat.NpcViewCompatibility;
 import net.mizukilab.pit.config.ConfigManager;
 import net.mizukilab.pit.config.PitGlobalConfig;
 import net.mizukilab.pit.config.PitWorldConfig;
@@ -113,6 +114,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
     @Getter
     private net.mizukilab.pit.npc.CustomEntityNPCFactory customEntityNPCFactory;
     @Getter
+    @Setter
     private NametagHandler nametagHandler;
     private IItemFactory factory;
     @Getter
@@ -152,6 +154,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
     private IProfilerOperator profileOperator;
     private PlayerPointsAPI playerPoints;
     private LuckPerms luckPerms;
+    private NpcViewCompatibility npcViewCompatibility;
 
     @Setter
     @Getter
@@ -235,6 +238,8 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
     }
 
     private void postLoad() {
+        npcViewCompatibility = new NpcViewCompatibility(this);
+        npcViewCompatibility.start();
         loadEventPoller();
     }
 
@@ -322,6 +327,8 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
     @Override
     public void onDisable() {
+        if (npcViewCompatibility != null) npcViewCompatibility.close();
+        net.mizukilab.pit.menu.trade.TradeManager.cancelAll();
         PacketHologramRunnable.deSpawnAll();
         synchronized (Bukkit.getOnlinePlayers()) {
             CC.boardCast0("&6&l公告! &7正在执行关闭服务器...");

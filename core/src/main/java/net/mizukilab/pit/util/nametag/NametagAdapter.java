@@ -22,4 +22,9 @@ public interface NametagAdapter {
      */
     boolean showHealthBelowName(Player player);
 
+    /** Opt in only when every viewer receives the same plates for this update. */
+    default boolean isViewerIndependent() {
+        return false;
+    }
+
 }

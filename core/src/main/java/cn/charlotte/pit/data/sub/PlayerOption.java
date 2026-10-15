@@ -25,6 +25,16 @@ public class PlayerOption {
 
 
     private BarPriority barPriority = BarPriority.DAMAGE_PRIORITY;
+    // Public by default, with the same supporter restriction as the other privacy options.
+    private boolean enchantingVisibility = true;
+
+    public boolean isEnchantingVisibility() {
+        return enchantingVisibility;
+    }
+
+    public void setEnchantingVisibility(boolean enchantingVisibility) {
+        this.enchantingVisibility = enchantingVisibility;
+    }
     //admin only
     private boolean debugDamageMessage = false;
     //vip only

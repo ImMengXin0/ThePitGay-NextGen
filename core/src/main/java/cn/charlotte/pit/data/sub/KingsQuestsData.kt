@@ -14,8 +14,17 @@ class KingsQuestsData {
 
 
     fun checkUpdate() {
+        val runningUuid = ThePit.api?.runningKingsQuestsUuid ?: return
         if (currentKingQuestsUuid == null) {
+            currentKingQuestsUuid = runningUuid
             return
+        }
+        if (currentKingQuestsUuid != runningUuid) {
+            currentKingQuestsUuid = runningUuid
+            accepted = false
+            completed = false
+            killedPlayer = 0
+            collectedRenown = 0
         }
     }
 

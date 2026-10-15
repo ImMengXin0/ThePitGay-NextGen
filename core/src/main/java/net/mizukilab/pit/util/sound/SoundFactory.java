@@ -45,6 +45,10 @@ public class SoundFactory extends BukkitRunnable {
         }
     }
 
+    public java.util.Set<String> getSoundNames() {
+        return pitSounds == null ? java.util.Set.of() : java.util.Collections.unmodifiableSet(pitSounds.keySet());
+    }
+
     @Override
     public void run() {
         for (Map.Entry<String, AbstractPitSound> entry : this.pitSounds.entrySet()) {

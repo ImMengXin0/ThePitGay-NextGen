@@ -17,6 +17,9 @@ import net.mizukilab.pit.events.impl.*
 import net.mizukilab.pit.events.impl.major.*
 import net.mizukilab.pit.item.AbstractPitItem
 import net.mizukilab.pit.item.type.AngelChestplate
+import net.mizukilab.pit.item.type.AngelBoots
+import net.mizukilab.pit.item.type.AngelHelmet
+import net.mizukilab.pit.item.type.AngelLeggings
 import net.mizukilab.pit.item.type.ArmageddonBoots
 import net.mizukilab.pit.item.type.ChunkOfVileItem
 import net.mizukilab.pit.item.type.mythic.MythicBowItem
@@ -38,6 +41,7 @@ import net.mizukilab.pit.menu.warehouse.WarehouseMainMenu
 import net.mizukilab.pit.util.Utils
 import net.mizukilab.pit.util.item.ItemUtil
 import net.mizukilab.pit.util.menu.Menu
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -48,7 +52,17 @@ object PitInternalImpl : PitInternalHook {
     @JvmStatic
     var loaded = false
     override fun openMythicWellMenu(player: Player?) {
-        MythicWellMenu(player!!).openMenu(player)
+        if (player == null) return
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(ThePit.getInstance(), Runnable { openMythicWellMenu(player) })
+            return
+        }
+        val current = Menu.find(player, player.openInventory.topInventory)
+        if (current is MythicWellMenu) {
+            current.openMenu(player)
+        } else {
+            MythicWellMenu(player).openMenu(player)
+        }
     }
 
     override fun openAuctionMenu(player: Player?) {
@@ -247,6 +261,12 @@ object PitInternalImpl : PitInternalHook {
             MythicLeggingsItem()
         } else if ("angel_chestplate" == internalName) {
             AngelChestplate()
+        } else if ("angel_boots" == internalName) {
+            AngelBoots()
+        } else if ("angel_helmet" == internalName) {
+            AngelHelmet()
+        } else if ("angel_leggings" == internalName) {
+            AngelLeggings()
         } else if ("armageddon_boots" == internalName) {
             ArmageddonBoots()
         } else {

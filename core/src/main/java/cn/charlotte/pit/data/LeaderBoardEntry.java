@@ -14,7 +14,8 @@ import java.util.UUID;
 @Getter
 public class LeaderBoardEntry {
 
-    private static Object2ObjectLinkedOpenHashMap<UUID,LeaderBoardEntry> leaderBoardEntries = new Object2ObjectLinkedOpenHashMap<>();
+    private static volatile Object2ObjectLinkedOpenHashMap<UUID,LeaderBoardEntry> leaderBoardEntries = new Object2ObjectLinkedOpenHashMap<>();
+    private static volatile List<LeaderBoardEntry> legacyEntries = List.of();
 
     private final String name;
     private final UUID uuid;
@@ -35,7 +36,21 @@ public class LeaderBoardEntry {
     }
 
     public static void setLeaderBoardEntries(Object2ObjectLinkedOpenHashMap<UUID,LeaderBoardEntry> leaderBoardEntries) {
+        legacyEntries = List.copyOf(leaderBoardEntries.values());
         LeaderBoardEntry.leaderBoardEntries = leaderBoardEntries;
+    }
+
+    /** The build adds getLeaderBoardEntries():List as a JVM bridge to this snapshot.
+     * Java cannot declare two methods differing only in return type.
+     */
+    public static List<LeaderBoardEntry> getLegacyLeaderBoardEntries() {
+        return legacyEntries;
+    }
+
+    public static void setLeaderBoardEntries(List<LeaderBoardEntry> entries) {
+        Object2ObjectLinkedOpenHashMap<UUID, LeaderBoardEntry> indexed = new Object2ObjectLinkedOpenHashMap<>();
+        for (LeaderBoardEntry entry : entries) indexed.put(entry.getUuid(), entry);
+        setLeaderBoardEntries(indexed);
     }
 
     @Override

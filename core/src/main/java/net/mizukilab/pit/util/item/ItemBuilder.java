@@ -11,6 +11,7 @@ import com.mojang.authlib.properties.Property;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.v1_8_R3.*;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
+import net.mizukilab.pit.item.IMythicItem;
 import net.mizukilab.pit.util.PublicUtil;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
@@ -255,6 +256,11 @@ public class ItemBuilder {
         return this;
     }
 
+    public ItemBuilder canReplace(boolean allow) {
+        this.changeNbt("canReplace", allow);
+        return this;
+    }
+
     public ItemBuilder enchantment(Enchantment enchantment) {
         this.is.addUnsafeEnchantment(enchantment, 1);
         return this;
@@ -348,6 +354,9 @@ public class ItemBuilder {
         net.minecraft.server.v1_8_R3.ItemStack nmsItem = PublicUtil.toNMStackQuick(is);
         NBTTagCompound tag = getNbtTagCompound(nmsItem.getTag());
         NBTTagCompound extra = getNbtTagCompound(tag.getCompound("extra"));
+        if ("ench".equals(key) && extra.hasKey(key) && !java.util.Objects.equals(extra.get(key), value)) {
+            IMythicItem.clearCache(is);
+        }
         if (value == null) {
             extra.remove(key);
         } else {
@@ -380,6 +389,13 @@ public class ItemBuilder {
         net.minecraft.server.v1_8_R3.ItemStack nmsItem = PublicUtil.toNMStackQuick(is);
         NBTTagCompound tag = getNbtTagCompound(nmsItem.getTag());
         NBTTagCompound extra = getNbtTagCompound(tag.getCompound("extra"));
+        // Addon card redemption writes stats after caching the enchanted template.
+        // Invalidate on edits so its inventory refresh cannot restore the old stats.
+        // Fresh serialization has no previous field and must keep the live cache.
+        if (extra.hasKey(key) && extra.getInt(key) != value
+                && ("tier".equals(key) || "live".equals(key) || "maxLive".equals(key))) {
+            IMythicItem.clearCache(is);
+        }
         extra.setInt(key, value);
         tag.set("extra", extra);
 
@@ -454,20 +470,13 @@ public class ItemBuilder {
     }
 
     public ItemBuilder enchant(Map<AbstractEnchantment, Integer> enchant) {
-        net.minecraft.server.v1_8_R3.ItemStack nmsItem = PublicUtil.toNMStackQuick(is);
-        NBTTagCompound tag = getNbtTagCompound(nmsItem.getTag());
-        NBTTagCompound extra = getNbtTagCompound(tag.getCompound("extra"));
         NBTTagList nbtTagList = new NBTTagList();
 
         for (Map.Entry<AbstractEnchantment, Integer> entry : enchant.entrySet()) {
             NBTTagString nbtTagString = new NBTTagString(entry.getKey().getNbtName() + ":" + entry.getValue());
             nbtTagList.add(nbtTagString);
         }
-        extra.set("ench", nbtTagList);
-
-        this.is = CraftItemStack.asBukkitCopy(nmsItem);
-
-        return this;
+        return changeNbtList("ench", nbtTagList);
     }
 
     public ItemBuilder maxLive(int live) {

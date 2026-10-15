@@ -52,7 +52,7 @@ import java.util.stream.Collectors;
 
 public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener {
     @Getter
-    private final Map<UUID, DamageData> damageMap = new HashMap<>();
+    private final Map<UUID, DamageData> damageMap = new java.util.concurrent.ConcurrentHashMap<>();
     private EditSession session;
     @Getter
     private int killed = 0;
@@ -68,20 +68,34 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
     }
     public int getDamageRank(Player player) {
         DamageData damage = damageMap.get(player.getUniqueId());
-        HashSet<Map.Entry<UUID, DamageData>> entry = new HashSet<>(damageMap.entrySet());
-
-        Map<Double, Integer> rank = new HashMap<>();
-        int i = 1;
-
-        for (DamageData en : entry.stream()
-                .map(Map.Entry::getValue)
-                .sorted(Comparator.comparingDouble(DamageData::getDamage).reversed())
-                .toList()) {
-            rank.put(en.getDamage(), i);
-            i++;
+        if (damage == null) return -1;
+        double value = damage.getDamage();
+        int rank = 0;
+        // Preserve the old rule: tied scores all receive the last position in the tie.
+        for (DamageData other : damageMap.values()) {
+            if (Double.compare(other.getDamage(), value) >= 0) rank++;
         }
+        return rank;
+    }
 
-        return rank.get(damage.getDamage());
+    public record DamageStanding(double damage, int rank) { }
+
+    /** Immutable values shared by every scoreboard in one refresh, never cached by time. */
+    public Map<UUID, DamageStanding> getDamageStandings() {
+        List<Map.Entry<UUID, Double>> scores = new ArrayList<>(damageMap.size());
+        damageMap.forEach((uuid, data) -> scores.add(Map.entry(uuid, data.getDamage())));
+        scores.sort(Map.Entry.<UUID, Double>comparingByValue().reversed());
+        Map<UUID, DamageStanding> standings = new HashMap<>();
+        for (int start = 0; start < scores.size();) {
+            int end = start + 1;
+            double damage = scores.get(start).getValue();
+            while (end < scores.size() && Double.compare(scores.get(end).getValue(), damage) == 0) end++;
+            for (int i = start; i < end; i++) {
+                standings.put(scores.get(i).getKey(), new DamageStanding(damage, end));
+            }
+            start = end;
+        }
+        return Collections.unmodifiableMap(standings);
     }
 
     @Override
@@ -334,6 +348,6 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
     public static class DamageData {
 
         private UUID uuid;
-        private double damage;
+        private volatile double damage;
     }
 }

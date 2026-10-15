@@ -26,6 +26,12 @@ import java.util.List;
 public class NameTagImpl implements NametagAdapter {
 
     @Override
+    public boolean isViewerIndependent() {
+        // Subclasses may override getPlate with viewer-specific formatting.
+        return getClass() == NameTagImpl.class;
+    }
+
+    @Override
     public List<BufferedNametag> getPlate(Player player) {
         List<BufferedNametag> tags = new ObjectArrayList<>();
         List<PlayerProfile> profiles = new ObjectArrayList<>();

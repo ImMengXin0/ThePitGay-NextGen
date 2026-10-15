@@ -3,12 +3,16 @@ import java.util.Scanner
 import org.apache.tools.ant.filters.ReplaceTokens
 import proguard.gradle.ProGuardTask
 import java.io.ByteArrayOutputStream
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.Opcodes
 buildscript {
     repositories {
         mavenCentral()
     }
     dependencies {
         classpath("com.guardsquare:proguard-gradle:7.7.0")
+        classpath("org.ow2.asm:asm:9.7.1")
     }
 }
 plugins {
@@ -22,6 +26,16 @@ group = "top.mcrw"
 
 version = "V"
 repositories {
+    exclusiveContent {
+        forRepository { mavenCentral() }
+        filter {
+            includeGroup("junit")
+            includeGroup("org.hamcrest")
+            includeGroup("org.mockito")
+            includeGroup("net.bytebuddy")
+            includeGroup("org.objenesis")
+        }
+    }
     maven("https://maven.aliyun.com/repository/public/") {
         content {
             includeGroupByRegex(".*")
@@ -81,8 +95,13 @@ tasks.named<ShadowJar>("shadowJar") {
     mergeServiceFiles()
 }
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.mockito:mockito-inline:4.11.0")
 
     compileOnly(fileTree("../packLib"))
+    // PandaSpigot adds the tracker/spawn events used by the source tree.
+    compileOnly(files(rootProject.file(providers.gradleProperty("pandaSpigotJar")
+        .orElse("libs/pandaspigot-221.jar").get())))
     compileOnly(fileTree(mapOf("dir" to "../libs", "include" to listOf("*.jar"))))
     implementation(libs.reflectionhelper)
 
@@ -114,12 +133,65 @@ dependencies {
     implementation(libs.adventure.bukkit)
     implementation(kotlin("reflect"))
 }
+sourceSets.test {
+    compileClasspath += configurations.compileClasspath.get()
+    runtimeClasspath += configurations.compileClasspath.get()
+}
+tasks.test {
+    useJUnit()
+    // Binary integration tests need the same relocated libraries shipped to Bukkit.
+    dependsOn(tasks.named("shadowJar"))
+    val repairExtendJar = rootProject.file(providers.gradleProperty("repairExtendJar")
+        .orElse("test-fixtures/ThePitRepairExTend-4.0.0.jar").get())
+    inputs.files(repairExtendJar).withPropertyName("repairExtendJar")
+    systemProperty("repairExtendJar", repairExtendJar.absolutePath)
+    for ((property, path) in mapOf(
+        "pitAddonJar" to "test-fixtures/ThePitAddon-MistralNetWork-Server-6.7-SNAPSHOT.jar",
+        "pitAddonLoaderJar" to "test-fixtures/ThePitAddon-MistralNetWork-Loader-6.7-SNAPSHOT.jar",
+        "npcViewJar" to "test-fixtures/NPCView-1.0-SNAPSHOT.jar"
+    )) {
+        val fixture = rootProject.file(providers.gradleProperty(property).orElse(path).get())
+        inputs.files(fixture).withPropertyName(property)
+        systemProperty(property, fixture.absolutePath)
+    }
+}
 kotlin {
     jvmToolchain(17)
 }
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
+}
+
+tasks.named<JavaCompile>("compileJava") {
+    // JVM descriptors include the return type. Preserve both the old List getter
+    // and the current fastutil Map getter; Java source cannot express this overload.
+    doLast {
+        val classFile = destinationDirectory.file("cn/charlotte/pit/data/LeaderBoardEntry.class").get().asFile
+        val reader = ClassReader(classFile.readBytes())
+        val writer = ClassWriter(reader, 0)
+        var hasBridge = false
+        reader.accept(object : org.objectweb.asm.ClassVisitor(Opcodes.ASM9, writer) {
+            override fun visitMethod(access: Int, name: String, descriptor: String, signature: String?, exceptions: Array<out String>?): org.objectweb.asm.MethodVisitor? {
+                if (name == "getLeaderBoardEntries" && descriptor == "()Ljava/util/List;") hasBridge = true
+                return super.visitMethod(access, name, descriptor, signature, exceptions)
+            }
+            override fun visitEnd() {
+                if (!hasBridge) {
+                    val method = super.visitMethod(Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_SYNTHETIC or Opcodes.ACC_BRIDGE,
+                        "getLeaderBoardEntries", "()Ljava/util/List;", null, null)
+                    method.visitCode()
+                    method.visitMethodInsn(Opcodes.INVOKESTATIC, "cn/charlotte/pit/data/LeaderBoardEntry",
+                        "getLegacyLeaderBoardEntries", "()Ljava/util/List;", false)
+                    method.visitInsn(Opcodes.ARETURN)
+                    method.visitMaxs(1, 0)
+                    method.visitEnd()
+                }
+                super.visitEnd()
+            }
+        }, 0)
+        classFile.writeBytes(writer.toByteArray())
+    }
 }
 
 tasks.withType<Javadoc> {

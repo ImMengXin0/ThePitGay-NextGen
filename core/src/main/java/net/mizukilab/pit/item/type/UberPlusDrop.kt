@@ -26,8 +26,18 @@ import kotlin.random.Random
  */
 class UberPlusDrop : AbstractPitItem(), Listener {
 
+    companion object {
+        @JvmStatic
+        fun isPlusDrop(item: ItemStack): Boolean {
+            val internalName = ItemUtil.getInternalName(item)
+            return internalName == "uber_plus_drop" ||
+                (internalName == "uber_drop" && item.containsEnchantment(Enchantment.THORNS) &&
+                    item.itemMeta?.displayName == CC.translate("&c不朽登峰造极掉落物"))
+        }
+    }
+
     override fun getInternalName(): String {
-        return "uber_drop"
+        return "uber_plus_drop"
     }
 
     override fun getItemDisplayName(): String {
@@ -51,7 +61,7 @@ class UberPlusDrop : AbstractPitItem(), Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onInteract(event: BlockPlaceEvent) {
         val itemInHand = event.itemInHand ?: return
-        if ("uber_drop" == ItemUtil.getInternalName(itemInHand)) {
+        if (isPlusDrop(itemInHand)) {
             event.isCancelled = true
 
             val player = event.player

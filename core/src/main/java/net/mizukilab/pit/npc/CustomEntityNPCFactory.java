@@ -18,6 +18,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
@@ -34,6 +35,8 @@ public class CustomEntityNPCFactory implements Listener {
     private final Map<UUID, AbstractCustomEntityNPC> entityToNPCMap = new HashMap<>();
 
     private final Map<UUID, Map<UUID, List<Hologram>>> playerNPCHolograms = new HashMap<>();
+
+    private final Map<UUID, BukkitTask> fixedPositionTasks = new HashMap<>();
 
     public boolean isCustomNPC(Entity entity) {
         return entityToNPCMap.containsKey(entity.getUniqueId());
@@ -164,18 +167,7 @@ public class CustomEntityNPCFactory implements Listener {
                     nmsEntity.f(nbt);
                     
 
-                    final Location fixedLocation = entity.getLocation();
-                    Bukkit.getScheduler().runTaskTimer(ThePit.getInstance(), () -> {
-                        if (entity.isValid() && !entity.isDead()) {
-                            if (entity.getLocation().distance(fixedLocation) > 0.1) {
-                                entity.teleport(fixedLocation);
-                            }
-
-                            if (entity instanceof Bat) {
-                                ((Bat) entity).setAwake(true);
-                            }
-                        }
-                    }, 1L, 5L);
+                    trackFixedPosition(entity);
                     
                 } catch (Exception e) {
                     Bukkit.getLogger().warning("失败: " + e.getMessage());
@@ -211,6 +203,28 @@ public class CustomEntityNPCFactory implements Listener {
         }
     }
 
+    void trackFixedPosition(Entity entity) {
+        UUID id = entity.getUniqueId();
+        stopFixedPosition(id);
+        Location fixedLocation = entity.getLocation().clone();
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(ThePit.getInstance(), () -> {
+            if (!entity.isValid() || entity.isDead()) {
+                stopFixedPosition(id);
+                return;
+            }
+            Location current = entity.getLocation();
+            if (!Objects.equals(current.getWorld(), fixedLocation.getWorld())
+                    || current.distanceSquared(fixedLocation) > 0.01) entity.teleport(fixedLocation);
+            if (entity instanceof Bat bat) bat.setAwake(true);
+        }, 1L, 5L);
+        fixedPositionTasks.put(id, task);
+    }
+
+    private void stopFixedPosition(UUID id) {
+        BukkitTask task = fixedPositionTasks.remove(id);
+        if (task != null) task.cancel();
+    }
+
     private double getHologramHeight(EntityType entityType) {
         switch (entityType) {
             case IRON_GOLEM:
@@ -229,6 +243,7 @@ public class CustomEntityNPCFactory implements Listener {
             Entity entity = npc.getEntity();
             if (entity == null || entity.isDead()) {
                 if (entity != null) {
+                    stopFixedPosition(entity.getUniqueId());
                     entityToNPCMap.remove(entity.getUniqueId());
                     cleanupNPCHolograms(entity.getUniqueId());
                 }
@@ -307,6 +322,8 @@ public class CustomEntityNPCFactory implements Listener {
     }
 
     private void cleanup() {
+        fixedPositionTasks.values().forEach(BukkitTask::cancel);
+        fixedPositionTasks.clear();
         entityToNPCMap.values().forEach(npc -> {
             if (npc.getEntity() != null && !npc.getEntity().isDead()) {
                 npc.getEntity().remove();

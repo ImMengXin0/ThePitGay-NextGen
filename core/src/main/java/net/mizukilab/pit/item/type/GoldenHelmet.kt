@@ -46,16 +46,7 @@ class GoldenHelmet : IMythicItem(), Listener {
         this.uuid = ItemUtil.getUUIDObj(item)
         this.maxLive = extra.getInt("maxLive")
         this.live = extra.getInt("live")
-        if (extra.hasKey("forceCanTrade")) {
-            if (extra.getBoolean("forceCanTrade")) {
-                this.forceCanTrade = 1;
-            } else {
-                this.forceCanTrade = 0;
-            }
-        }
-        if (extra.hasKey("customName")) {
-            this.customName = extra.getString("customName")
-        }
+        loadNameData(item, extra)
 
     }
 

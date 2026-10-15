@@ -1,6 +1,8 @@
 package cn.charlotte.pit.data.sub;
 
 import java.util.Objects;
+import java.time.Instant;
+import java.time.ZoneId;
 
 /**
  * @Author: Misoryan
@@ -19,6 +21,18 @@ public class TradeLimit {
         this.lastRefresh = lastRefresh;
         this.times = times;
         this.amount = amount;
+    }
+
+    public void refresh() {
+        long now = System.currentTimeMillis();
+        ZoneId zone = ZoneId.systemDefault();
+        var currentDay = Instant.ofEpochMilli(now).atZone(zone).minusHours(4).toLocalDate();
+        var lastDay = Instant.ofEpochMilli(lastRefresh).atZone(zone).minusHours(4).toLocalDate();
+        if (currentDay.isAfter(lastDay)) {
+            lastRefresh = now;
+            times = 0;
+            amount = 0;
+        }
     }
 
     public long getLastRefresh() {

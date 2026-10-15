@@ -7,21 +7,28 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.function.Supplier;
+
 /**
  * @Author: Misoryan
  * @Created_In: 2021/3/28 18:56
  */
 public class PitItemButton extends Button {
 
-    private final ItemStack itemStack;
+    private final Supplier<ItemStack> itemSupplier;
 
     public PitItemButton(ItemStack itemStack) {
-        this.itemStack = itemStack;
+        this.itemSupplier = () -> itemStack;
+    }
+
+    /** Generates a fresh item on each click, including its unique equipment UUID. */
+    public PitItemButton(Supplier<ItemStack> itemSupplier) {
+        this.itemSupplier = itemSupplier;
     }
 
     @Override
     public ItemStack getButtonItem(Player player) {
-        return CraftItemStack.asCraftCopy(itemStack).clone();
+        return CraftItemStack.asCraftCopy(itemSupplier.get()).clone();
     }
 
     @Override

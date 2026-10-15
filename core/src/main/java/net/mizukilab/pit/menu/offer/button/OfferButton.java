@@ -2,99 +2,80 @@ package net.mizukilab.pit.menu.offer.button;
 
 import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.data.PlayerProfile;
-import cn.charlotte.pit.data.TradeData;
-import cn.charlotte.pit.data.operator.IOperator;
 import cn.charlotte.pit.data.sub.OfferData;
-import cn.charlotte.pit.data.sub.PlayerInv;
-import lombok.RequiredArgsConstructor;
-import net.mizukilab.pit.medal.impl.challenge.FirstTradeMedal;
-import net.mizukilab.pit.util.chat.CC;
-import net.mizukilab.pit.util.inventory.InventoryUtil;
+import net.mizukilab.pit.menu.trade.TradeManager;
+import net.mizukilab.pit.trade.TradeInventory;
 import net.mizukilab.pit.util.item.ItemBuilder;
 import net.mizukilab.pit.util.menu.Button;
-import net.mizukilab.pit.util.time.TimeUtil;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
-
-import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 
-/**
- * @Creator Misoryan
- * @Date 2021/5/29 13:58
- */
-@RequiredArgsConstructor
 public class OfferButton extends Button {
-
     private final Player target;
-
-    @Override
-    public ItemStack getButtonItem(Player player) {
-        PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-        IOperator orLoadOperatorOffline = ThePit.getInstance().getProfileOperator().getOrConstructIOperator(target);
-        ItemBuilder builder = new ItemBuilder(Material.STAINED_CLAY)
-                .name("&e交易报价");
-
-        PlayerProfile targetProfile = orLoadOperatorOffline.profile();
-        List<String> lines = new ArrayList<>();
-        lines.add("&7来自: " + targetProfile.getFormattedName());
-        lines.add("");
-        lines.add("&7价格: &6" + (int) targetProfile.getOfferData().getPrice() + " 硬币");
-        lines.add("&7过期: &e" + (TimeUtil.millisToRoundedTime(targetProfile.getOfferData().getEndTime() - System.currentTimeMillis()).replace(" ", "") + "后"));
-        lines.add("");
-        if (targetProfile.getOfferData().getPrice() > profile.getCoins()) {
-            lines.add("&c你的硬币不足!");
-            builder.durability(14);
-        } else {
-            lines.add("&e点击接受!");
-            builder.durability(5);
-        }
-        return builder.lore(lines).build();
+    private final OfferData expected;
+    public OfferButton(Player target) {
+        this(target, PlayerProfile.getPlayerProfileByUuid(target.getUniqueId()).getOfferData());
     }
-
-    @Override
-    public void clicked(Player player, int slot, ClickType clickType, int hotbarButton, ItemStack currentItem) {
-        if (InventoryUtil.isInvFull(player)) {
-            player.sendMessage(CC.translate("&c你的背包已满!"));
-            return;
+    public OfferButton(Player target, OfferData offer) { this.target = target; expected = offer; }
+    @Override public ItemStack getButtonItem(Player player) {
+        return new ItemBuilder(Material.STAINED_CLAY).durability(5).name("&e接受交易报价")
+                .lore("&7卖家: " + target.getName(), "&7价格: &6" + (long) expected.getPrice() + " 硬币",
+                        "&e点击接受，成交前将再次检查报价。").build();
+    }
+    @Override public void clicked(Player player, int slot, ClickType click, int hotbar, ItemStack current) {
+        if (!Bukkit.isPrimaryThread() || (click != ClickType.LEFT && click != ClickType.RIGHT)
+                || !player.isOnline() || !target.isOnline() || player.isDead() || target.isDead()
+                || player.getUniqueId().equals(target.getUniqueId())) return;
+        PlayerProfile buyer = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
+        PlayerProfile seller = PlayerProfile.getPlayerProfileByUuid(target.getUniqueId());
+        if (!buyer.isLoaded() || !seller.isLoaded() || seller.getOfferData() != expected
+                || expected == null || !expected.hasActiveOffer() || !player.getUniqueId().equals(expected.getBuyer())
+                || buyer.isTempInvUsing() || seller.isTempInvUsing()
+                || TradeManager.trades.containsKey(player.getUniqueId()) || TradeManager.trades.containsKey(target.getUniqueId())) {
+            player.sendMessage("§c报价已失效或双方正在进行其他交易。"); return;
         }
-        PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-        PlayerProfile targetProfile = PlayerProfile.getPlayerProfileByUuid(target.getUniqueId());
-        if (!profile.isLoaded() || !targetProfile.isLoaded()) {
-            player.sendMessage(CC.translate("&c当前无法完成此交易报价!"));
-            return;
+        double price = expected.getPrice(), buyerCoins = buyer.getCoins(), sellerCoins = seller.getCoins();
+        buyer.getTradeLimit().refresh(); seller.getTradeLimit().refresh();
+        if (!Double.isFinite(price) || price <= 0 || price > 50000 || price != Math.floor(price)
+                || !Double.isFinite(buyerCoins) || !Double.isFinite(sellerCoins + price) || buyerCoins < price
+                || !buyer.getCombatTimer().hasExpired() || !seller.getCombatTimer().hasExpired()
+                || buyer.getTradeLimit().getTimes() >= 25 || seller.getTradeLimit().getTimes() >= 25
+                || buyer.getTradeLimit().getAmount() + price > 50000 || seller.getTradeLimit().getAmount() + price > 50000) {
+            player.sendMessage("§c硬币不足、处于战斗状态或超过今日交易限制。"); return;
         }
-        if (targetProfile.getOfferData().getPrice() > profile.getCoins()) {
-            return;
+        ItemStack item = expected.getItemStack();
+        if (item == null || item.getType() == Material.AIR || item.getAmount() <= 0) return;
+        ItemStack[] before = TradeInventory.copy(player.getInventory().getContents());
+        ItemStack[] after = TradeInventory.withItems(player.getInventory(), List.of(item));
+        if (after == null) { player.sendMessage("§c你的背包空间不足！"); return; }
+        // Consume this exact offer before closing inventories or firing any other callbacks.
+        seller.setOfferData(new OfferData());
+        try {
+            player.getInventory().setContents(after);
+            buyer.setCoins(buyerCoins - price); seller.setCoins(sellerCoins + price);
+        } catch (RuntimeException failure) {
+            player.getInventory().setContents(before);
+            buyer.setCoins(buyerCoins); seller.setCoins(sellerCoins);
+            seller.setOfferData(expected);
+            throw failure;
         }
+        TradeManager.recordLimit(buyer, price); TradeManager.recordLimit(seller, price);
+        TradeInventory.snapshot(player, buyer);
         player.closeInventory();
-        InventoryUtil.addInvReverse(player.getInventory(), targetProfile.getOfferData().getItemStack());
-        profile.setCoins(profile.getCoins() - targetProfile.getOfferData().getPrice());
-        targetProfile.setCoins(targetProfile.getCoins() + targetProfile.getOfferData().getPrice());
-        profile.getTradeLimit().setAmount(profile.getTradeLimit().getTimes() + targetProfile.getOfferData().getPrice());
-        profile.getTradeLimit().setTimes(profile.getTradeLimit().getTimes() + 1);
-        targetProfile.getTradeLimit().setAmount(targetProfile.getTradeLimit().getTimes() + targetProfile.getOfferData().getPrice());
-        targetProfile.getTradeLimit().setTimes(targetProfile.getTradeLimit().getTimes() + 1);
-        //save trade log start
-        TradeData tradeData = new TradeData(player.getUniqueId().toString(), target.getUniqueId().toString(), player.getName(), target.getName());
-        tradeData.setBPaidCoin(0);
-        List<ItemStack> itemStacks = new ArrayList<>();
-        itemStacks.add(targetProfile.getOfferData().getItemStack());
-        PlayerInv bInv = new PlayerInv();
-        bInv.setContents(itemStacks.toArray(new ItemStack[36]));
-        tradeData.setBPaidItem(bInv);
-        tradeData.setAPaidCoin((long) (targetProfile.getOfferData().getPrice()));
-        PlayerInv aInv = new PlayerInv();
-        aInv.setContents(new ItemStack[36]);
-        tradeData.setAPaidItem(aInv);
-        tradeData.save();
-        //save trade log end
-        player.sendMessage(CC.translate("&a交易成功!"));
-        target.sendMessage(CC.translate("&a&l交易成功! " + profile.getFormattedName() + " &7接受了你的交易报价,硬币已发送到你的账户中."));
-        new FirstTradeMedal().addProgress(profile, 1);
-        new FirstTradeMedal().addProgress(targetProfile, 1);
-        targetProfile.setOfferData(new OfferData());
+        try {
+            TradeManager.recordTrade(player, target, List.of(), List.of(item), price, 0);
+            player.sendMessage("§a交易成功！");
+            target.sendMessage("§a" + player.getName() + " 接受了你的报价，硬币已到账。");
+            var medal = new net.mizukilab.pit.medal.impl.challenge.FirstTradeMedal();
+            medal.addProgress(buyer, 1);
+            medal.addProgress(seller, 1);
+        } catch (RuntimeException failure) {
+            ThePit.getInstance().getLogger().log(Level.SEVERE, "Offer completed but notification/logging failed", failure);
+        }
     }
 }

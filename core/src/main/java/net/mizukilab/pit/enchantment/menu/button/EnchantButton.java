@@ -10,6 +10,7 @@ import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.minecraft.server.v1_8_R3.NBTTagCompound;
 import net.mizukilab.pit.data.operator.SuPromise;
+import net.mizukilab.pit.data.operator.ProfileOperator;
 import net.mizukilab.pit.enchantment.info.EnchantRequest;
 import net.mizukilab.pit.enchantment.menu.MythicWellMenu;
 import net.mizukilab.pit.handlers.AnimationHandler;
@@ -131,7 +132,7 @@ public class EnchantButton extends Button {
             } else {
                 lines.add("&a此附魔物品已被提升至最大等级!");
             }
-            if ((color == MythicColor.DARK || color == MythicColor.RAGE) && !PlayerUtil.isPlayerUnlockedPerk(player, "heresy_perk")) {
+            if (color == MythicColor.DARK || color == MythicColor.RAGE) {
                 if (!PlayerUtil.isPlayerUnlockedPerk(player, "heresy_perk")) {
                     lines.clear();
                     lines.add("&c请先解锁精通天赋 &6邪术 &c后重试!");
@@ -153,8 +154,15 @@ public class EnchantButton extends Button {
 
     @Override
     public void clicked(Player player, int slot, ClickType clickType, int hotbarButton, ItemStack currentItem) {
-        // 从profile中获取最新的物品数据，而不是使用构造函数传入的旧数据
         PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
+        synchronized (profile) {
+            if (!profile.isLoaded() || profile.code != ProfileOperator.OPCODE_FREE
+                    || (menu.getAnimationData().isStartEnchanting() && !menu.getAnimationData().isFinished())) return;
+            enchant(player, profile);
+        }
+    }
+
+    private void enchant(Player player, PlayerProfile profile) {
         String enchantingItemStr = profile.getEnchantingItem();
         
         ItemStack actualItem = null;
@@ -162,16 +170,11 @@ public class EnchantButton extends Button {
             actualItem = InventoryUtil.deserializeItemStack(enchantingItemStr);
         }
         
-        // 如果profile中没有物品或物品为空，则使用传入的item作为备用
-        if (actualItem == null || actualItem.getType() == Material.AIR) {
-            actualItem = this.item;
-        }
-        
         if (actualItem == null || actualItem.getType() == Material.AIR) {
             return;
         }
 
-        IMythicItem mythicItem = Utils.getMythicItem(actualItem);
+        IMythicItem mythicItem = Utils.getMythicItem0(actualItem.clone());
 
         if (mythicItem == null) return;
 
@@ -183,7 +186,7 @@ public class EnchantButton extends Button {
         MythicColor color = MythicColor.valueOf(mythicColor.toUpperCase());
         int level = mythicItem.getTier();
 
-        if ((color == MythicColor.DARK || color == MythicColor.RAGE) && !PlayerUtil.isPlayerUnlockedPerk(player, "heresy_perk")) {
+        if (color == MythicColor.DARK || color == MythicColor.RAGE) {
             if (!PlayerUtil.isPlayerUnlockedPerk(player, "heresy_perk")) {
                 return;
             }
@@ -197,6 +200,24 @@ public class EnchantButton extends Button {
         if (profile.getCoins() < getPrice(player, level + 1, color)) {
             return;
         }
+
+        StartEnchantLogicEvent start = new StartEnchantLogicEvent(player);
+        start.callEvent();
+        if (start.isCancelled() || !start.isAllowEnchant()) return;
+
+        double originalCoins = profile.getCoins();
+        String originalScience = profile.getEnchantingScience();
+        String originalBook = profile.getEnchantingBook();
+        Runnable rollback = () -> {
+            profile.setCoins(originalCoins);
+            profile.setEnchantingItem(enchantingItemStr);
+            profile.setEnchantingScience(originalScience);
+            profile.setEnchantingBook(originalBook);
+            menu.getAnimationData().setStartEnchanting(false);
+            menu.getAnimationData().setFinished(false);
+            menu.getAnimationData().setEnd(true);
+            player.sendMessage(CC.translate("&c附魔失败，硬币和材料已退回。"));
+        };
         if (level == (color == MythicColor.DARK ? 1 : 2)) {
             if (PlayerUtil.getPlayerUnlockedPerkLevel(player, "Mythicism") < 4) {
                 return;
@@ -211,9 +232,14 @@ public class EnchantButton extends Button {
 
         menu.getAnimationData().setFinished(false);
         menu.getAnimationData().setStartEnchanting(true);
-        doEnchant(actualItem, player,profile, mythicItem,menu.getAnimationData());
-
+        menu.getAnimationData().setEnd(false);
         menu.getAnimationData().setAnimationTick(0);
+        try {
+            doEnchant(actualItem, player, profile, mythicItem, start, rollback);
+        } catch (Throwable failure) {
+            rollback.run();
+            ThePit.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Enchantment failed", failure);
+        }
 
         menu.setClosedByMenu(true);
         menu.openMenu(player);
@@ -226,24 +252,25 @@ public class EnchantButton extends Button {
      * @param player
      * @param mythicItem
      */
-    private void doEnchant(ItemStack item, Player player, PlayerProfile profile, IMythicItem mythicItem, AnimationHandler.AnimationData data) {
-
-        StartEnchantLogicEvent startEnchantLogicEvent = new StartEnchantLogicEvent(player);
-        startEnchantLogicEvent.callEvent();
-        Consumer3<ItemStack, AbstractPitItem, Player> consumer = startEnchantLogicEvent.getConsumer();
+    private void doEnchant(ItemStack item, Player player, PlayerProfile profile, IMythicItem mythicItem,
+                           StartEnchantLogicEvent start, Runnable rollback) {
+        Consumer3<ItemStack, AbstractPitItem, Player> consumer = start.getConsumer();
         if(consumer != null){
-            consumer.accept(item,mythicItem,player);
-            if(!startEnchantLogicEvent.isCancelled()) {
-                new PitPlayerEnchantEvent(player, mythicItem, mythicItem).callEvent();
-                end(player, mythicItem);
+            if (profile.disallow() != profile) {
+                rollback.run();
+                return;
             }
-            return;
-        }
-        if(!startEnchantLogicEvent.isAllowEnchant()){
-            return;
-        }
-
-        if(startEnchantLogicEvent.isCancelled()){
+            try {
+                consumer.accept(item, mythicItem, player);
+                if (start.isCancelled() || !start.isAllowEnchant()) {
+                    rollback.run();
+                    return;
+                }
+                end(player, mythicItem);
+                finishEnchant(player, profile, mythicItem, mythicItem, false);
+            } finally {
+                profile.allow();
+            }
             return;
         }
 
@@ -252,19 +279,27 @@ public class EnchantButton extends Button {
         SuPromise<EnchantRequest> consumers = ThePit.getInstance().getEnchTable().enchantItem(player, profile, mythicItem, useBook);
         consumers.promise(i -> {
             if(i.isFail()){
-                player.sendMessage(CC.translate("&cUnable to enchant this item, it seems impossible"));
+                rollback.run();
+                return;
             }
-            boolean announcement = i.isAnnouncement();
-            new PitPlayerEnchantEvent(player, mythicItem, mythicItem).callEvent();
-            if (mythicItem.getPrefix() != null) {
-                announcement = true;
-            }
-            if (announcement) {
-                beginAnnounceAsync(player, mythicItem, profile);
-            }
-            end(player, mythicItem);
-            menu.getAnimationData().setEnd(true);
+            finishEnchant(player, profile, mythicItem, i.getMythic(), i.isAnnouncement());
         });
+    }
+
+    private void finishEnchant(Player player, PlayerProfile profile, IMythicItem before, IMythicItem result, boolean announce) {
+        // The result is already committed. A listener failure must not refund a successful enchant.
+        try {
+            new PitPlayerEnchantEvent(player, before, result).callEvent();
+            // Preserve extensions that modify the result in the post-enchant event.
+            end(player, result);
+            if (announce || result.getPrefix() != null) beginAnnounceAsync(player, result, profile);
+        } catch (Throwable failure) {
+            ThePit.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Post-enchantment listener failed", failure);
+        } finally {
+            // The result is ready; the animator still plays the full sequence.
+            // rapid-enchanting only allows closing the menu to skip it manually.
+            menu.getAnimationData().setEnd(true);
+        }
     }
     private static BaseComponent[] toEmptyHover(IMythicItem mythicItem) {
         net.minecraft.server.v1_8_R3.ItemStack nms = Utils.toNMStackQuick(mythicItem.toItemStack());
@@ -297,12 +332,16 @@ public class EnchantButton extends Button {
                     this.cancel();
                 }
             }
-        }.runTaskTimerAsynchronously(ThePit.getInstance(), 50, 5);
+        }.runTaskTimer(ThePit.getInstance(), 50, 5);
     }
 
     private static void end(Player player, IMythicItem mythicItem) {
         PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-        profile.setEnchantingItem(InventoryUtil.serializeItemStack(mythicItem.toItemStack()));
+        ItemStack result = mythicItem.toItemStack();
+        String encoded = InventoryUtil.serializeItemStack(result);
+        if (encoded == null) throw new IllegalStateException("Failed to serialize enchanted item");
+        profile.setEnchantingItem(encoded);
+        IMythicItem.clearCache(result);
     }
 
 
@@ -337,14 +376,16 @@ public class EnchantButton extends Button {
             return false;
         }
 
-        String mythic_color = ItemUtil.getItemStringData(itemStack, "mythic_color");
-        for (MythicColor mythicColor : MythicColor.values()) {
-            if (mythicColor.getInternalName().equals(mythic_color)) {
-                profile.setEnchantingScience(InventoryUtil.serializeItemStack(new ItemStack(Material.AIR)));
-                return true;
-            }
+        if (!"mythic_leggings".equals(ItemUtil.getInternalName(itemStack))
+                || !color.getInternalName().equals(ItemUtil.getItemStringData(itemStack, "mythic_color"))) return false;
+        if (itemStack.getAmount() > 1) {
+            itemStack.setAmount(itemStack.getAmount() - 1);
+            String remaining = InventoryUtil.serializeItemStack(itemStack);
+            if (remaining == null) return false;
+            profile.setEnchantingScience(remaining);
+        } else {
+            profile.setEnchantingScience(null);
         }
-
-        return false;
+        return true;
     }
 }

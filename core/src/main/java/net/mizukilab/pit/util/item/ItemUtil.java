@@ -168,7 +168,10 @@ public class ItemUtil {
     }
 
     public static boolean canDrop(ItemStack item) {
-        return getItemBoolData(item, "tradeAllow");
+        NBTTagCompound extra = getExtra(item);
+        // Existing scrolls may still carry the old tradeAllow=true flag.
+        if (extra == null || "mythic_reel".equals(getInternalName0(extra))) return false;
+        return extra.get("tradeAllow") instanceof NBTTagByte value && value.f() != 0;
     }
 
     public static boolean isHealingItem(ItemStack item) {
@@ -201,6 +204,13 @@ public class ItemUtil {
 
     public static boolean isDefaultItem(ItemStack item) {
         return getItemBoolData(item, "defaultItem");
+    }
+
+    public static boolean canReplace(ItemStack item) {
+        NBTTagCompound extra = getExtra(item);
+        if (extra == null || !extra.hasKey("canReplace")) return true;
+        NBTBase value = extra.get("canReplace");
+        return !(value instanceof NBTTagByte) || ((NBTTagByte) value).f() != 0;
     }
 
     @Nullable

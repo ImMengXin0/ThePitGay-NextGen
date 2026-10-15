@@ -57,7 +57,7 @@ public class JerryEnchant7 extends AbstractEnchantment implements ITickTask, Mov
                     }
                 }
             }
-        }.runTaskTimerAsynchronously(ThePit.getInstance(), 20, 20);
+        }.runTaskTimer(ThePit.getInstance(), 20, 20);
     }
 
     private boolean isWearingLeggingsWithEnchantment(Player player) {

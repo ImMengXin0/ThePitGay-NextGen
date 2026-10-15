@@ -44,7 +44,7 @@ public class InfinityItemNPC extends SkinNPC {
 
     @Override
     public Skin getNpcSkin() {
-        return null;
+        return net.mizukilab.pit.npc.BuiltinNpcSkins.get(getNpcInternalName());
     }
 
     @Override

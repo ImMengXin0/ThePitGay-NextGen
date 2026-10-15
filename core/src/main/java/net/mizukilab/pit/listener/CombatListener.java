@@ -59,7 +59,10 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.metadata.MetadataValue;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.jetbrains.annotations.NotNull;
+import org.bukkit.scheduler.BukkitRunnable;
+import net.mizukilab.pit.util.chat.TitleUtil;
 
 import java.text.DecimalFormat;
 import java.util.*;
@@ -77,7 +80,9 @@ import static net.mizukilab.pit.util.PublicUtil.processActionBarWithSettingProvi
 @AutoRegister
 public class CombatListener implements Listener {
 
-    ;
+    private static final String DEATH_HANDLED_METADATA = "pit_death_handled";
+    private static final String SUPPRESSED_DEATH_METADATA = "mx_suppressed_duplicate_death";
+    private final Map<UUID, Player> deathsInProgress = new HashMap<>();
     public static CombatListener INSTANCE;
     public static double eventBoost = 2.0; //1.0 to close
     private final DecimalFormat numFormat = new DecimalFormat("0.00");
@@ -262,12 +267,14 @@ public class CombatListener implements Listener {
         player.removeMetadata("true_damage_immune", instance);
         player.removeMetadata("regularity", instance);
         player.removeMetadata("mixed_combat_" + player.getUniqueId(), instance);
+        finishDeath(player);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onKilled(PlayerDeathEvent event) {
-        event.getEntity().setNoDamageTicks(40);
         event.setDeathMessage(null);
+        if (isSuppressedDeath(event.getEntity())) return;
+        event.getEntity().setNoDamageTicks(40);
         handlePlayerDeath(event, event.getEntity(), event.getEntity().getKiller(), true);
         event.getEntity().setNoDamageTicks(0);
     }
@@ -301,14 +308,18 @@ public class CombatListener implements Listener {
             if (damager1 instanceof Arrow) {
 
                 playerProfile.setBowHurtDamage((long) (playerProfile.getBowHurtDamage() + damage));
-                damagerProfile.setBowHit(damagerProfile.getBowHit() + 1);
+                if (ThePit.getInstance().getEnchantmentFactor().getHitTickGuard().countArrow(damager1)) {
+                    damagerProfile.setBowHit(damagerProfile.getBowHit() + 1);
+                }
                 damagerProfile.setArrowTotalDamage((long) (damagerProfile.getArrowTotalDamage() + damage));
             } else if (damager1 instanceof FishHook) {
                 damagerProfile.setRodHit(damagerProfile.getRodHit() + 1);
             }
         } else {
             playerProfile.setMeleeHurtDamage((long) (playerProfile.getMeleeHurtDamage() + damage));
-            damagerProfile.setMeleeHit(damagerProfile.getMeleeHit() + 1);
+            if (ThePit.getInstance().getEnchantmentFactor().getHitTickGuard().countMelee(damager)) {
+                damagerProfile.setMeleeHit(damagerProfile.getMeleeHit() + 1);
+            }
             damagerProfile.setMeleeTotalDamage((long) (damagerProfile.getMeleeTotalDamage() + damage));
         }
         damagerProfile.setTotalDamage((long) (damagerProfile.getTotalDamage() + damage));
@@ -416,15 +427,11 @@ public class CombatListener implements Listener {
                 totalXp = totalXp * 0.01;
             }
 
-            if (killerProfile.getLevel() < NewConfiguration.INSTANCE.getMaxLevel()) {
-                killerProfile.setExperience(killerProfile.getExperience() + totalXp);
-            } else {
-                totalXp = 0;
-            }
-
-            killerProfile.setCoins(killerProfile.getCoins() + totalCoins);
-            killerProfile.grindCoins(totalCoins);
-            killerProfile.applyExperienceToPlayer(killer);
+            PitKillEvent reward = awardKillRewards(killer, killerProfile, player, totalCoins, totalXp);
+            totalCoins = reward.getCoins();
+            totalXp = reward.getExp();
+            killRecap.setTotalCoin(totalCoins);
+            killRecap.setTotalExp(totalXp);
 
             //process quest - start
             if (player instanceof Player) {
@@ -448,13 +455,6 @@ public class CombatListener implements Listener {
                 killerProfile.setHighestStreaks((int) killerProfile.getStreakKills());
             }
 
-            //call kill event
-            final PitKillEvent event = new PitKillEvent(killer, player, totalCoins, totalXp);
-            event.callEvent();
-
-            totalCoins = event.getCoins();
-            totalXp = event.getExp();
-
             double finalTotalCoins = totalCoins;
             double finalTotalXp = totalXp;
             Bukkit.getScheduler().runTaskAsynchronously(ThePit.getInstance(), () -> {
@@ -469,6 +469,33 @@ public class CombatListener implements Listener {
         } catch (Exception e) {
             CC.printError(killer, e);
         }
+    }
+
+    static PitKillEvent awardKillRewards(Player killer, PlayerProfile profile, LivingEntity target,
+                                         double coins, double xp) {
+        PitKillEvent event = new PitKillEvent(killer, target, coins, xp);
+        event.callEvent();
+        if (profile.getLevel() < NewConfiguration.INSTANCE.getMaxLevel()) {
+            profile.setExperience(profile.getExperience() + event.getExp());
+        } else {
+            event.setExp(0);
+        }
+        profile.setCoins(profile.getCoins() + event.getCoins());
+        profile.grindCoins(event.getCoins());
+        profile.applyExperienceToPlayer(killer);
+        return event;
+    }
+
+    static PitAssistEvent awardAssistRewards(Player assist, PlayerProfile profile, Player target,
+                                             double coins, double xp) {
+        PitAssistEvent event = new PitAssistEvent(assist, target, coins, xp);
+        event.callEvent();
+        profile.setAssists(profile.getAssists() + 1);
+        profile.setExperience(profile.getExperience() + event.getExp());
+        profile.setCoins(profile.getCoins() + event.getCoins());
+        profile.grindCoins(event.getCoins());
+        profile.applyExperienceToPlayer(assist);
+        return event;
     }
 
     private boolean hasPremiumItem(Player player) {
@@ -504,7 +531,41 @@ public class CombatListener implements Listener {
         }
     }
 
+    /** Legacy entry point for addons that settle a death without a Bukkit death event. */
+    public void handlePlayerDeath(Player player, Player killer, boolean shouldRespawn) {
+        handlePlayerDeath(null, player, killer, shouldRespawn);
+    }
+
     public void handlePlayerDeath(PlayerDeathEvent event, Player player, Player killer, boolean shouldRespawn) {
+        // The extension can revive a real Bukkit death while its synthetic death is pending.
+        // Only suppress the Bukkit event; its later explicit settlement must still run.
+        if (event != null && isSuppressedDeath(player)) return;
+        if (deathsInProgress.get(player.getUniqueId()) == player) return;
+        deathsInProgress.put(player.getUniqueId(), player);
+        try {
+            player.setMetadata(DEATH_HANDLED_METADATA,
+                    new FixedMetadataValue(ThePit.getInstance(), System.currentTimeMillis()));
+            processPlayerDeath(event, player, killer, shouldRespawn);
+        } catch (Throwable failure) {
+            finishDeath(player);
+            throw failure;
+        }
+    }
+
+    private void finishDeath(Player player) {
+        if (deathsInProgress.get(player.getUniqueId()) == player) {
+            deathsInProgress.remove(player.getUniqueId());
+            player.removeMetadata(DEATH_HANDLED_METADATA, ThePit.getInstance());
+        }
+    }
+
+    private static boolean isSuppressedDeath(Player player) {
+        return player.hasMetadata(SUPPRESSED_DEATH_METADATA)
+                || player.hasMetadata(DEATH_HANDLED_METADATA);
+    }
+
+    private void processPlayerDeath(PlayerDeathEvent event, Player player, Player killer, boolean shouldRespawn) {
+        net.mizukilab.pit.menu.trade.TradeManager.cancelFor(player);
         PlayerProfile playerProfile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
         boolean npc = PlayerUtil.isNPC(player);
         if (killer != null) {
@@ -525,11 +586,8 @@ public class CombatListener implements Listener {
                     List<MetadataValue> shooter = tntPrimed.getMetadata("shooter");
                     if (!shooter.isEmpty()) {
                         UUID uuid = UUID.fromString(shooter.get(0).asString());
-                        if (uuid.equals(player.getUniqueId())) {
-                            return;
-                        }
                         killer = Bukkit.getPlayer(uuid);
-                        if (killer != null && killer.isOnline()) {
+                        if (!uuid.equals(player.getUniqueId()) && killer != null && killer.isOnline()) {
                             PlayerProfile killerProfile = PlayerProfile.getPlayerProfileByUuid(uuid);
                             this.handleKill(killer, killerProfile, player, playerProfile);
                         }
@@ -539,6 +597,7 @@ public class CombatListener implements Listener {
         }
         //saves performance
         if (npc) {
+            finishDeath(player);
             return;
         }
         final Player finalKiller = killer;
@@ -659,13 +718,13 @@ public class CombatListener implements Listener {
         double totalDamage = 0;
         List<DamageData> activeDamage = new ArrayList<>();
         for (DamageData it : playerProfile.getDamageMap().values()) {
-            if (it.getTimer().hasExpired()) {
+            if (!it.getTimer().hasExpired()) {
                 totalDamage += it.getDamage();
                 activeDamage.add(it);
             }
         }
         if (totalDamage > 0) {
-            this.handleAssist(player, finalKiller, activeDamage, (long) totalDamage);
+            this.handleAssist(player, finalKiller, activeDamage, totalDamage);
         }
 
 
@@ -683,24 +742,37 @@ public class CombatListener implements Listener {
         //save status - end
 
         InventoryUtil.supplyItems(player);
-        PackedOperator operator = (PackedOperator) playerProfile.toOperator();
-        if (operator != null) {
-            operator.pending(i -> {
-                playerProfile.setInventory(PlayerInv.fromPlayerInventory(inventory));
-            });
-        }
+        playerProfile.setInventory(PlayerInv.fromPlayerInventory(inventory));
         if (shouldRespawn) {
-
-            EntityPlayer handle = ((CraftPlayer) player).getHandle();
-            // player.setHealth(player.getMaxHealth());
-            player.setHealth(player.getMaxHealth());
-            doRespawn(player,playerProfile);
-            Location location = player.getLocation();
-            Einstein.flushPos(player);
-            player.teleport(location);
-            handle.dead = false;
-            handle.lastDamage = 0;
-            Einstein.noVelocity(player);
+            double delay = playerProfile.getRespawnTime() <= 1.5 ? 0.1 : playerProfile.getRespawnTime();
+            new BukkitRunnable() {
+                long remaining = Math.max(2, (long) (delay * 20));
+                @Override
+                public void run() {
+                    if (!player.isOnline() || deathsInProgress.get(player.getUniqueId()) != player) {
+                        finishDeath(player);
+                        cancel();
+                        return;
+                    }
+                    if (player.isDead()) player.spigot().respawn();
+                    if (remaining <= 0) {
+                        cancel();
+                        try {
+                            doRespawn(player, playerProfile);
+                        } finally {
+                            finishDeath(player);
+                        }
+                    } else {
+                        if (delay > 0.1) {
+                            player.setGameMode(GameMode.SPECTATOR);
+                            if (remaining % 20 == 0) TitleUtil.sendTitle(player, "&c你死了！", "&7将在 &6" + ((remaining + 19) / 20) + "秒 &7后复活", 0, 20, 0);
+                        }
+                        remaining--;
+                    }
+                }
+            }.runTaskTimer(ThePit.getInstance(), 1L, 1L);
+        } else {
+            finishDeath(player);
         }
     }
 
@@ -708,40 +780,47 @@ public class CombatListener implements Listener {
         if (!player.isOnline()) {
             return;
         }
-        Location location = ThePit.getInstance().getPitConfig()
-                .getSpawnLocations()
-                .get(ThreadLocalRandom.current().nextInt(ThePit.getInstance().getPitConfig().getSpawnLocations().size()));
+        List<Location> spawns = ThePit.getInstance().getPitConfig().getSpawnLocations();
+        Location location = spawns == null || spawns.isEmpty() ? player.getWorld().getSpawnLocation()
+                : spawns.get(ThreadLocalRandom.current().nextInt(spawns.size())).clone();
 
-        AbstractPitItem leggings = profile.leggings;
+        AbstractPitItem leggings = Utils.getMythicItem(player.getInventory().getLeggings());
         if (leggings != null) {
-            if (leggings.getEnchantmentLevel("trash_panda_enchant") >= 1) {
+            if (leggings.getEnchantmentLevel("trash_panda_enchant") >= 1 && ThePit.getInstance().getPitConfig().getSewersLocation() != null) {
                 location = ThePit.getInstance().getPitConfig().getSewersLocation();
                 player.sendMessage(CC.translate("&2&l垃圾拾荒者! &7你于下水道重生"));
             }
         }
         player.teleport(location);
+        player.setBedSpawnLocation(location, true);
         profile.setInArena(false);
 
         PlayerUtil.resetPlayer(player, true, false);
+        PlayerUtil.postResetPlayer(player);
+        player.setGameMode(GameMode.SURVIVAL);
+        player.setHealth(player.getMaxHealth());
+        player.setNoDamageTicks(40);
+        ((CraftPlayer) player).getHandle().invulnerableTicks = 40;
+        TitleUtil.sendTitle(player, " ", " ", 0, 1, 0);
 
         profile.applyExperienceToPlayer(player);
-        profile.getUnlockedPerkMap().forEach((a, i) -> {
-            AbstractPerk handle = i.getHandle(ThePit.getInstance().getPerkFactory().getPerkMap());
-            if (handle instanceof IPlayerRespawn c) {
-                c.handleRespawn(i.getLevel(), player);
+        new PitPlayerSpawnEvent(player).callEvent();
+        for (IPlayerRespawn callback : ThePit.getInstance().getPerkFactory().getPlayerRespawns()) {
+            int level = ((AbstractPerk) callback).getPlayerLevel(player);
+            if (level > 0) {
+                callback.handleRespawn(level, player);
             }
-        });
-        if (leggings instanceof IMythicItem i) {
-            Object2IntOpenHashMap<AbstractEnchantment> enchantments = i.getEnchantments();
-            enchantments.forEach((c, a) -> {
-                if (c instanceof IPlayerRespawn e) {
-                    e.handleRespawn(a, player);
-                }
-            });
+        }
+        IMythicItem respawnLeggings = Utils.getMythicItem(player.getInventory().getLeggings());
+        if (respawnLeggings != null) {
+            for (IPlayerRespawn callback : ThePit.getInstance().getEnchantmentFactor().getPlayerRespawns()) {
+                int level = ((AbstractEnchantment) callback).getItemEnchantLevel(respawnLeggings);
+                if (level > 0) callback.handleRespawn(level, player);
+            }
         }
     }
 
-    private void handleAssist(Player player, Player killer, List<DamageData> damageData, long totalDamage) {
+    private void handleAssist(Player player, Player killer, List<DamageData> damageData, double totalDamage) {
         PlayerProfile playerProfile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
 
         boolean night = isNight();
@@ -764,12 +843,6 @@ public class CombatListener implements Listener {
 
                 double totalCoins = 10.0d + assistProfile.getPrestige() * 0.5;
                 double totalXp = 10.0d + assistProfile.getPrestige() * 0.5;
-
-                final PitAssistEvent event = new PitAssistEvent(assistPlayer, player, totalCoins, totalXp);
-                event.callEvent();
-
-                totalCoins = event.getCoins();
-                totalXp = event.getExp();
 
                 assistData.setBaseExp(10.0d + assistProfile.getPrestige() * 0.5);
                 assistData.setBaseCoin(10.0d + assistProfile.getPrestige() * 0.5);
@@ -837,8 +910,6 @@ public class CombatListener implements Listener {
                     percentage = 0;
                 }
                 assistData.setPercentage(percentage);
-                assistData.setTotalCoin(totalCoins);
-                assistData.setTotalExp(totalXp);
                 killRecap.getAssistData().add(assistData);
                 totalCoins = coinsAtomic.get() * (percentage);
                 totalXp = expAtomic.get() * (percentage);
@@ -853,11 +924,11 @@ public class CombatListener implements Listener {
                 if (PlayerUtil.isPlayerBoughtPerk(assistPlayer, "assistant_to_the_streaker") && !isNight()) {
                     assistProfile.setStreakKills(assistProfile.getStreakKills() + Math.floor(100 * percentage) * 0.01);
                 }
-                assistProfile.setAssists(assistProfile.getAssists() + 1);
-                assistProfile.setExperience(assistProfile.getExperience() + totalXp);
-                assistProfile.setCoins(assistProfile.getCoins() + totalCoins);
-                assistProfile.grindCoins(totalCoins);
-                assistProfile.applyExperienceToPlayer(assistPlayer);
+                PitAssistEvent reward = awardAssistRewards(assistPlayer, assistProfile, player, totalCoins, totalXp);
+                totalCoins = reward.getCoins();
+                totalXp = reward.getExp();
+                assistData.setTotalCoin(totalCoins);
+                assistData.setTotalExp(totalXp);
 
 
                 totalCoins = eventBoost * totalCoins;
@@ -1182,7 +1253,7 @@ public class CombatListener implements Listener {
 //        }
         killerProfile.getUnlockedPerkMap().values().forEach(i -> {
             AbstractPerk abstractPerk = i.getHandle(perkFactory.getPerkMap());
-            if (!abstractPerk.isPassive()) {
+            if (abstractPerk == null || !abstractPerk.isPassive()) {
                 return;
             }
             if (abstractPerk instanceof IPlayerKilledEntity ins) {
@@ -1191,7 +1262,7 @@ public class CombatListener implements Listener {
         });
         killerProfile.getChosePerk().values().forEach(i -> {
             AbstractPerk abstractPerk = i.getHandle(perkFactory.getPerkMap());
-            if (abstractPerk.isPassive()) {
+            if (abstractPerk == null || abstractPerk.isPassive()) {
                 return;
             }
             if (abstractPerk instanceof IPlayerKilledEntity ins) {

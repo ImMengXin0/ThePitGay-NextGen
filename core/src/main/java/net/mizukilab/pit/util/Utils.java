@@ -235,7 +235,7 @@ public class Utils {
     }
     public static boolean needToCheck(String internalName){
         return switch (internalName) {
-            case "mythic_sword", "armageddon_boots", "angel_chestplate", "kings_helmet", "lucky_chestplate",
+            case "mythic_sword", "armageddon_boots", "angel_chestplate", "angel_boots", "angel_helmet", "angel_leggings", "kings_helmet", "lucky_chestplate",
                  "mythic_leggings", "jewel_sword", "mythic_bow", "magic_fishing_rod" -> true;
             default -> false;
         };
@@ -250,6 +250,9 @@ public class Utils {
             case "mythic_bow" -> mythicItem = new MythicBowItem();
             case "mythic_leggings" -> mythicItem = new MythicLeggingsItem();
             case "angel_chestplate" -> mythicItem = new AngelChestplate();
+            case "angel_boots" -> mythicItem = new AngelBoots();
+            case "angel_helmet" -> mythicItem = new AngelHelmet();
+            case "angel_leggings" -> mythicItem = new AngelLeggings();
             case "armageddon_boots" -> mythicItem = new ArmageddonBoots();
             case "kings_helmet" -> mythicItem = new GoldenHelmet();
             case "lucky_chestplate" -> mythicItem = new LuckyChestplate();
@@ -268,6 +271,23 @@ public class Utils {
     public static IMythicItem getMythicItem0(ItemStack item) {
         final String internalName = ItemUtil.getInternalName(item);
         return getMythicItem0(item, internalName);
+    }
+
+    /** Combat can occur between equipment changes and the next scheduled tick. */
+    public static void refreshPlayerEquipment(Player player, PlayerProfile profile) {
+        PlayerInventory inventory = player.getInventory();
+        ItemStack hand = inventory.getItemInHand();
+        if (hand == null || hand.getType() == Material.AIR || hand.getType() == Material.LEATHER_LEGGINGS
+                || hand.getType() == Material.PAPER) {
+            profile.heldItemStack = null;
+            profile.heldItem = null;
+        } else {
+            profile.heldItemStack = hand;
+            profile.heldItem = getMythicItem(hand);
+        }
+        ItemStack leggings = inventory.getLeggings();
+        profile.leggingItemStack = leggings;
+        profile.leggings = getMythicItem(leggings);
     }
     public static boolean canUseGem(@NotNull ItemStack item) {
 
@@ -355,6 +375,11 @@ public class Utils {
 
     public static boolean check(Material material) {
         return material == Material.HOPPER || material == Material.ENDER_CHEST;
+    }
+
+    /** Binary-compatible overload for extensions compiled against the Player API. */
+    public static boolean isInArena(Player player) {
+        return isInArena((Entity) player);
     }
 
     public static boolean isInArena(Entity player) {

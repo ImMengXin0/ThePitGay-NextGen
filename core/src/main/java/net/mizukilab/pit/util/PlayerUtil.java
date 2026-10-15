@@ -82,6 +82,11 @@ public class PlayerUtil {
         return entityPlayer.fallDistance > 0.0F && !entityPlayer.onGround && !entityPlayer.k_() && !entityPlayer.V() && !entityPlayer.hasEffect(MobEffectList.BLINDNESS) && entityPlayer.vehicle == null;
     }
 
+    /** Legacy API name used by already compiled addons. */
+    public static boolean isCritical(Player player) {
+        return critical(player);
+    }
+
     //如果自身穿着黑裤/被毒则无法使用附魔 (适用于无目标附魔)
     public static boolean shouldIgnoreEnchant(Player self) {
         boolean sinkingMoonlight = PlayerUtil.isSinkingMoonlight(self);
@@ -157,6 +162,18 @@ public class PlayerUtil {
         return "angel_chestplate".equals(ItemUtil.getInternalName(player.getInventory().getChestplate()));
     }
 
+    public static boolean isEquippingAngelBoots(Player player) {
+        return "angel_boots".equals(ItemUtil.getInternalName(player.getInventory().getBoots()));
+    }
+
+    public static boolean isEquippingAngelHelmet(Player player) {
+        return "angel_helmet".equals(ItemUtil.getInternalName(player.getInventory().getHelmet()));
+    }
+
+    public static boolean isEquippingAngelLeggings(Player player) {
+        return "angel_leggings".equals(ItemUtil.getInternalName(player.getInventory().getLeggings()));
+    }
+
     /**
      * @param player
      * @return if player is vanished (SuperVanish Plugin based)
@@ -205,6 +222,11 @@ public class PlayerUtil {
         return false;
     }
 
+    /** Keep the boxed JVM signature for addons compiled against the old core. */
+    public static boolean damage(Player victim, DamageType damageType, Double damage, boolean canImmune) {
+        return damage(victim, damageType, damage.doubleValue(), canImmune);
+    }
+
     public static void damage(Entity victim, DamageType damageType, Double damage, Boolean canImmune) {
 
     }
@@ -232,7 +254,7 @@ public class PlayerUtil {
                 trueDamageByEntityEvent.callEvent();
             }
         }
-        PublicUtil.processActionBarWithSetting(attacker, victim, (int) damage, damage);
+        PublicUtil.processActionBarWithSetting(victim, attacker, (int) damage, damage);
     }
 
 
@@ -422,7 +444,6 @@ public class PlayerUtil {
         player.setFallDistance(0.0F);
         player.setLevel(0);
         player.setExp(0.0F);
-        player.getInventory().setHeldItemSlot(0);
         player.setAllowFlight(false);
         player.setCanPickupItems(true);
         if (clearInventory) {

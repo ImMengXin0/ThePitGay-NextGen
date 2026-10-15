@@ -78,16 +78,12 @@ public class NametagBoard {
     private void updateHealthBelow(Player player, Scoreboard scoreboard) {
         if (this.handler.getAdapter().showHealthBelowName(player)) {
             if (scoreboard.getObjective(DisplaySlot.BELOW_NAME) == null) {
-                //Async check
-                Objective objective = scoreboard.getObjective("newhealth");
+                Objective objective = scoreboard.getObjective("showhealth");
                 if(objective == null) {
-                    LzScheduler.ensureMain(() -> {
-                        Objective objective0 = scoreboard.registerNewObjective("showhealth", "health");
-                        objective0.setDisplaySlot(DisplaySlot.BELOW_NAME);
-                        objective0.setDisplayName(ChatColor.RED + StringEscapeUtils.unescapeJava("\u2764"));
-                    });
-                    return;
+                    objective = scoreboard.registerNewObjective("showhealth", "health");
                 }
+                objective.setDisplaySlot(DisplaySlot.BELOW_NAME);
+                objective.setDisplayName(ChatColor.RED + StringEscapeUtils.unescapeJava("\u2764"));
                 // Ensures that 0 isn't displayed if they haven't lost health.
                 for (Player loopPlayer : Bukkit.getOnlinePlayers()) {
                     objective.getScore(loopPlayer).setScore((int) Math.floor(loopPlayer.getHealth()));
@@ -124,8 +120,7 @@ public class NametagBoard {
      * @param player     object.
      * @param scoreboard of player.
      */
-    private void updateNametags(Player player, Scoreboard scoreboard) {
-        List<BufferedNametag> nametags = this.handler.getAdapter().getPlate(player);
+    private void updateNametags(Scoreboard scoreboard, List<BufferedNametag> nametags) {
 
         if (nametags == null) {
             return;
@@ -143,8 +138,8 @@ public class NametagBoard {
             String prefix = bufferedNametag.getPrefix() != null ? bufferedNametag.getPrefix() : ChatColor.RESET.toString();
             String suffix = bufferedNametag.getSuffix() != null ? bufferedNametag.getSuffix() : ChatColor.RESET.toString();
 
-            team.setPrefix(prefix);
-            team.setSuffix(suffix);
+            if (!prefix.equals(team.getPrefix())) team.setPrefix(prefix);
+            if (!suffix.equals(team.getSuffix())) team.setSuffix(suffix);
 
             if (bufferedNametag.getPlayer() != null) {
                 String name = bufferedNametag.getPlayer().getName();
@@ -161,7 +156,9 @@ public class NametagBoard {
             }
 
             // Friendly Invisibility.
-            team.setCanSeeFriendlyInvisibles(bufferedNametag.isFriendlyInvis());
+            if (team.canSeeFriendlyInvisibles() != bufferedNametag.isFriendlyInvis()) {
+                team.setCanSeeFriendlyInvisibles(bufferedNametag.isFriendlyInvis());
+            }
         }
 
         // Unregister teams that are no longer in use.
@@ -206,11 +203,26 @@ public class NametagBoard {
      * Update Health and Nametag slots.
      */
     public void update() {
-        Scoreboard scoreboard = this.getScoreboard();
+        if (!Bukkit.isPrimaryThread()) {
+            LzScheduler.ensureMain(this::update);
+            return;
+        }
         Player player = Bukkit.getPlayer(getUuid());
+        if (player == null || !player.isOnline()) return;
+        update(this.handler.getAdapter().getPlate(player));
+    }
 
+    /** Apply plates prepared once for this update, while keeping health viewer-specific. */
+    public void update(List<BufferedNametag> nametags) {
+        if (!Bukkit.isPrimaryThread()) {
+            LzScheduler.ensureMain(() -> update(nametags));
+            return;
+        }
+        Player player = Bukkit.getPlayer(getUuid());
+        if (player == null || !player.isOnline()) return;
+        Scoreboard scoreboard = this.getScoreboard();
         this.updateHealthBelow(player, scoreboard);
-        this.updateNametags(player, scoreboard);
+        this.updateNametags(scoreboard, nametags);
     }
 
     /**
@@ -222,4 +234,3 @@ public class NametagBoard {
     }
 
 }
-

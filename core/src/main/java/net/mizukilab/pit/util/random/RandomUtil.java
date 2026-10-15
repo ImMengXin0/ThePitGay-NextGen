@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import kotlin.jvm.functions.Function2;
 import net.mizukilab.pit.util.Einstein;
+import net.mizukilab.pit.util.exception.IllegalEnchantInputException;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -89,67 +90,46 @@ public class RandomUtil {
         return entry[random().nextInt(entry.length)];
     }
     public static <T> void chooseAndApply(boolean unique,List<T> ench, Object2IntMap<T> t,int level) {
-        int size = ench.size();
-        int i1 = random().nextInt(size);
-        while (true) {
-            T t1 = ench.get(i1);
-            if (unique && t.containsKey(t1)) {
-
-                i1 = (i1 + 1) % size;
-                continue;
-            }
-            t.put(t1, level);
-            break;
-        }
+        T selected = selectEligible(ench, candidate -> !unique || !t.containsKey(candidate));
+        t.put(selected, level);
     }
     public static <T> void chooseAndApplyChecked(boolean unique, List<T> ench, Object2IntMap<T> t, int level, int maxEnch, Function<T,Integer> maxEnchant) {
-        int size = ench.size();
-        if(t.size() >= maxEnch){
-            for (Object2IntMap.Entry<T> tEntry : t.object2IntEntrySet()) {
-                int maxEnchLevel = maxEnchant.apply(tEntry.getKey());
-                int clampi = Einstein.clampi(level, 0, maxEnchLevel);
-                if(tEntry.getIntValue() >= clampi){
-                    continue;
+        if (t.size() >= maxEnch) {
+            for (Object2IntMap.Entry<T> entry : t.object2IntEntrySet()) {
+                int target = Math.min(level, maxEnchant.apply(entry.getKey()));
+                if (entry.getIntValue() < target) {
+                    entry.setValue(target);
+                    return;
                 }
-                tEntry.setValue(clampi);
-                return;
             }
+            throw new IllegalEnchantInputException("No enchantment can be upgraded");
         }
-        int i1 = random().nextInt(size);
-        while (true) {
-            T t1 = ench.get(i1);
-            if (unique && t.containsKey(t1)) {
-
-                i1 = (i1 + 1) % size;
-                continue;
-            }
-            t.put(t1, level);
-            break;
-        }
+        T selected = selectEligible(ench, candidate -> (!unique || !t.containsKey(candidate)) && maxEnchant.apply(candidate) > 0);
+        t.put(selected, Math.min(level, maxEnchant.apply(selected)));
     }
-    public static <T> T chooseAndApplyMultipleTypeRN(double chance,boolean unique, Object2IntMap<T> t,int level,List<T> normal,List<T> rare) {
-        List<T> ench1 = normal;
-        if(hasSuccessfullyByChance(chance)) {
-            ench1 = rare;
+    public static <T> T chooseAndApplyMultipleTypeRN(double chance, boolean unique, Object2IntMap<T> t, int level, List<T> normal, List<T> rare) {
+        T selected = selectEligible(hasSuccessfullyByChance(chance) ? rare : normal,
+                candidate -> !unique || !t.containsKey(candidate));
+        t.put(selected, level);
+        return selected;
+    }
+    private static <T> T selectEligible(List<T> candidates, Predicate<T> predicate) {
+        if (candidates == null || candidates.isEmpty()) {
+            throw new IllegalEnchantInputException("Empty enchantment pool");
         }
-        int i1 = random().nextInt(ench1.size());
-        while (true) {
-            T t1 = ench1.get(i1);
-
-            if (unique && t.containsKey(t1)) {
-                i1 = (i1 + 1) % ench1.size();
-                continue;
-            }
-            t.put(t1, level);
-            return t1;
+        int start = random().nextInt(candidates.size());
+        for (int offset = 0; offset < candidates.size(); offset++) {
+            T candidate = candidates.get((start + offset) % candidates.size());
+            if (predicate.test(candidate)) return candidate;
         }
+        throw new IllegalEnchantInputException("No eligible enchantment in pool");
     }
     public static <T> T randEnch(double rageChance,List<T> rare,List<T> normal){
         List<T> random = normal;
         if(hasSuccessfullyByChance(rageChance)){
             random = rare;
         }
-        return random.get(RandomUtil.random().nextInt(random.size()));
+        return selectEligible(random, candidate -> true);
     }
     public static <T> List<T> randEnchMultipleApplyRNPrefer(int maxEnch,double chance,int min,int maxL2,Object2IntMap<T> tM,List<T> normalInput,List<T> rare,double preferChance,Function2<Integer,T,Boolean> predicate) {
         maxL2 = rand(maxL2, min);
@@ -178,17 +158,7 @@ public class RandomUtil {
                 }
                 System.out.println("Ignoring, 333 enchant");
             } else {
-                int index = RandomUtil.random().nextInt(normal.size());
-                T t;
-                while (true) {
-                    t = normal.get(index);
-                    int anInt = tM.getOrDefault(t, 0);
-                    if (!predicate.invoke(anInt + 1, t)) {
-                        index = (index + 1) % normal.size();
-                        continue;
-                    }
-                    break;
-                }
+                T t = selectEligible(normal, candidate -> predicate.invoke(tM.getOrDefault(candidate, 0), candidate));
                 tM.compute(t, (i, val) -> val == null ? 1 : val + 1);
                 a.add(t);
             }
@@ -224,17 +194,7 @@ public class RandomUtil {
                 }
                 System.out.println("Ignoring, 333 enchant");
             } else {
-                int index = RandomUtil.random().nextInt(normal.size());
-                T t;
-                while (true) {
-                    t = normal.get(index);
-                    int anInt = tM.getOrDefault(t, 0);
-                    if (!predicate.invoke(anInt + 1, t)) {
-                        index = (index + 1) % normal.size();
-                        continue;
-                    }
-                    break;
-                }
+                T t = selectEligible(normal, candidate -> predicate.invoke(tM.getOrDefault(candidate, 0), candidate));
                 tM.compute(t, (i, val) -> val == null ? 1 : val + 1);
                 a.add(t);
                 c++;
@@ -269,17 +229,7 @@ public class RandomUtil {
                 }
                 System.out.println("Ignoring, max enchant");
             } else {
-                int index = RandomUtil.random().nextInt(normal.size());
-                T t;
-                while (true) {
-                    t = normal.get(index);
-                    int anInt = tM.getOrDefault(t, 0);
-                    if (!predicate.invoke(anInt + 1, t)) {
-                        index = (index + 1) % normal.size();
-                        continue;
-                    }
-                    break;
-                }
+                T t = selectEligible(normal, candidate -> predicate.invoke(tM.getOrDefault(candidate, 0), candidate));
                 tM.compute(t, (i, val) -> val == null ? 1 : val + 1);
                 a.add(t);
             }
@@ -327,18 +277,7 @@ public class RandomUtil {
                     continue routine1;
                 }
             } else if(tM.size() < maxEnch) { // we need check it twice because of these conditions are chaos
-                int index = RandomUtil.random().nextInt(normal.size());
-                T t;
-
-                while (true) {
-                    t = normal.get(index);
-                    int anInt = tM.getOrDefault(t, 0);
-                    if (!predicate.invoke(anInt + 1, t)) {
-                        index = (index + 1) % normal.size();
-                        continue;
-                    }
-                    break;
-                }
+                T t = selectEligible(normal, candidate -> predicate.invoke(tM.getOrDefault(candidate, 0), candidate));
                 tM.compute(t, (i, val) -> val == null ? 1 : val + 1);
                 result.add(t);
                 levelUpCount++;
@@ -375,17 +314,7 @@ public class RandomUtil {
                 }
                 System.out.println("Ignoring, 333 enchant");
             } else {
-                int index = RandomUtil.random().nextInt(normal.size());
-                T t;
-                while (true) {
-                    t = normal.get(index);
-                    int anInt = tM.getOrDefault(t, 0);
-                    if (!predicate.invoke(anInt + 1, t)) {
-                        index = (index + 1) % normal.size();
-                        continue;
-                    }
-                    break;
-                }
+                T t = selectEligible(normal, candidate -> predicate.invoke(tM.getOrDefault(candidate, 0), candidate));
                 tM.compute(t, (i, val) -> val == null ? 1 : val + 1);
                 a.add(t);
                 cx++;

@@ -21,10 +21,15 @@ import net.mizukilab.pit.item.type.mythic.MythicBowItem;
 import net.mizukilab.pit.item.type.mythic.MythicLeggingsItem;
 import net.mizukilab.pit.item.type.mythic.MythicSwordItem;
 import net.mizukilab.pit.util.Einstein;
+import net.mizukilab.pit.util.LzScheduler;
+import net.mizukilab.pit.util.Utils;
+import net.mizukilab.pit.util.inventory.InventoryUtil;
+import net.mizukilab.pit.util.item.ItemUtil;
 import net.mizukilab.pit.util.exception.IllegalEnchantInputException;
 import net.mizukilab.pit.util.functions.Func3;
 import net.mizukilab.pit.util.random.RandomUtil;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import static java.lang.Math.*;
 
@@ -33,7 +38,7 @@ import java.util.function.Consumer;
 
 public class EnchantmentTable {
     EnchantmentFactor factor;
-    ConcurrentLinkedQueue<EnchantRequest> enchantQueues = new ConcurrentLinkedQueue<EnchantRequest>();
+    private long loadedRevision = -1;
     Object2ObjectOpenHashMap<EnchantmentRarity, ObjectArrayList<AbstractEnchantment>> rodEnchant = new Object2ObjectOpenHashMap<>();
     Object2ObjectOpenHashMap<EnchantmentRarity, ObjectArrayList<AbstractEnchantment>> itemEnchant = new Object2ObjectOpenHashMap<>();
     Object2ObjectOpenHashMap<EnchantmentRarity, ObjectArrayList<AbstractEnchantment>> swordEnchant = new Object2ObjectOpenHashMap<>();
@@ -71,30 +76,43 @@ public class EnchantmentTable {
                 itemEnchant.computeIfAbsent(i.getRarity(), b -> new ObjectArrayList<>()).add(i);
             }
         });
+        loadedRevision = factor.getRevision();
     }
 
+    /** Compatibility entry point: enchantments now complete on the server thread. */
+    @Deprecated
     public void asyncTick() {
-        while (true) {
-            EnchantRequest poll = this.enchantQueues.poll();
-            if (poll == null) {
-                break;
-            }
-            IMythicItem mythic = poll.getMythic();
-            try {
-                Tier tier = Tier.ofTierUnsigned(mythic);
-                tier.doEnchant(this, poll);
-            } catch (Throwable e){
-                poll.fail();
-                e.printStackTrace();
-            }
-        }
     }
 
     public SuPromise<EnchantRequest> enchantItem(Player player, PlayerProfile profile, IMythicItem item, boolean hasBook) {
         SuPromise<EnchantRequest> runnables = new SuPromise<>();
-        profile.disallow();
-        EnchantRequest enchantRequest = new EnchantRequest(player, profile, item, hasBook, runnables);
-        this.enchantQueues.add(enchantRequest);
+        LzScheduler.ensureMain(() -> {
+            // Rebuild once after a batch of extension changes, including config reloads.
+            if (loadedRevision != factor.getRevision()) reload();
+            synchronized (profile) {
+                EnchantRequest request = new EnchantRequest(player, profile, item, hasBook, runnables);
+                if (!player.isOnline() || !profile.isLoaded() || profile.disallow() != profile) {
+                    request.fail();
+                    return;
+                }
+                String originalItem = profile.getEnchantingItem();
+                String originalBook = profile.getEnchantingBook();
+                try {
+                    // Work on an independent object, never partially modify the item cache.
+                    IMythicItem working = Utils.getMythicItem0(item.toItemStack().clone());
+                    if (working == null) throw new IllegalEnchantInputException("Unsupported mythic item");
+                    request = new EnchantRequest(player, profile, working, hasBook, runnables);
+                    Tier.ofTierUnsigned(working).doEnchant(this, request);
+                } catch (Throwable failure) {
+                    profile.setEnchantingItem(originalItem);
+                    profile.setEnchantingBook(originalBook);
+                    ThePit.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Enchantment failed for " + player.getUniqueId(), failure);
+                    request.fail();
+                } finally {
+                    profile.allow();
+                }
+            }
+        });
         return runnables;
     }
     @Log4j2
@@ -127,7 +145,10 @@ public class EnchantmentTable {
                         throw new IllegalEnchantInputException("Can't enchant R/D mythicItem with Mythic Book");
                     }
                     var abstractEnchantments = enchMap.get(EnchantmentRarity.RARE);
-                    RandomUtil.chooseAndApplyChecked(true, abstractEnchantments, mythicItem.getEnchantments(), 3,3, AbstractEnchantment::getMaxEnchantLevel);
+                    int remaining = 8 - Einstein.sum(mythicItem.getEnchantments());
+                    if (remaining <= 0) throw new IllegalEnchantInputException("Item has reached the enchantment level limit");
+                    RandomUtil.chooseAndApplyChecked(true, abstractEnchantments, mythicItem.getEnchantments(), 3, 3,
+                            enchant -> Math.min(enchant.getMaxEnchantLevel(), Math.max(0, mythicItem.getEnchantments().getInt(enchant)) + remaining));
                     return true;
                 }
                 , (item) -> {
@@ -155,6 +176,7 @@ public class EnchantmentTable {
                     }
                     int newEnchants = 0;
                     int remain = 8 - count;
+                    if (remain <= 0) throw new IllegalEnchantInputException("Item has reached the enchantment level limit");
                     int ops = min(2, remain);
                     int upBound = ops;
                         /*
@@ -223,7 +245,8 @@ public class EnchantmentTable {
                     int count = Einstein.sum(enchantments1);
                     //8最大属性
                     int size = enchantments1.size();
-                    int clampi = Einstein.clampi(8 - count, 1, 8);
+                    if (count >= 8) throw new IllegalEnchantInputException("Item has reached the enchantment level limit");
+                    int clampi = 8 - count;
                     int min = RandomUtil.rand(clampi,Math.min(3,8 - count));
                     if(mythicItem.isRage()){
                         chance = 0D;
@@ -267,42 +290,43 @@ public class EnchantmentTable {
             String enchantingBook = profile.getEnchantingBook();
             var level = getEnchantMap(enchTable, item);
             if (level == null) {
-                enq.fail();
-                return;
+                throw new IllegalEnchantInputException("Unsupported item type");
             }
-            boolean completed = false;
-            boolean announce = false;
-
-            try {
-                item.tier++;
-                double chance = NewConfiguration.INSTANCE.getChance(enq.getPlayer(), item.getColor(), item.getTier());
-                if (!item.canUseBook() || enchantingBook == null) {
-                    announce = normal.invoke(chance, level, item);
-                } else {
-                    profile.setEnchantingBook(null);
-                    announce = useBook.invoke(chance, level, item);
-                    item.boostedByBook = true;
+            item.tier++;
+            double chance = NewConfiguration.INSTANCE.getChance(enq.getPlayer(), item.getColor(), item.getTier());
+            boolean usingBook = enq.isUseBook() && item.canUseBook() && enchantingBook != null;
+            String remainingBook = enchantingBook;
+            if (usingBook) {
+                ItemStack books = InventoryUtil.deserializeItemStack(enchantingBook);
+                if (books == null || books.getAmount() <= 0 || !"mythic_reel".equals(ItemUtil.getInternalName(books))) {
+                    throw new IllegalEnchantInputException("Invalid enchantment scroll");
                 }
-
-                completed = true;
-            } catch (IllegalEnchantInputException e) {
-                enq.fail();
-            } catch (Throwable ignored) {
-            } finally {
-                int lastMaxLive = item.maxLive;
-
-                post.accept(item);
-                if (item.tier > 1) {
-                    item.live = Einstein.clampi(item.live + item.maxLive - lastMaxLive, 0, item.maxLive);
+                if (books.getAmount() == 1) {
+                    remainingBook = null;
                 } else {
-                    item.setLive(item.getMaxLive());
-                }
-                item.getEnchantmentRecords().add(new EnchantmentRecord(enq.getPlayer().getName(),String.format("EnchantmentTable UseBook %s Tier %s Live %s",enq.isUseBook(),item.tier,item.live),System.currentTimeMillis()));
-                if (completed) {
-                    enq.complete(item, true, announce);
+                    books.setAmount(books.getAmount() - 1);
+                    remainingBook = InventoryUtil.serializeItemStack(books);
+                    if (remainingBook == null) throw new IllegalEnchantInputException("Failed to serialize remaining scrolls");
                 }
             }
-            enq.getProfile().allow();
+            boolean announce = usingBook ? useBook.invoke(chance, level, item) : normal.invoke(chance, level, item);
+            if (usingBook) item.boostedByBook = true;
+            int lastMaxLive = item.maxLive;
+            post.accept(item);
+            item.live = item.tier > 1
+                    ? Einstein.clampi(item.live + item.maxLive - lastMaxLive, 0, item.maxLive)
+                    : item.maxLive;
+            item.getEnchantmentRecords().add(new EnchantmentRecord(enq.getPlayer().getName(),
+                    String.format("EnchantmentTable UseBook %s Tier %s Live %s", usingBook, item.tier, item.live), System.currentTimeMillis()));
+            ItemStack result = item.toItemStack();
+            String encoded = InventoryUtil.serializeItemStack(result);
+            if (encoded == null) throw new IllegalEnchantInputException("Failed to serialize enchanted item");
+            profile.setEnchantingItem(encoded);
+            if (usingBook) profile.setEnchantingBook(remainingBook);
+            // The transaction uses an independent item with the original UUID.
+            // Extensions must not rebuild the committed item from its pre-enchant cache.
+            IMythicItem.clearCache(result);
+            enq.complete(item, usingBook, announce);
         }
 
         @Nullable

@@ -100,9 +100,7 @@ public class PlayerProfile {
     public int prestige;
     public List<String> claimedMail;
     public PlayerMailData mailData;
-    //code = -1 = allow;
-    //code = -2 = disallow
-    public transient volatile byte code = -1;
+    public transient volatile byte code = ProfileOperator.OPCODE_FREE;
     public KingsQuestsData kingsQuestsData = new KingsQuestsData();
     public ItemStack heldItemStack;
     public ItemStack leggingItemStack;
@@ -166,6 +164,13 @@ public class PlayerProfile {
     private double totalExp;
     private List<String> autoBuyButtons;
     private TradeLimit tradeLimit;
+    private List<String> tradeReturns = new ArrayList<>();
+
+    public List<String> getTradeReturns() { return tradeReturns; }
+
+    public void setTradeReturns(List<String> tradeReturns) {
+        this.tradeReturns = tradeReturns == null ? new ArrayList<>() : new ArrayList<>(tradeReturns);
+    }
     private MedalData medalData;
     private QuestLimit questLimit;
     private OfferData offerData;
@@ -419,15 +424,14 @@ public class PlayerProfile {
                 .find(Filters.eq("lowerName", name.toLowerCase()))
                 .into(new ArrayList<>());
 
-        // 返回最近一个
-        if (allProfiles.size() > 1) {
-            allProfiles.sort((p1, p2) -> Long.compare(p2.getLastLogoutTime(), p1.getLastLogoutTime()));
-            return allProfiles.get(0);
+        // Reuse this query for zero/one match too; keep the first document on ties.
+        PlayerProfile latest = null;
+        for (PlayerProfile candidate : allProfiles) {
+            if (latest == null || candidate.getLastLogoutTime() > latest.getLastLogoutTime()) {
+                latest = candidate;
+            }
         }
-
-        // 只有一个匹配的文档或没有匹配的文档
-        return ThePit.getInstance().getMongoDB().getProfileCollection()
-                .findOne(Filters.eq("lowerName", name.toLowerCase())); //PlayerProfile lookup
+        return latest;
     }
 
     public static void saveAll() {
@@ -552,19 +556,28 @@ public class PlayerProfile {
     }
 
     public void onTick(Player bukkitEntity) {
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> onTick(bukkitEntity));
+            return;
+        }
+        if (!bukkitEntity.isOnline()) return;
         this.inArena = Utils.isInArena(bukkitEntity);
         GameMode gameMode = bukkitEntity.getGameMode();
         if (gameMode != GameMode.CREATIVE && gameMode != GameMode.SPECTATOR) {
             if (isInArena()) {
                 if (gameMode != GameMode.SURVIVAL) {
                     Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
-                        bukkitEntity.setGameMode(GameMode.SURVIVAL);
+                        if (bukkitEntity.isOnline() && !bukkitEntity.isDead() && bukkitEntity.getGameMode() == gameMode) {
+                            bukkitEntity.setGameMode(GameMode.SURVIVAL);
+                        }
                     });
                 }
             } else {
                 if (gameMode != GameMode.ADVENTURE) {
                     Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
-                        bukkitEntity.setGameMode(GameMode.ADVENTURE);
+                        if (bukkitEntity.isOnline() && !bukkitEntity.isDead() && bukkitEntity.getGameMode() == gameMode) {
+                            bukkitEntity.setGameMode(GameMode.ADVENTURE);
+                        }
                     });
                 }
             }
@@ -1375,17 +1388,13 @@ public class PlayerProfile {
         PitInternalHook api = ThePit.getApi();
         if (api == null) return false;
 
-        // 修复：如果 supporter 字段为 true，直接返回 true，不再检查玩家是否在线
-        // 原来的逻辑问题：当 api.getRemoveSupportWhenNoPermission() 为 true 时，
-        // 离线的天坑会员因为 Bukkit.getPlayerExact(playerName) 返回 null，会被误判为非会员
-        // 修复后：只要 supporter 字段为 true，就直接返回 true，确保离线的天坑会员也能被正确识别
-        if (supporter) return true;
-
-        if (!api.getRemoveSupportWhenNoPermission()) return true;
-
-        Player player = Bukkit.getPlayerExact(playerName);
-        if (player == null) return false;
-
+        Player player = Bukkit.getPlayer(getPlayerUuid());
+        if (player == null || !player.isOnline()) {
+            return supporter;
+        }
+        if (supporter && !api.getRemoveSupportWhenNoPermission()) {
+            return true;
+        }
         return player.hasPermission(api.getPitSupportPermission());
     }
 
@@ -1758,6 +1767,10 @@ public class PlayerProfile {
     }
 
     public void setTempInvUsing(boolean tempInvUsing) {
+        if (tempInvUsing && !this.tempInvUsing && loaded && Bukkit.isPrimaryThread()) {
+            Player player = Bukkit.getPlayer(getPlayerUuid());
+            if (player != null) net.mizukilab.pit.menu.trade.TradeManager.cancelFor(player);
+        }
         this.tempInvUsing = tempInvUsing;
     }
 

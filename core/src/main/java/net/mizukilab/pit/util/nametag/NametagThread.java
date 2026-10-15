@@ -16,7 +16,7 @@ public class NametagThread extends BukkitRunnable {
      */
     public NametagThread(NametagHandler handler) {
         this.handler = handler;
-        Bukkit.getScheduler().runTaskTimerAsynchronously(ThePit.getInstance(), this, 0, 20);
+        Bukkit.getScheduler().runTaskTimer(ThePit.getInstance(), this, 0, 20);
     }
 
     @Override
@@ -35,12 +35,24 @@ public class NametagThread extends BukkitRunnable {
             return;
         }
 
+        NametagAdapter adapter = this.handler.getAdapter();
+        boolean shared = adapter.isViewerIndependent();
+        boolean prepared = false;
+        java.util.List<BufferedNametag> plates = null;
         for (Player player : this.handler.getPlugin().getServer().getOnlinePlayers()) {
             NametagBoard board = this.handler.getBoards().get(player.getUniqueId());
 
             // This shouldn't happen, but just in case.
             if (board != null) {
-                board.update();
+                if (shared) {
+                    if (!prepared) {
+                        plates = adapter.getPlate(player);
+                        prepared = true;
+                    }
+                    board.update(plates);
+                } else {
+                    board.update();
+                }
             }
         }
     }

@@ -258,7 +258,10 @@ public class LevelUtil {
         if (prestige < 91) {
             return getLevelTag(prestige, level);
         } else {
-            return getPrestigeColor(prestige) + "P" + getLevelColor(level) + level;
+            // Unbold the brackets to fit the 1.8 team prefix's 16-character limit,
+            // including the trailing space and player name color.
+            String prestigeColor = getPrestigeColor(prestige).replace("&l", "");
+            return prestigeColor + "[" + getLevelColor(level) + level + prestigeColor + "]";
         }
     }
 

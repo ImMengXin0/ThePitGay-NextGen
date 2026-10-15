@@ -25,7 +25,9 @@ public interface ExecutionPolicy {
                         if (lastBoundPlayer == null) {
                             lastBoundPlayer = Bukkit.getPlayer(((PackedOperator) operator).profile.getPlayerUuid());
                         }
-                        lastBoundPlayer.kickPlayer("An error was occurred on your profile, please contact the administrator to get details. ");
+                        if (lastBoundPlayer != null && lastBoundPlayer.isOnline()) {
+                            lastBoundPlayer.kickPlayer("An error was occurred on your profile, please contact the administrator to get details. ");
+                        }
                     }
             );
         }

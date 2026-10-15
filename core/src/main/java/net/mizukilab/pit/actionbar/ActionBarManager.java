@@ -37,13 +37,13 @@ public class ActionBarManager implements IActionBarManager {
     }
 
     public void tick() {
+        tick++; // One clock step per round, independent of the number of recipients.
         multiMap.removeIf((uuid, mappedString) -> { //forEach as multimap
             return tickPiece(uuid, mappedString.getValue(),mappedString.getKey());
         });
     }
 
     private boolean tickPiece(UUID uuid, Map<String, MutablePair<String, Integer>> mappedString,StringBuilder builder) {
-        tick++;
         long tick = Utils.toUnsignedInt(this.tick);
         Player player = Bukkit.getPlayer(uuid); //get Players
         if (mappedString.isEmpty() || player == null || !player.isOnline()) {

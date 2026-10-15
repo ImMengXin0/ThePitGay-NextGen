@@ -51,10 +51,7 @@ public class StatusNPC extends SkinNPC {
 
     @Override
     public Skin getNpcSkin() {
-        return new Skin(
-                "ewogICJ0aW1lc3RhbXAiIDogMTc2ODU1NzEwODMyMSwKICAicHJvZmlsZUlkIiA6ICJiZWNiMGVhYmM3N2I0ZjJiYTM1OGNkOGM0MWM0MWE4ZCIsCiAgInByb2ZpbGVOYW1lIiA6ICJad2VpZmFjaEd1c3RhZiIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS8zNTdjY2YyNGNkYjE5MDEwNjI0ZTQxM2Q1ZjI1MmJjNzM5YmZhZDM5MWU2NDg4MzBhNTNmOGM5YjM5ZjE5Mzg3IgogICAgfQogIH0KfQ==",
-                "GqcfJWdP4pfH7jMzFrtWcrlSosp8kKJ4kb4kvL54LeHFA5/lvzW6mUYxQUFg/Xv3BadM5G+R/R10lY1UYLpzsqAnGBtlm53W0g0P5FDy8aZLHivqWS813tnho5VeFurpWQGcK0YdRC1V75aaoQpkyf6PRdkWLm+HMQgjZ0bJs3n1Pv2QSB6m+GIqP1NmuhDpiK2HJLZdke6IxEsxsz9dof6aAHt6uR+f0VxaDZlcCaQ9ZP3WxtIO+19pqNttwmovC2pjjhh3uleXpuVgwut6DBnkiWaT75yRt2AskRdxVQOQiIpeQZ0q4qV5sBo5v2VawIwLJZwq3rC3OB2/btQ9+PBqC/cRIiplJwpqjJsRedTYfc3YysZ5wZ7XaX0VXt3lC9wS8oKTqZEl6Dh6f+kLmIbHVe1X5wJYZHUb+DQQYr5028mAkFoFogA5BQ/5AJg0k7XgLbNijNOC0O1uFPXW+mVjoS2AE27Hd6uxua9uUH4NGhVI9LMYb5WZOauB6N7fnQtbpwDEaw59vEF3OG4ZExnv9uolaAKWHuGwLBdk9iR/8Tx0TT5lkUPpTZiF3/wkK6AwZF54Txg4yZwiv3gqHB7OAxgNhcsKEg8QEmNzUbMTa36w09rMF00AwpMv90QV7LHzwHpbFepyOBnAtNnHXPnLf6V4KktLkFQ1mn8bmGA="
-        );
+        return net.mizukilab.pit.npc.BuiltinNpcSkins.get(getNpcInternalName());
     }
 
     @Override

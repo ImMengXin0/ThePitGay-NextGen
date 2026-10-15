@@ -14,6 +14,9 @@ public class TradeListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onLogout(PlayerQuitEvent event) {
+        var signGui = cn.charlotte.pit.ThePit.getInstance().getSignGui();
+        if (signGui != null) signGui.cancel(event.getPlayer());
+        net.mizukilab.pit.trade.TradeMonitorRunnable.removeRequests(event.getPlayer().getUniqueId());
         if (TradeManager.trades.containsKey(event.getPlayer().getUniqueId())) {
             TradeManager.trades.get(event.getPlayer().getUniqueId()).onPlayerCancel(event.getPlayer());
         }

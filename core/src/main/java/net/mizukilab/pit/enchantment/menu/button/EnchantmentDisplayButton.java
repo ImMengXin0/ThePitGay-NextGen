@@ -45,7 +45,7 @@ public class EnchantmentDisplayButton extends Button {
 
         ItemStack refreshedItem = mythicItem.toItemStack();
         mythicItem = Utils.getMythicItem0(refreshedItem);
-        
+
         if (mythicItem == null) {
             return getEmptySlot("刷新后mythicItem为null");
         }
@@ -63,7 +63,7 @@ public class EnchantmentDisplayButton extends Button {
         Iterator<Map.Entry<AbstractEnchantment, Integer>> iterator = enchantments.entrySet().iterator();
         Map.Entry<AbstractEnchantment, Integer> enchantEntry = null;
         if(enchantIndex < size) {
-            for (int i = 0; i < enchantIndex; i++) {
+            for (int i = 0; i <= enchantIndex; i++) {
                 enchantEntry = iterator.next();
             }
         }
@@ -135,4 +135,4 @@ public class EnchantmentDisplayButton extends Button {
     public void clicked(Player player, int slot, ClickType clickType, int hotbarButton, ItemStack currentItem) {
 
     }
-} 
+}

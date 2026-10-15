@@ -11,7 +11,7 @@ public class MenuUpdateTask implements Runnable {
             final Player player = Bukkit.getPlayer(key);
 
             if (player != null) {
-                if (value.isAutoUpdate()) {
+                if (value.isAutoUpdate() && Menu.find(player, player.getOpenInventory().getTopInventory()) == value) {
                     value.openMenu(player);
                 }
             }

@@ -10,7 +10,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Level;
 import java.util.List;
 
 public class AssembleThread implements Runnable {
@@ -18,6 +22,7 @@ public class AssembleThread implements Runnable {
     private final Assemble assemble;
 
     protected int taskId;
+    private final Map<UUID, Long> lastFailure = new HashMap<>();
 
     /**
      * Assemble Thread.
@@ -26,24 +31,31 @@ public class AssembleThread implements Runnable {
      */
     AssembleThread(Assemble assemble) {
         this.assemble = assemble;
-//        Plugin protocolLib = Bukkit.getPluginManager().getPlugin("ProtocolLib");
-//        if (protocolLib.getDescription().getVersion().startsWith("5")) {
-        taskId = Bukkit.getScheduler().runTaskTimerAsynchronously(ThePit.getInstance(), this, 0, assemble.getTicks()).getTaskId();
-//        } else {
-//            taskId = Bukkit.getScheduler().runTaskTimerAsynchronously(ThePit.getInstance(), this, assemble.getTicks(), assemble.getTicks()).getTaskId();
-//        } useless check
+        taskId = Bukkit.getScheduler().runTaskTimer(assemble.getPlugin(), this, 0, assemble.getTicks()).getTaskId();
     }
 
     @Override
     @SneakyThrows
     public void run() {
-        tick();
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(assemble.getPlugin(), this);
+            return;
+        }
+        AssembleAdapter adapter = this.assemble.getAdapter();
+        if (adapter == null) return;
+        try {
+            adapter.beginUpdate();
+            tick(adapter);
+        } finally {
+            adapter.endUpdate();
+        }
     }
 
     /**
      * Tick logic for thread.
      */
-    private void tick() {
+    private void tick(AssembleAdapter adapter) {
+        lastFailure.keySet().retainAll(assemble.getBoards().keySet());
         this.assemble.getBoards().forEach((uuid, board) -> {
             Player player = Bukkit.getPlayer(uuid);
             if (player == null || !player.isOnline() || board == null) {
@@ -66,46 +78,29 @@ public class AssembleThread implements Runnable {
                 }
                 // Just make a variable so we don't have to
                 // process the same thing twice.
-                String title = ChatColor.translateAlternateColorCodes('&', this.assemble.getAdapter().getTitle(player));
+                String title = ChatColor.translateAlternateColorCodes('&', adapter.getTitle(player));
 
                 // Update the title if needed.
                 if (!objective.getDisplayName().equals(title)) {
                     objective.setDisplayName(title);
                 }
-                List<String> newLines = this.assemble.getAdapter().getLines(player);
+                List<String> provided = adapter.getLines(player);
+                // Event listeners may add/remove lines even if an adapter returns List.of().
+                List<String> newLines = provided == null ? new ArrayList<>() : new ArrayList<>(provided);
 
                 AssemblePostUpdateEvent assemblePostUpdateEvent = new AssemblePostUpdateEvent(player, newLines);
                 assemblePostUpdateEvent.callEvent();
                 if (assemblePostUpdateEvent.isCancelled()) {
                     return;
                 }
-                // Allow adapter to return null/empty list to display nothing.
-                if (newLines == null || newLines.isEmpty()) {
-                    board.getEntries().removeIf(i -> {
-                        i.remove();
-                        return true;
-                    });
-                } else {
-                    int size1 = newLines.size();
-                    if (size1 > 16) {
-                        newLines = newLines.subList(0, 15); //EmptyIrony u sucks
-                    }
-                    size1 = newLines.size();
-
-                    // Reverse the lines because scoreboard scores are in descending order.
+                if (newLines.size() > 15) newLines = newLines.subList(0, 15);
+                int size1 = newLines.size();
+                // Remove from the end: remove() detaches both the entry and its team.
+                for (int i = board.getEntries().size() - 1; i >= size1; i--) {
+                    board.getEntryAtPosition(i).remove();
+                }
+                if (size1 > 0) {
                     boolean descending = this.assemble.getAssembleStyle().isDescending();
-
-                    // Remove excessive amount of board entries.
-                    int size = board.getEntries().size();
-                    boolean b = size > size1;
-                    if (b) {
-                        for (int i = size1; i < size; i++) {
-                            AssembleBoardEntry entry = board.getEntryAtPosition(i);
-                            if (entry != null) {
-                                entry.remove();
-                            }
-                        }
-                    }
 
                     // Update existing entries / add new entries.
                     int cache = descending ? this.assemble.getAssembleStyle().getStartNumber() : size1;
@@ -113,16 +108,8 @@ public class AssembleThread implements Runnable {
                         AssembleBoardEntry entry = board.getEntryAtPosition(i);
 
                         // Translate any colors.
-                        String textToTranslate;
-                        try {
-                            textToTranslate = newLines.get(i);
-                            if (textToTranslate == null) {
-                                continue;
-                            }
-                        } catch (Exception e){
-                            e.printStackTrace();
-                            continue;
-                        }
+                        String textToTranslate = newLines.get(i);
+                        if (textToTranslate == null) textToTranslate = "";
                         String line = ChatColor.
                                 translateAlternateColorCodes('&', textToTranslate);
 
@@ -144,8 +131,13 @@ public class AssembleThread implements Runnable {
                     player.setScoreboard(scoreboard);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
-                throw new AssembleException("There was an error updating " + player.getName() + "'s scoreboard.");
+                long now = System.currentTimeMillis();
+                Long previous = lastFailure.get(uuid);
+                if (previous == null || now - previous >= 30_000L) {
+                    lastFailure.put(uuid, now);
+                    assemble.getPlugin().getLogger().log(Level.WARNING,
+                            "Could not update " + player.getName() + "'s scoreboard; other viewers will continue.", e);
+                }
             }
         });
 

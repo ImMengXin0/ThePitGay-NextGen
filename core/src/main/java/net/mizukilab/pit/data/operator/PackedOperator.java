@@ -27,7 +27,8 @@ import java.util.function.Consumer;
 @Skip
 @ToString
 public class PackedOperator implements IOperator {
-    Throwable throwable;
+    volatile Throwable throwable;
+    volatile long nextSaveAttemptAt;
     ExecutionPolicy policy;
     ThePit pit;
     long lastHeartBeat = 0;
@@ -57,11 +58,17 @@ public class PackedOperator implements IOperator {
     }
 
     public void heartBeat() {
+        heartBeat(true);
+    }
+
+    // The regular async sweep only maintains operator state. TickHandler updates
+    // online entity state in its existing main-thread loop, without N scheduled tasks.
+    void heartBeat(boolean updatePlayerState) {
         Player player = Bukkit.getPlayer(profile.getPlayerUuid());
         if (player != null && player.isOnline()) {
             this.quitFlag = false;
             this.fireExit = false;
-            if (profile.isLoaded()) {
+            if (updatePlayerState && profile.isLoaded()) {
                 this.profile.onTick(player);
             }
         }
@@ -117,7 +124,7 @@ public class PackedOperator implements IOperator {
 
     public boolean hasAnyOperation() {
         synchronized (operations) {
-            return !operations.isEmpty() && !this.pendingExecuting.isEmpty();
+            return !operations.isEmpty() || !this.pendingExecuting.isEmpty();
         }
     }
     public boolean hasAnyExecutingOp() {
@@ -126,38 +133,36 @@ public class PackedOperator implements IOperator {
         }
     }
 
-    boolean fireExit = false;
-    boolean quitFlag = false;
+    volatile boolean fireExit = false;
+    volatile boolean quitFlag = false;
 
     //为了防止掉数据做的妥协
     public synchronized boolean save(boolean fireExit, boolean quitFlag) {
-        if (System.currentTimeMillis() - lastHeartBeat > 1000) {
-            this.fireExit = fireExit;
-            if (this.fireExit) {
-                if (!quitFlag) {
-                    pending(prof -> {
-                        prof.disallowUnsafe();
-                        prof.save(null);
-                        prof.allow();
-                    });
-                }
-            }
-            return true;
-        }
-        if (quitFlag && !this.quitFlag) {
-            pending(prof -> {
-                Instant instant = Instant.now();
-                Log.WriteLine("Saving " + prof.getUuid() + "'s data");
-                PlayerProfile playerProfile = prof.disallowUnsafe();
-                PlayerProfile save = playerProfile.save(null);
-                pending(unk -> {
-                    save.allow();
-                });
-                Log.WriteLine("Saved " + prof.getUuid() + "'s data, costs: " + ChronoUnit.MILLIS.between(instant,Instant.now()) + "ms");
-            });
+        if (!this.quitFlag) {
+            pending(this::saveProfile);
             this.quitFlag = true;
         }
+        this.fireExit = fireExit;
         return true;
+    }
+
+    private void saveProfile(PlayerProfile profile) {
+        if (profile.disallow() != profile) {
+            pending(this::saveProfile);
+            return;
+        }
+        try {
+            profile.save(null);
+            throwable = null;
+            nextSaveAttemptAt = 0;
+        } catch (RuntimeException failure) {
+            // Saving replaces the same profile document and can be retried safely.
+            nextSaveAttemptAt = System.currentTimeMillis() + 5000;
+            pending(this::saveProfile);
+            throw failure;
+        } finally {
+            profile.allow();
+        }
     }
 
     public void pendingIfLoaded(Consumer<PlayerProfile> profile) {
@@ -193,6 +198,7 @@ public class PackedOperator implements IOperator {
     }
 
     public void drainTask() {
+        if (System.currentTimeMillis() < nextSaveAttemptAt) return;
         if(hasAnyExecutingOp()){
             return;
         } //we need to ensure the tasks is done
@@ -204,6 +210,8 @@ public class PackedOperator implements IOperator {
 
     public void drainTasksOnCurrentThread() {
         while (true) {
+            if (System.currentTimeMillis() < nextSaveAttemptAt) break;
+            if (profile.code == ProfileOperator.OPCODE_BUSY) break;
             Runnable runnable = gainTask();
             if (runnable == null) {
                 break;
@@ -246,14 +254,15 @@ public class PackedOperator implements IOperator {
             currentOperation = () -> {
                 try {
                     operationFinaled.run();
-                    synchronized (operations) {
-                        operations.remove(operationFinaled);
-                        pendingExecuting.remove(operationFinaled);
-                    }
                     policy.success(PackedOperator.this);
                 } catch (Exception e) {
                     throwable = e;
                     policy.fail(PackedOperator.this, e);
+                } finally {
+                    synchronized (operations) {
+                        operations.remove(operationFinaled);
+                        pendingExecuting.remove(operationFinaled);
+                    }
                 }
             };
         }

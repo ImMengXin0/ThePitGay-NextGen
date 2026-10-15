@@ -16,6 +16,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
@@ -92,17 +93,20 @@ public class EnderBowEnchant extends AbstractEnchantment implements IPlayerShoot
         cooldown.remove(e.getPlayer().getUniqueId());
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBowShot(EntityShootBowEvent event) {
+        // Piercing Bow cancels the weak shot and synchronously emits a full-power one.
+        // Only the surviving projectile may consume cooldown and receive the teleport mark.
+        if (event.isCancelled()) return;
         if (ThePit.getInstance().getEventFactory().getActiveEpicEvent() != null) return;
 
         if (!(event.getEntity() instanceof Player)) return;
         final Player player = (Player) event.getEntity();
         if (PlayerUtil.isVenom(player) || PlayerUtil.isEquippingSomber(player)) return;
-        final org.bukkit.inventory.ItemStack itemInHand = player.getItemInHand();
+        final org.bukkit.inventory.ItemStack itemInHand = event.getBow();
         if (itemInHand == null) return;
         final int level = this.getItemEnchantLevel(itemInHand);
-        if (level == -1) {
+        if (level <= 0) {
             return;
         }
         if (!player.isSneaking()) return;

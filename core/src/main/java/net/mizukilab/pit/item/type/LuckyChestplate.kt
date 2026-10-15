@@ -53,11 +53,13 @@ class LuckyChestplate : IMythicItem(), Listener {
         this.uuid = ItemUtil.getUUIDObj(item);
         this.maxLive = extra.getInt("maxLive")
         this.live = extra.getInt("live")
+        loadNameData(item, extra)
     }
 
     override fun toItemStack(): ItemStack {
         return ItemBuilder(itemDisplayMaterial)
-            .name(itemDisplayName)
+            .name(customName ?: itemDisplayName)
+            .customName(customName)
             .lore(
                 "&7生命: " + (if (live / (maxLive * 1.0) <= 0.6) if (live / (maxLive * 1.0) <= 0.3) "&c" else "&e" else "&a") + live + "&7/" + maxLive,
                 "",
@@ -80,6 +82,12 @@ class LuckyChestplate : IMythicItem(), Listener {
             .canDrop(false)
             .canTrade(true)
             .shiny()
+            .also {
+                when (forceCanTrade) {
+                    0 -> it.forceCanTrade(false)
+                    1 -> it.forceCanTrade(true)
+                }
+            }
             .build()
 
     }

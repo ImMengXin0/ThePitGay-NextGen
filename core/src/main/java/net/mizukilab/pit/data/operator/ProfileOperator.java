@@ -176,7 +176,7 @@ public class ProfileOperator implements IProfilerOperator {
     }
     public final static int OPCODE_BUSY = -2;
 
-    public final static int OPCODE_FREE = 0;
+    public final static int OPCODE_FREE = -1;
     public void tick() {
         operators.removeIf((uuid, operator) -> {
             if (operator == null) {
@@ -187,7 +187,7 @@ public class ProfileOperator implements IProfilerOperator {
 
             if (player == null || !player.isOnline()) {
                 operator.tick();
-                if (operator.throwable != null) {
+                if (operator.throwable != null && !operator.isLoaded() && !operator.hasAnyOperation()) {
                     return true;
                 }
                 if (operator.profile.code == OPCODE_BUSY) {
@@ -204,7 +204,7 @@ public class ProfileOperator implements IProfilerOperator {
                             operator.fireExit = true;
                         }
                     } else {
-                        operator.heartBeat();
+                        operator.heartBeat(false);
                     }
                 }
 
@@ -214,7 +214,7 @@ public class ProfileOperator implements IProfilerOperator {
                 if (operator.fireExit) {
                     operator.fireExit = false;
                 } else {
-                    operator.heartBeat();
+                    operator.heartBeat(false);
                 }
             }
             return false;
@@ -237,12 +237,26 @@ public class ProfileOperator implements IProfilerOperator {
     }
 
     public void doSaveProfiles() {
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(instance, this::doSaveProfiles);
+            return;
+        }
         operators.forEachValue(operator -> {
             Player lastBoundPlayer = operator.lastBoundPlayer;
+            if (!operator.isLoaded() || lastBoundPlayer == null || !lastBoundPlayer.isOnline()
+                    || !operator.profile().isLogin()) return;
+            operator.profile().setInventory(net.mizukilab.pit.util.inventory.InventoryUtil.playerInventoryFromPlayer(lastBoundPlayer));
             operator.pendingIfLoaded(i -> {
                 if (lastBoundPlayer != null && lastBoundPlayer.isOnline() && !(operator.quitFlag || operator.fireExit)) {
-                    PlayerProfile playerProfile = i.disallowUnsafe();
-                    playerProfile.save(lastBoundPlayer);
+                    if (i.disallow() != i) {
+                        return;
+                    }
+                    try {
+                        // Inventory was captured on the server thread above.
+                        i.save(null);
+                    } finally {
+                        i.allow();
+                    }
                 }
             });
         });

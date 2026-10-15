@@ -46,6 +46,7 @@ public class AdminItemMenu extends Menu {
 
     @Override
     public Map<Integer, Button> getButtons(Player player) {
+        if (admin) return getAdminButtons();
         Map<Integer, Button> buttonMap = new HashMap<>();
         try {
             buttonMap.put(0, new MythicItemButton(0));
@@ -65,51 +66,6 @@ public class AdminItemMenu extends Menu {
             buttonMap.put(13, new MythicItemButton(4));
             buttonMap.put(14, new PantsBundleShopButton());
 
-            //TODO Not
-/*            if (ThePit.getInstance().getPitConfig().getCode().equals("4847a648-bd9f-463e-ab18-3006b0fabd3b")) {
-                buttonMap.put(14, new MythicItemButton(9));
-            }*/
-
-            if (admin) {
-                buttonMap.put(9, new ShopItemButton(Material.TNT, "tnt", 64));
-
-                buttonMap.put(10, new PitItemButton(new GlobalAttentionGem().toItemStack()));
-                buttonMap.put(11, new PitItemButton(((MythicEnchantingTable) FuncsKt.getInstance(ThePit.getInstance().getItemFactor().getItemMap().get("enchant_table_mobile"))).toItemStack()));
-                buttonMap.put(16, new PitItemButton(JumpBoostPotion.toItemStack()));
-                buttonMap.put(17, new PitItemButton(BountySolventPotion.toItemStack()));
-                buttonMap.put(18, new PitItemButton(FourInARowGadget.toItemStack()));
-                buttonMap.put(19, new PitItemButton(ChunkOfVileItem.toItemStack()));
-                buttonMap.put(20, new RedPacketButton());
-                buttonMap.put(21, new PitItemButton(FunkyFeather.toItemStack()));
-                buttonMap.put(22, new PitItemButton(PitCactus.toItemStack()));
-                buttonMap.put(23, new PitItemButton(MythicRepairKit.toItemStack0()));
-                buttonMap.put(24, new PitItemButton(new JewelSword().toItemStack()));
-                buttonMap.put(25, new PitItemButton(new ArmageddonBoots().toItemStack()));
-                buttonMap.put(26, new MythicItemButton(10));
-                buttonMap.put(27, new PitItemButton(new TotallyLegitGem().toItemStack()));
-                buttonMap.put(28, new MythicItemButton(5));
-                buttonMap.put(29, new MythicItemButton(6));
-                buttonMap.put(30, new PitItemButton(new GoldenHelmet().toItemStack()));
-                final MythicLeggingsItem item = new MythicLeggingsItem();
-                item.setColor(MythicColor.RAGE);
-                buttonMap.put(31, new PitItemButton(item.toItemStack()));
-
-                buttonMap.put(33, new PitItemButton(new UberDrop().toItemStack()));
-
-                final MythicLeggingsItem aquaLeggings = new MythicLeggingsItem();
-                aquaLeggings.setColor(MythicColor.AQUA);
-                buttonMap.put(34, new PitItemButton(aquaLeggings.toItemStack()));
-                buttonMap.put(35, new PitItemButton(MiniCake.INSTANCE.toItemStack()));
-
-                final MythicLeggingsItem darkGreenLeggings = new MythicLeggingsItem();
-                darkGreenLeggings.setColor(MythicColor.DARK_GREEN);
-                buttonMap.put(36, new PitItemButton(darkGreenLeggings.toItemStack()));
-                buttonMap.put(37, new SwordBundleShopButton());
-                buttonMap.put(38, new BowBundleShopButton());
-                buttonMap.put(39, new MythicItemButton(11));
-                buttonMap.put(42, new PitItemButton(new MusicalRune().toItemStack()));
-                buttonMap.put(44, new PitItemButton(new LuckyGem().toItemStack()));
-            }
 
         } catch (Exception e) {
             CC.printError(player, e);
@@ -117,6 +73,73 @@ public class AdminItemMenu extends Menu {
 
 
         return buttonMap;
+    }
+
+    private Map<Integer, Button> getAdminButtons() {
+        Map<Integer, Button> buttons = new HashMap<>();
+        addRow(buttons, 0, "§d神话装备", (byte) 10,
+                new MythicItemButton(0), new MythicItemButton(1), new MythicItemButton(3),
+                new MythicItemButton(2), new MythicItemButton(4), coloredPants(MythicColor.RAGE),
+                coloredPants(MythicColor.AQUA), coloredPants(MythicColor.DARK_GREEN));
+        addRow(buttons, 1, "§f天使套与特殊防具", (byte) 0,
+                new PitItemButton(() -> new AngelHelmet().toItemStack()),
+                new PitItemButton(() -> new AngelChestplate().toItemStack()),
+                new PitItemButton(() -> new AngelLeggings().toItemStack()),
+                new PitItemButton(() -> new AngelBoots().toItemStack()),
+                new PitItemButton(() -> {
+                    AngelChestplate item = new AngelChestplate();
+                    item.setLive(12);
+                    return item.toItemStack();
+                }),
+                new PitItemButton(() -> new ArmageddonBoots().toItemStack()),
+                new PitItemButton(() -> {
+                    ArmageddonBoots item = new ArmageddonBoots();
+                    item.setLive(3);
+                    return item.toItemStack();
+                }),
+                new PitItemButton(() -> new GoldenHelmet().toItemStack()));
+        addRow(buttons, 2, "§b常规装备与武器", (byte) 3,
+                new ShopItemButton(Material.DIAMOND_HELMET, "shopItem"),
+                new ShopItemButton(Material.DIAMOND_CHESTPLATE, "shopItem"),
+                new ShopItemButton(Material.DIAMOND_LEGGINGS, "shopItem"),
+                new ShopItemButton(Material.DIAMOND_BOOTS, "shopItem"),
+                new ShopItemButton(Material.DIAMOND_SWORD, "shopItem"),
+                new GoldPickaxeShopButton(), new CombatSpadeShopButton(),
+                new PitItemButton(() -> new JewelSword().toItemStack()));
+        addRow(buttons, 3, "§a附魔与强化", (byte) 5,
+                new PitItemButton(() -> ((MythicEnchantingTable) FuncsKt.getInstance(ThePit.getInstance()
+                        .getItemFactor().getItemMap().get("enchant_table_mobile"))).toItemStack()),
+                new PitItemButton(MythicRepairKit::toItemStack0),
+                new PitItemButton(() -> new TotallyLegitGem().toItemStack()),
+                new PitItemButton(() -> new GlobalAttentionGem().toItemStack()),
+                new PitItemButton(() -> new LuckyGem().toItemStack()),
+                new MythicItemButton(11), new PitItemButton(ChunkOfVileItem::toItemStack),
+                new PitItemButton(FunkyFeather::toItemStack));
+        addRow(buttons, 4, "§e消耗与奖励", (byte) 4,
+                new PitItemButton(JumpBoostPotion::toItemStack), new PitItemButton(BountySolventPotion::toItemStack),
+                new PitItemButton(FourInARowGadget::toItemStack), new PitItemButton(PitCactus::toItemStack),
+                new RedPacketButton(), new PitItemButton(() -> new UberDrop().toItemStack()),
+                new PitItemButton(() -> MiniCake.INSTANCE.toItemStack()),
+                new PitItemButton(() -> new MusicalRune().toItemStack()));
+        addRow(buttons, 5, "§6收纳、方块与染色", (byte) 1,
+                new PantsBundleShopButton(), new SwordBundleShopButton(), new BowBundleShopButton(),
+                new ShopItemButton(Material.TNT, "tnt", 64), new ShopItemButton(Material.OBSIDIAN, "shopItem", 64),
+                new MythicItemButton(8));
+        return buttons;
+    }
+
+    private static PitItemButton coloredPants(MythicColor color) {
+        return new PitItemButton(() -> {
+            MythicLeggingsItem item = new MythicLeggingsItem();
+            item.setColor(color);
+            return item.toItemStack();
+        });
+    }
+
+    private static void addRow(Map<Integer, Button> buttons, int row, String title, byte color, Button... items) {
+        if (row < 0 || row >= 6 || items.length > 8) throw new IllegalArgumentException("Invalid item menu row");
+        buttons.put(row * 9, Button.placeholder(Material.STAINED_GLASS_PANE, color, title));
+        for (int i = 0; i < items.length; i++) buttons.put(row * 9 + 1 + i, items[i]);
     }
 
     @Override

@@ -28,7 +28,7 @@ class UberDrop : AbstractPitItem(), Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onInteract(event: BlockPlaceEvent) {
         val itemInHand = event.itemInHand ?: return
-        if ("uber_drop" == ItemUtil.getInternalName(itemInHand)) {
+        if ("uber_drop" == ItemUtil.getInternalName(itemInHand) && !UberPlusDrop.isPlusDrop(itemInHand)) {
             event.isCancelled = true
 
             val player = event.player

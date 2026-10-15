@@ -37,7 +37,12 @@ public class AnimationHandler implements Runnable {
     private final Map<UUID, AnimationData> animations = new ConcurrentHashMap<>();
     private final Location[] animationLocations;
     public AnimationData holdOrGetAnimation(Player player){
-        return animations.computeIfAbsent(player.getUniqueId(),i -> new AnimationHandler.AnimationData(player));
+        return animations.compute(player.getUniqueId(), (id, data) ->
+                data == null || data.getPlayer() != player ? new AnimationData(player) : data);
+    }
+
+    public void releaseAnimation(Player player, AnimationData data) {
+        if (animations.remove(player.getUniqueId(), data)) sendReset(player);
     }
     public AnimationHandler() {
         final PitWorldConfig pitWorldConfig = ThePit.getInstance().getPitConfig();
@@ -97,20 +102,16 @@ public class AnimationHandler implements Runnable {
                 if (data.isFinished()) {
                     Player player = player1;
                     PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-                    String mythicColor = ItemUtil.getItemStringData(InventoryUtil.deserializeItemStack(profile.getEnchantingItem()), "mythic_color");
-                    MythicColor foundColor = null;
-                    for (MythicColor color : MythicColor.values()) {
-                        if (color.getInternalName().equals(mythicColor)) {
-                            foundColor = color;
-                            break;
-                        }
-                    }
+                    MythicColor foundColor = data.resolveColor(profile.getEnchantingItem());
                     if (foundColor == null) {
                         continue;
                     }
 
-                    for (Location location : animationLocations) {
-                        player.sendBlockChange(location, Material.STAINED_GLASS, foundColor.getColorByte());
+                    if (!Objects.equals(data.finishedColor, foundColor)) {
+                        for (Location location : animationLocations) {
+                            player.sendBlockChange(location, Material.STAINED_GLASS, foundColor.getColorByte());
+                        }
+                        data.finishedColor = foundColor;
                     }
                     continue;
                 }
@@ -118,14 +119,7 @@ public class AnimationHandler implements Runnable {
                 if (data.isStartEnchanting()) {
                     Player player = player1;
                     PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-                    String mythic_color = ItemUtil.getItemStringData(InventoryUtil.deserializeItemStack(profile.getEnchantingItem()), "mythic_color");
-                    MythicColor foundColor = null;
-                    for (MythicColor color : MythicColor.values()) {
-                        if (color.getInternalName().equals(mythic_color)) {
-                            foundColor = color;
-                            break;
-                        }
-                    }
+                    MythicColor foundColor = data.resolveColor(profile.getEnchantingItem());
                     if (foundColor == null) {
                         continue;
                     }
@@ -138,9 +132,7 @@ public class AnimationHandler implements Runnable {
 
                     int realTick = (data.animationTick / 4) % 8;
 
-                    if (menu instanceof MythicWellMenu) {
-                        menu.openMenu(player1);
-                    }
+                    refreshMenu(menu, player1);
 
                     if (data.animationTick > 0) {
                         int prevIndex = (realTick - 1 + 8) % 8;
@@ -197,6 +189,7 @@ public class AnimationHandler implements Runnable {
                 spawnFinalMagicParticles(player, foundColor);
             }
         } else {
+            if (!data.isEnd()) return;
             if (!data.finished) {
                 data.finished = true;
 
@@ -204,39 +197,25 @@ public class AnimationHandler implements Runnable {
                     player.sendBlockChange(location, Material.STAINED_GLASS, foundColor.getColorByte());
                 }
 
+                data.finishedColor = foundColor;
                 player.playSound(player.getLocation(), Sound.LEVEL_UP, 1, 1.0F);
                 player.playSound(player.getLocation(), Sound.ORB_PICKUP, 1, 2.0F);
                 spawnFinalBurstParticles(player, foundColor);
 
-                PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-                String currentItemStr = profile.getEnchantingItem();
-                if (currentItemStr != null) {
-                    ItemStack currentItem = InventoryUtil.deserializeItemStack(currentItemStr);
-                    if (currentItem != null && currentItem.getType() != Material.AIR) {
-                        profile.setEnchantingItem(InventoryUtil.serializeItemStack(currentItem));
-                    }
-                }
-
-                Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
-                    if (player.isOnline()) {
-                        Menu currentMenu =  Menu.find(player);
-                        if (currentMenu instanceof MythicWellMenu) {
-                            currentMenu.openMenu(player);
-                        }
-                    }
-                });
+                refreshMenu(menu, player);
 
             }
             return;
         }
-        Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
-            if (player.isOnline()) {
-                Menu currentMenu = Menu.find(player);
-                if (currentMenu instanceof MythicWellMenu) {
-                    currentMenu.openMenu(player);
-                }
-            }
-        });
+        // The animator already runs on the main thread; don't enqueue a task for every frame.
+        if (tick <= 11 || (tick - 12) % 3 == 0) refreshMenu(menu, player);
+    }
+
+    private void refreshMenu(Menu menu, Player player) {
+        if (menu instanceof MythicWellMenu && player.isOnline()
+                && Menu.find(player, player.getOpenInventory().getTopInventory()) == menu) {
+            menu.openMenu(player);
+        }
     }
 
     private void spawnParticles(Player player, String particleType, MythicColor color) {
@@ -281,6 +260,8 @@ public class AnimationHandler implements Runnable {
 
 
     public void sendReset(Player player) {
+        AnimationData data = animations.get(player.getUniqueId());
+        if (data != null) data.finishedColor = null;
         for (Location location : animationLocations) {
             Block block = location.getBlock();
             player.sendBlockChange(location, block.getType(), block.getData());
@@ -303,12 +284,30 @@ public class AnimationHandler implements Runnable {
         private boolean startEnchanting = false;
         private boolean end = true;
         private boolean finished = false;
+        private String colorSource;
+        private MythicColor cachedColor;
+        private MythicColor finishedColor;
+
+        public MythicColor resolveColor(String source) {
+            if (!Objects.equals(colorSource, source)) {
+                String name = ItemUtil.getItemStringData(InventoryUtil.deserializeItemStack(source), "mythic_color");
+                cachedColor = null;
+                for (MythicColor candidate : MythicColor.values()) {
+                    if (candidate.getInternalName().equals(name)) { cachedColor = candidate; break; }
+                }
+                colorSource = source;
+            }
+            return cachedColor;
+        }
 
         public void reset() {
             animationTick = 0;
             startEnchanting = false;
             end = true;
             finished = false;
+            colorSource = null;
+            cachedColor = null;
+            finishedColor = null;
         }
 
         public AnimationData(Player player) {

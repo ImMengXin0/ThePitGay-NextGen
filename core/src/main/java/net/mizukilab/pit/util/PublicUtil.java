@@ -3,6 +3,7 @@ package net.mizukilab.pit.util;
 import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.PlayerOption;
+import net.mizukilab.pit.compat.enchant.AddonEnchantReplacements;
 import net.minecraft.server.v1_8_R3.Chunk;
 import net.minecraft.server.v1_8_R3.World;
 import net.mizukilab.pit.parm.AutoRegister;
@@ -16,6 +17,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.RegisteredListener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import spg.lgdev.handler.MovementHandler;
@@ -26,6 +29,9 @@ import java.lang.invoke.VarHandle;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 import static net.mizukilab.pit.util.rank.RankUtil.CONSTANT_BOT_NAME;
 
@@ -244,7 +250,7 @@ public class PublicUtil {
 
     public static void register(Class<?> clazz, Object instance, List<IPlayerDamaged> playerDamageds, List<IAttackEntity> attackEntities, List<IItemDamage> iItemDamages, List<IPlayerBeKilledByEntity> playerBeKilledByEntities, List<IPlayerKilledEntity> playerKilledEntities, List<IPlayerRespawn> playerRespawns, List<IPlayerShootEntity> playerShootEntities) {
         if (instance instanceof Listener listen) {
-            Bukkit.getPluginManager().registerEvents(listen, ThePit.getInstance());
+            registerCanonicalListener(listen);
         }
         if (MovementHandler.class.isAssignableFrom(clazz)){
             iSpigot.INSTANCE.addMovementHandler((MovementHandler) instance);
@@ -272,31 +278,58 @@ public class PublicUtil {
         }
     }
 
+    private static void registerCanonicalListener(Listener listener) {
+        Plugin owner = ThePit.getInstance();
+        Set<Listener> duplicates = Collections.newSetFromMap(new IdentityHashMap<>());
+        // Legacy addons register a separate listener before passing the class to
+        // the core factory. Use one instance for Bukkit and core callbacks.
+        for (HandlerList handlers : HandlerList.getHandlerLists()) {
+            for (RegisteredListener registered : handlers.getRegisteredListeners()) {
+                Listener existing = registered.getListener();
+                if (existing.getClass() != listener.getClass()
+                        && existing.getClass() != AddonEnchantReplacements.sourceClass(listener)) continue;
+                if (existing instanceof net.mizukilab.pit.enchantment.AbstractEnchantment oldEnchant
+                        && listener instanceof net.mizukilab.pit.enchantment.AbstractEnchantment newEnchant
+                        && !oldEnchant.getNbtName().equals(newEnchant.getNbtName())) continue;
+                if (existing instanceof cn.charlotte.pit.perk.AbstractPerk oldPerk
+                        && listener instanceof cn.charlotte.pit.perk.AbstractPerk newPerk
+                        && !oldPerk.getInternalPerkName().equals(newPerk.getInternalPerkName())) continue;
+                duplicates.add(existing);
+                if (registered.getPlugin() != ThePit.getInstance()) owner = registered.getPlugin();
+            }
+        }
+        for (Listener duplicate : duplicates) HandlerList.unregisterAll(duplicate);
+        Bukkit.getPluginManager().registerEvents(listener, owner);
+    }
+
     public static void unregister(Class<?> clazz, Object instance, List<IPlayerDamaged> playerDamageds, List<IAttackEntity> attackEntities, List<IItemDamage> iItemDamages, List<IPlayerBeKilledByEntity> playerBeKilledByEntities, List<IPlayerKilledEntity> playerKilledEntities, List<IPlayerRespawn> playerRespawns, List<IPlayerShootEntity> playerShootEntities) {
-        if (instance instanceof Listener && instance.getClass().isAnnotationPresent(AutoRegister.class)) {
+        if (instance instanceof Listener) {
             HandlerList.unregisterAll((Listener) instance);
+        }
+        if (instance instanceof MovementHandler handler && iSpigot.INSTANCE != null) {
+            iSpigot.INSTANCE.removeMovementHandler(handler);
         }
 
         if (IPlayerDamaged.class.isAssignableFrom(clazz)) {
-            playerDamageds.remove((IPlayerDamaged) instance);
+            playerDamageds.removeIf(callback -> callback == instance);
         }
         if (IAttackEntity.class.isAssignableFrom(clazz)) {
-            attackEntities.remove((IAttackEntity) instance);
+            attackEntities.removeIf(callback -> callback == instance);
         }
         if (IItemDamage.class.isAssignableFrom(clazz)) {
-            iItemDamages.remove((IItemDamage) instance);
+            iItemDamages.removeIf(callback -> callback == instance);
         }
         if (IPlayerBeKilledByEntity.class.isAssignableFrom(clazz)) {
-            playerBeKilledByEntities.remove((IPlayerBeKilledByEntity) instance);
+            playerBeKilledByEntities.removeIf(callback -> callback == instance);
         }
         if (IPlayerKilledEntity.class.isAssignableFrom(clazz)) {
-            playerKilledEntities.remove((IPlayerKilledEntity) instance);
+            playerKilledEntities.removeIf(callback -> callback == instance);
         }
         if (IPlayerRespawn.class.isAssignableFrom(clazz)) {
-            playerRespawns.remove((IPlayerRespawn) instance);
+            playerRespawns.removeIf(callback -> callback == instance);
         }
         if (IPlayerShootEntity.class.isAssignableFrom(clazz)) {
-            playerShootEntities.remove((IPlayerShootEntity) instance);
+            playerShootEntities.removeIf(callback -> callback == instance);
         }
     }
 }

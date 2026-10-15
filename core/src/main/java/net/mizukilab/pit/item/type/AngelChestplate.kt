@@ -9,7 +9,7 @@ import org.bukkit.inventory.ItemStack
 import java.util.*
 
 
-class AngelChestplate : IMythicItem() {
+open class AngelChestplate : IMythicItem() {
     init {
         this.maxLive = 100
         this.live = 100
@@ -42,16 +42,7 @@ class AngelChestplate : IMythicItem() {
         this.uuid = ItemUtil.getUUIDObj(item);
         this.maxLive = extra.getInt("maxLive")
         this.live = extra.getInt("live")
-        if (extra.hasKey("forceCanTrade")) {
-            if (extra.getBoolean("forceCanTrade")) {
-                this.forceCanTrade = 1;
-            } else {
-                this.forceCanTrade = 0;
-            }
-        }
-        if (extra.hasKey("customName")) {
-            this.customName = extra.getString("customName")
-        }
+        loadNameData(item, extra)
 
     }
 

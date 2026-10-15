@@ -36,6 +36,7 @@ public class GlobalSweeper extends BukkitRunnable {
 
     @Override
     public void run() {
+        this.entityData.recycle();
         this.placedBlock.removeIf((i, a) -> {
             if (a.getCooldown().hasExpired()) {
                 Location location = a.getLocation();

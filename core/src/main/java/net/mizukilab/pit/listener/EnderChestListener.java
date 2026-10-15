@@ -24,6 +24,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -63,9 +64,24 @@ public class EnderChestListener implements Listener {
                     event.setCancelled(true);
                 }
             } else {
-                if (!event.getCursor().getType().equals(Material.AIR) && !ItemUtil.canSaveEnderChest(event.getCursor())) {
+                if (event.getCursor() != null && event.getCursor().getType() != Material.AIR && !ItemUtil.canSaveEnderChest(event.getCursor())) {
                     event.setCancelled(true);
                 }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onInvDrag(InventoryDragEvent event) {
+        var inventory = event.getView().getTopInventory();
+        if (!"末影箱".equals(inventory.getName())) return;
+        for (int slot : event.getRawSlots()) {
+            if (slot < 0 || slot >= inventory.getSize()) continue;
+            var cursor = event.getOldCursor();
+            if ("not_unlock_slot".equals(ItemUtil.getInternalName(inventory.getItem(slot)))
+                    || (cursor != null && cursor.getType() != Material.AIR && !ItemUtil.canSaveEnderChest(cursor))) {
+                event.setCancelled(true);
+                return;
             }
         }
     }

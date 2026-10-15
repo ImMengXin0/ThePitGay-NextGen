@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Getter
 public abstract class AbstractEnchantment {
 
-    int hashCode = Counters.ENCHANT_ID.getAndIncrement();
 
     public abstract String getEnchantName();
 
@@ -105,20 +104,15 @@ public abstract class AbstractEnchantment {
 
     @Override
     public boolean equals(Object o) {
-        if(o instanceof AbstractEnchantment){
-            if(hashCode == ((AbstractEnchantment) o).hashCode){
-                return true;
-            }
-            return ((AbstractEnchantment) o).getNbtName().equals(this.getNbtName());
-        }
-        return false;
+        return this == o || o instanceof AbstractEnchantment other
+                && java.util.Objects.equals(getNbtName(), other.getNbtName());
     }
 
     //return the hashcode ewe
 
     @Override
     public int hashCode() {
-        return hashCode;
+        return java.util.Objects.hashCode(getNbtName());
     }
 
 }

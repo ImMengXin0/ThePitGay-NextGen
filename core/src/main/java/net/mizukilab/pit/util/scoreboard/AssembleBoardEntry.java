@@ -133,7 +133,13 @@ public class AssembleBoardEntry {
      */
     public void remove() {
         this.board.getIdentifiers().remove(this.identifier);
-        this.board.getScoreboard().resetScores(this.identifier);
+        this.board.getEntries().remove(this);
+        Scoreboard scoreboard = this.board.getScoreboard();
+        scoreboard.resetScores(this.identifier);
+        // Only unregister this entry's own team on the currently displayed board.
+        Team registered = scoreboard.getTeam(identifier.substring(0, Math.min(16, identifier.length())));
+        if (team != null && team.equals(registered)) registered.unregister();
+        team = null;
     }
 
     public void setText(String text) {

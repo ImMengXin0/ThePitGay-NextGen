@@ -8,6 +8,7 @@ import cn.charlotte.pit.util.hologram.packet.PacketHologramRunnable
 import com.comphenix.protocol.ProtocolLibrary
 import dev.rollczi.litecommands.bukkit.LiteBukkitFactory
 import dev.rollczi.litecommands.bukkit.LiteBukkitMessages
+import dev.rollczi.litecommands.bukkit.PitTabComplete
 import dev.rollczi.litecommands.meta.Meta
 import dev.rollczi.litecommands.validator.ValidatorScope
 import net.mizukilab.pit.actionbar.ActionBarManager
@@ -20,6 +21,7 @@ import net.mizukilab.pit.config.TabConfiguration
 import net.mizukilab.pit.data.operator.ProfileOperator
 import net.mizukilab.pit.enchantment.EnchantmentTable
 import net.mizukilab.pit.enchantment.type.addon.AngelArmsEnchant
+import net.mizukilab.pit.enchantment.type.addon.TerminatorEnchant
 import net.mizukilab.pit.enchantment.type.aqua.ClubRodEnchant
 import net.mizukilab.pit.enchantment.type.aqua.GrandmasterEnchant
 import net.mizukilab.pit.enchantment.type.aqua.LuckOfPondEnchant
@@ -112,7 +114,7 @@ import java.lang.Boolean
 
 object PitHook {
     @JvmStatic
-    val gitVersion = "4a3f7b"
+    val gitVersion = "4.4.9-20261015"
 
     @JvmStatic
     val itemVersion = "buuid"
@@ -199,6 +201,7 @@ object PitHook {
 
     private fun loadCommands() {
         LiteBukkitFactory.builder()
+            .apply { PitCommandSuggestions.register(this, ThePit.getInstance()) }
             .commands(
                 PitAdminSimpleCommand(),
                 PitAdminCommands(),
@@ -208,6 +211,7 @@ object PitHook {
             )
             .settings {
                 it.nativePermissions(true)
+                PitTabComplete.install(it)
             }
             .message(LiteBukkitMessages.INVALID_USAGE) { inv, ctx ->
                 return@message "§c用法: ".plus(buildString {
@@ -245,6 +249,7 @@ object PitHook {
     private fun loadRunnable() {
 
         ThePit.getInstance().animator = AnimationHandler()
+        Bukkit.getScheduler().runTaskTimer(ThePit.getInstance(), ThePit.getInstance().animator, 1L, 1L)
         //AnnouncementRunnable.runTaskTimerAsynchronously(ThePit.getInstance(), 0, 40 * 60)
         TickHandler().runTaskTimer(ThePit.getInstance(), 1, 1)
         var asyncTickHandler = AsyncTickHandler()
@@ -300,6 +305,9 @@ object PitHook {
             MythicSwordItem::class.java,
             MythicLeggingsItem::class.java,
             AngelChestplate::class.java,
+            AngelBoots::class.java,
+            AngelHelmet::class.java,
+            AngelLeggings::class.java,
             ArmageddonBoots::class.java,
             BountySolventPotion::class.java,
             ChunkOfVileItem::class.java,
@@ -319,6 +327,7 @@ object PitHook {
             TotallyLegitGem::class.java,
             GlobalAttentionGem::class.java,
             UberDrop::class.java,
+            UberPlusDrop::class.java,
             MythicEnchantingTable::class.java,
             //下水道
             Rubbish::class.java,
@@ -343,6 +352,7 @@ private fun loadEnchants() {
     val classes = mutableListOf(
         //addon
         AngelArmsEnchant::class.java,
+        TerminatorEnchant::class.java,
         //new
         VengeanceSpiritEnchant::class.java,
         SacredShieldEnchant::class.java,
@@ -557,6 +567,7 @@ private fun loadScoreBoard() {
 private fun loadNameTag() {
     val nametagHandler = NametagHandler(ThePit.getInstance(), NameTagImpl())
     nametagHandler.ticks = 20
+    ThePit.getInstance().nametagHandler = nametagHandler
 }
 
 private fun loadPerks() {
@@ -803,9 +814,6 @@ private fun registerListeners() {
 
     ProtocolLibrary.getProtocolManager().asynchronousManager
         .registerAsyncHandler(PacketListener()).start()
-    if(NewConfiguration.dynamicInvisible){
-        Bukkit.getPluginManager().registerEvents(PandaExtListener(), ThePit.getInstance())
-    }
     if (Bukkit.getPluginManager().getPlugin("MythicMobs") != null) {
         Bukkit.getPluginManager().registerEvents(MythicMobListener, ThePit.getInstance());
     }

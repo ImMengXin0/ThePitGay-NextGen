@@ -1,76 +1,27 @@
 package net.mizukilab.pit.menu.trade.button;
-
 import net.mizukilab.pit.menu.trade.TradeManager;
-import net.mizukilab.pit.util.cooldown.Cooldown;
 import net.mizukilab.pit.util.menu.buttons.DisplayButton;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-/**
- * @Author: EmptyIrony
- * @Date: 2021/1/28 23:47
- */
 public class ItemDisplayButton extends DisplayButton {
-
     private final TradeManager tradeManager;
     private final boolean self;
-
-    public ItemDisplayButton(ItemStack itemStack, TradeManager tradeManager, boolean self) {
-        super(itemStack, true);
-        this.self = self;
-        this.tradeManager = tradeManager;
+    private final int index;
+    private final long revision;
+    public ItemDisplayButton(ItemStack item, TradeManager trade, boolean self) {
+        this(item, trade, self, -1);
     }
-
-    @Override
-    public void clicked(Player player, int slot, ClickType clickType, int hotbarButton, ItemStack currentItem) {
-        super.clicked(player, slot, clickType, hotbarButton, currentItem);
-        if (!self) {
-            return;
-        }
-
-        List<ItemStack> items;
-        if (tradeManager.getPlayerA().equals(player)) {
-            items = tradeManager.getAItems();
-            tradeManager.openMenu(tradeManager.getPlayerB());
-        } else {
-            items = tradeManager.getBItems();
-            tradeManager.openMenu(tradeManager.getPlayerA());
-
-        }
-        int num = -1;
-        for (int i = 0; i < items.size(); i++) {
-            if (items.get(i).equals(this.getItemStack())) {
-                num = i;
-                break;
-            }
-        }
-        if (num == -1) {
-            return;
-        }
-
-        if (tradeManager.getPlayerA().equals(player)) {
-            tradeManager.getPlayerA().getInventory().addItem(this.getItemStack());
-        } else {
-            tradeManager.getPlayerB().getInventory().addItem(this.getItemStack());
-        }
-
-        items.remove(num);
-
-        tradeManager.getPlayerA().playSound(tradeManager.getPlayerA().getLocation(), Sound.VILLAGER_HAGGLE, 1, 1);
-        tradeManager.getPlayerB().playSound(tradeManager.getPlayerB().getLocation(), Sound.VILLAGER_HAGGLE, 1, 1);
-        tradeManager.setBConfirm(false);
-        tradeManager.setAConfirm(false);
-        tradeManager.setAPutCooldown(new Cooldown(5, TimeUnit.SECONDS));
-        tradeManager.setBPutCooldown(new Cooldown(5, TimeUnit.SECONDS));
+    public ItemDisplayButton(ItemStack item, TradeManager trade, boolean self, int index) {
+        super(item.clone(), true);
+        this.tradeManager = trade; this.self = self; this.index = index; this.revision = trade.getRevision();
     }
-
-    @Override
-    public boolean shouldUpdate(Player player, int slot, ClickType clickType) {
-        return true;
+    @Override public ItemStack getButtonItem(Player player) { return getItemStack().clone(); }
+    @Override public void clicked(Player player, int slot, ClickType click, int hotbar, ItemStack current) {
+        if (!self || (click != ClickType.LEFT && click != ClickType.RIGHT)) return;
+        int selected = index >= 0 ? index : (player.equals(tradeManager.getPlayerA())
+                ? tradeManager.getAItems() : tradeManager.getBItems()).indexOf(getItemStack());
+        tradeManager.removeItem(player, selected, revision);
     }
 }

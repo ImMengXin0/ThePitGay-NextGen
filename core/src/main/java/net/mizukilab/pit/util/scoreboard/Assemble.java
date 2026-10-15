@@ -63,7 +63,7 @@ public class Assemble {
 
             Bukkit.getPluginManager().callEvent(createEvent);
             if (createEvent.isCancelled()) {
-                return;
+                continue;
             }
 
             getBoards().putIfAbsent(player.getUniqueId(), new AssembleBoard(player, this));

@@ -72,8 +72,48 @@ public abstract class IMythicItem extends AbstractPitItem {
     public IMythicItem() {
     }
 
+    /** Legacy addon hook after editing the NBT of an existing item. */
+    public static void clearCache(ItemStack stack) {
+        ThePit plugin = ThePit.getInstance();
+        if (plugin != null && plugin.getItemFactory() instanceof net.mizukilab.pit.item.factory.ItemFactory factory) {
+            factory.invalidate(stack);
+        }
+    }
+
     public void resetUUID() {
         this.uuid = defUUID;
+    }
+
+    /** Compare the small NBT list without rebuilding items or allocating split strings. */
+    public boolean hasSameEnchantments(NBTTagCompound extra) {
+        if (extra == null) return false;
+        NBTTagList stored = extra.getList("ench", 8);
+        if (stored.size() != enchantments.size()) return false;
+        for (var entry : enchantments.object2IntEntrySet()) {
+            String name = entry.getKey().getNbtName();
+            boolean found = false;
+            for (int i = 0; i < stored.size(); i++) {
+                String value = stored.getString(i);
+                int split = name.length();
+                if (value.length() <= split + 1 || value.charAt(split) != ':' || !value.startsWith(name)) continue;
+                try {
+                    if (Integer.parseInt(value, split + 1, value.length(), 10) == entry.getIntValue()) {
+                        found = true;
+                        break;
+                    }
+                } catch (NumberFormatException malformedLevel) {
+                    return false;
+                }
+            }
+            if (!found) return false;
+        }
+        return true;
+    }
+
+    public boolean matchesEnchantmentSource(ItemStack stack) {
+        NBTTagCompound extra = ItemUtil.getExtra(stack);
+        return extra != null && uuid != null && uuid.toString().equals(ItemUtil.getUUID(extra))
+                && getInternalName().equals(ItemUtil.getInternalName0(extra)) && hasSameEnchantments(extra);
     }
     public boolean canUseBook() {
         return !(isBoostedByBook() || isRage() || isDark());
@@ -328,8 +368,19 @@ public abstract class IMythicItem extends AbstractPitItem {
     public boolean isRage(){
         return this.color == MythicColor.RAGE;
     }
+
+    /** Restore persistent rename state even when a cached instance is reused. */
+    protected void loadNameData(ItemStack item, NBTTagCompound extra) {
+        this.forceCanTrade = extra.hasKey("forceCanTrade") ? (extra.getBoolean("forceCanTrade") ? 1 : 0) : -1;
+        NBTBase storedName = extra.get("customName");
+        this.customName = storedName instanceof NBTTagString name ? name.a_() : null;
+    }
+
     @Override
     public void loadFromItemStack(ItemStack item) {
+        resetEnch();
+        enchantmentRecords.clear();
+        tier = 0;
         if (item == null || item.getType() == Material.AIR) {
             return;
         }
@@ -357,10 +408,7 @@ public abstract class IMythicItem extends AbstractPitItem {
         }
         //0.12% -> 0.06%
 
-        NBTBase customName1 = extra.get("customName");
-        if (customName1 instanceof NBTTagString) {
-            this.customName = ((NBTTagString) customName1).a_();
-        }
+        loadNameData(item, extra);
         this.saved = extra.getBoolean("saved");
 
         NBTBase version = extra.get("version");
@@ -397,10 +445,6 @@ public abstract class IMythicItem extends AbstractPitItem {
 
         this.maxLive = extra.getInt("maxLive");
         this.live = extra.getInt("live");
-        if (extra.hasKey("forceCanTrade")) {
-            this.forceCanTrade = extra.getBoolean("forceCanTrade") ? 1 : 0;
-        }
-
         if (!extra.hasKey("ench")) { //TODO
             return;
         }
@@ -408,8 +452,6 @@ public abstract class IMythicItem extends AbstractPitItem {
         readRecords(extra);
         //nano
         NBTTagList ench = extra.getList("ench", 8);
-        this.enchantments = new Object2IntOpenHashMap<>();
-        this.enchantments.defaultReturnValue(-1);
         Utils.readEnchantments(enchantments, ench);
         if (!extra.hasKey("tier") && isEnchanted()) {
             if (color == MythicColor.DARK) {
@@ -446,12 +488,17 @@ public abstract class IMythicItem extends AbstractPitItem {
                 }
             }
 
-            count += value;
-
-            if (count > maxEnchCount) {
+            int remaining = maxEnchCount - count;
+            if (remaining <= 0 || value <= 0) {
+                iterator.remove();
                 changed = true;
-                int i = value - maxEnchCount;
-                next.setValue(Einstein.clampi(value - i, 1, value));
+                continue;
+            }
+            int allowed = Math.min(value, remaining);
+            count += allowed;
+            if (allowed != value) {
+                changed = true;
+                next.setValue(allowed);
             }
         }
         if (changed) {
@@ -462,23 +509,29 @@ public abstract class IMythicItem extends AbstractPitItem {
     }
 
     private void readRecords(NBTTagCompound extra) {
+        enchantmentRecords.clear();
         final NBTBase recordsStringRaw = extra.get("records");
         if (recordsStringRaw instanceof NBTTagString) {
             String recordsString = ((NBTTagString) recordsStringRaw).a_();
             for (String recordString : Utils.splitByCharAt(recordsString, ';')) {
                 final String[] split = Utils.splitByCharAt(recordString, '|');
                 if (split.length >= 3) {
+                    long timestamp;
+                    try {
+                        timestamp = Long.parseLong(split[2]);
+                    } catch (NumberFormatException malformedTimestamp) {
+                        timestamp = 0L;
+                    }
                     enchantmentRecords.add(
                             new EnchantmentRecord(
                                     split[0],
                                     split[1],
-                                    Long.parseLong(split[2])
+                                    timestamp
                             )
                     );
                 }
             }
-            extra.remove("records");
-            extra.set("records", new NBTTagList());
+            // Leave the source NBT intact until toItemStack writes all parsed records.
         } else if (recordsStringRaw instanceof NBTTagList k) {
             for (int i = 0; i < k.size(); i++) {
                 NBTTagCompound nbtTagCompound = k.get(i);

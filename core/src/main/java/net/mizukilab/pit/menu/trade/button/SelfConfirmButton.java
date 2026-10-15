@@ -72,7 +72,7 @@ public class SelfConfirmButton extends Button {
         } else {
             return new ItemBuilder(Material.STAINED_CLAY)
                     .durability(4)
-                    .amount((int) (cooldown.getRemaining() / 1000L))
+                    .amount((int) Math.max(1, (cooldown.getRemaining() + 999L) / 1000L))
                     .name("&e请三思! &7(&e" + (cooldown.getRemaining() / 1000L) + "&7)")
                     .lore("&7交易内容发生了变动,", "&7在同意交易前请检查交易内容.")
                     .build();
@@ -86,6 +86,7 @@ public class SelfConfirmButton extends Button {
 
     @Override
     public void clicked(Player player, int slot, ClickType clickType, int hotbarButton, ItemStack currentItem) {
+        if (!tradeManager.isActive() || (clickType != ClickType.LEFT && clickType != ClickType.RIGHT)) return;
         if (tradeManager.getACoins() == 0 && tradeManager.getAItems().isEmpty() && tradeManager.getBCoins() == 0 && tradeManager.getBItems().size() == 0) {
             //还没有任何交易内容时 不允许点击
             return;

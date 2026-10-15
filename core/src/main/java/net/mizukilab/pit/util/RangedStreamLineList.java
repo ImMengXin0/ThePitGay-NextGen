@@ -2,32 +2,37 @@ package net.mizukilab.pit.util;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 public class RangedStreamLineList<T> extends ConcurrentLinkedDeque<T> {
-    AtomicInteger ATOMIC = new AtomicInteger();
     private final Predicate<T> predicate;
     private final int maxElement;
 
     public RangedStreamLineList(int maxElement, Predicate<T> t) {
         super();
+        if (maxElement < 0) throw new IllegalArgumentException("Negative capacity");
         this.maxElement = maxElement;
-        this.predicate = t;
+        this.predicate = Objects.requireNonNull(t, "predicate");
     }
 
     public RangedStreamLineList(int maxElement, Predicate<T> t, Collection<T> t2) {
         super(t2);
+        if (maxElement < 0) throw new IllegalArgumentException("Negative capacity");
         this.maxElement = maxElement;
-        this.predicate = t;
+        this.predicate = Objects.requireNonNull(t, "predicate");
     }
 
     @Override
-    public boolean offerFirst(T t) {
-        recycle();
+    public synchronized boolean offerFirst(T t) {
         boolean b = super.offerFirst(t);
-        ATOMIC.decrementAndGet();
+        recycle();
         return b;
+    }
+
+    @Override
+    public boolean offer(T t) {
+        return offerFirst(t);
     }
 
     @Override
@@ -38,43 +43,43 @@ public class RangedStreamLineList<T> extends ConcurrentLinkedDeque<T> {
     @Override
     public void addFirst(T t) {
         this.offerFirst(t);
-        ATOMIC.incrementAndGet();
     }
 
     @Override
     public void addLast(T t) {
         this.offerLast(t);
-        ATOMIC.incrementAndGet();
     }
 
     @Override
     public boolean add(T t) {
-        ATOMIC.incrementAndGet();
-        this.offerFirst(t);
-        return true;
+        return this.offerFirst(t);
     }
 
     @Override
-    public T pollFirst() {
-        ATOMIC.decrementAndGet();
-        return super.pollFirst();
-    }
-
-    @Override
-    public T pollLast() {
-        ATOMIC.decrementAndGet();
-        return super.pollLast();
+    public boolean addAll(Collection<? extends T> entries) {
+        if (entries == this) throw new IllegalArgumentException("Cannot add collection to itself");
+        boolean changed = false;
+        for (T entry : entries) changed |= add(entry);
+        return changed;
     }
     public void onRecycle(T t){
 
     }
-    public void recycle() {
-        //stage 1
-        while (peekLast() != null) {
-            int acquire = ATOMIC.getAcquire();
-            if (!(acquire > maxElement || predicate.test(peekLast()))) break;
-            T t = pollLast();
-            onRecycle(t);
+    public synchronized void recycle() {
+        // Expiration times need not follow insertion order.
+        for (T entry : this) {
+            if (predicate.test(entry) && super.removeFirstOccurrence(entry)) {
+                onRecycle(entry);
+            }
+        }
+        // Zero means expiration only, as used by the dropped-entity tracker.
+        if (maxElement > 0) {
+            int excess = size() - maxElement;
+            while (excess-- > 0) {
+                T entry = super.pollLast();
+                if (entry == null) break;
+                onRecycle(entry);
+            }
         }
     }
 

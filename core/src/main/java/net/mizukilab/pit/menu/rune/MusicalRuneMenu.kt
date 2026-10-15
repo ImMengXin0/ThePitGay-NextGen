@@ -1,7 +1,7 @@
 package cn.charlotte.pit.menu.rune
 
 import cn.charlotte.pit.menu.rune.button.ItemRuneButton
-import net.mizukilab.pit.music
+import net.mizukilab.pit.item.type.mythic.MythicLeggingsItem
 import net.mizukilab.pit.util.Utils.getMythicItem
 import net.mizukilab.pit.util.menu.Button
 import net.mizukilab.pit.util.menu.Menu
@@ -35,9 +35,9 @@ class MusicalRuneMenu : Menu() {
 
     private fun isItemValid(itemStack: ItemStack?): Boolean {
 
-        return itemStack?.type == Material.LEATHER_LEGGINGS &&
-                (getMythicItem(itemStack) != null &&
-                        !music.any { it.isItemHasEnchant(itemStack) })
+        if (itemStack?.type != Material.LEATHER_LEGGINGS || itemStack.amount != 1) return false
+        val item = getMythicItem(itemStack) as? MythicLeggingsItem ?: return false
+        return !MusicRuneOptions.hasMusic(item)
     }
 
     override fun onClickEvent(event: InventoryClickEvent?) {

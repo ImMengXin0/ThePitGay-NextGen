@@ -52,9 +52,7 @@ public class QuestNpc extends SkinNPC {
 
     @Override
     public Skin getNpcSkin() {
-        return new Skin("ewogICJ0aW1lc3RhbXAiIDogMTc2ODU1ODA5ODg5OSwKICAicHJvZmlsZUlkIiA6ICI1YjM3NWRiNTMyNTY0NmUyOGIyZjZkMjFlMDRiODUxMCIsCiAgInByb2ZpbGVOYW1lIiA6ICJQdWd6VGh1Z3oiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzZjZDk2MDJlNjFjNTJhZWFmZWQzMjIxZTZjZTM5NDY1ZjBlOTA0YWYyNGE5NGI1ZjNmNGZhODA4YmFmYjhhZCIKICAgIH0KICB9Cn0=",
-                "g38z2yqB1z/ZzgP6pB8MWKQF2TtVRbIquLTt0gXpKKeKfzeRzFykCH5PF20xT8aTks8mWwkMubfieo63tHDCXHkcQ17gTP+UWkcst7iorMxMmM8dT9oDsrD+5TGlfjVgvmfKvgzryDtElQ6GY3jRl9kI+rh5ebmsbud7e+JYZP4MvFe71MTTvzbePVMThhjVDZ8wrCYbQ17qfhztAvqm7ai7qPo6ceEr1PzeMy8Sl7aRwM+EAZ3EUhTPYP9U6jyqQ08qSWmKgh5GuzeNtY1z75FuKioboCG6b2oyAPdlFmbP1+jvLySPNJz9iQddu8BfqASGMsBoRdLdaH6TPzPgqK6VoNITS+tvdGX4yyxT3ARwzK4Wo1vtXGuT/8zU85TUoh7TPKMxQdUuyky4dNqIuoxC6rexO9eaDJ1VNjk6omGQOjpmt+Y0pPGqa7+3xzJRf7L70oS4scuDubgRo1UDKTUOUwSR7eL6fPkOCd3hzB4NMueUzE63Xnehd/9bNdGT3M3KRVMse18FOfhZ88zuURGB9GksxQUmpImbdscxMxJRHx/rcX46/7Wl99MKp7SHD85VtTPzRnzX6QsliITOjoxv5jYVAmW6HLACqYbo3tWvXHnV0pIsUsrzaCu0eO748bbTVqH+JycbYfP7B8AwCC8dClZHU2iNamQKvT568YE="
-        );
+        return net.mizukilab.pit.npc.BuiltinNpcSkins.get(getNpcInternalName());
     }
 
     @Override

@@ -6,6 +6,7 @@ import cn.charlotte.pit.data.PlayerInvBackup
 import cn.charlotte.pit.data.PlayerProfile
 import cn.charlotte.pit.events.EventsHandler.refreshEvents
 import dev.rollczi.litecommands.annotations.argument.Arg
+import dev.rollczi.litecommands.annotations.argument.Key
 import dev.rollczi.litecommands.annotations.async.Async
 import dev.rollczi.litecommands.annotations.command.RootCommand
 import dev.rollczi.litecommands.annotations.context.Context
@@ -79,7 +80,7 @@ class PitAdminSimpleCommand {
     }
     @Execute(name = "reserialize")
     @Permission("pit.admin")
-    fun reserializePlayer(@Context player: Player, @Arg("playerName") playerName: String) {
+    fun reserializePlayer(@Context player: Player, @Arg("playerName") @Key("pit.players") playerName: String) {
         Bukkit.getPlayer(playerName)?.let {
             Utils.serializePlayer(it)
             player.sendMessage("Done")
@@ -95,7 +96,7 @@ class PitAdminSimpleCommand {
 
     @Execute(name = "openMenu")
     @Permission("pit.admin")
-    fun openMenu(@Context player: Player, @Arg("menu") menu: String) {
+    fun openMenu(@Context player: Player, @Arg("menu") @Key("pit.menu") menu: String) {
         if (menu.equals("ender_chest", ignoreCase = true)) {
             PlayerProfile.getPlayerProfileByUuid(player.uniqueId).enderChest.openEnderChest(player)
         }
@@ -170,14 +171,12 @@ class PitAdminSimpleCommand {
     @Execute(name = "forceTrade")
     @Permission("pit.admin")
     fun forceTrade(@Context player: Player, @Arg("target") target: Player) {
-        val tradeManager = TradeManager(player, target)
-        TradeMenu(tradeManager).openMenu(player)
-        TradeMenu(tradeManager).openMenu(target)
+        TradeManager.start(player, target)
     }
 
     @Execute(name = "wipe")
     @Permission("pit.admin")
-    fun wipe(@Context player: Player, @Arg("target") target: String, @Arg("reason") reason: String) {
+    fun wipe(@Context player: Player, @Arg("target") @Key("pit.players") target: String, @Arg("reason") reason: String) {
         val profile = ThePit.getInstance().profileOperator.namedIOperator(target)
         if (profile == null) {
             player.sendMessage(CC.translate("&cすみません！あのプレイヤーは見つかりませんでした！もう一度確認してください！"))
@@ -195,7 +194,7 @@ class PitAdminSimpleCommand {
     @Execute(name = "takeitems")
     @Permission("pit.admin")
     fun takeItem(
-        @Context sender: CommandSender, @Arg("target") target: Player, @Arg("itemsID") itemsID: String,
+        @Context sender: CommandSender, @Arg("target") target: Player, @Arg("itemsID") @Key("pit.take-items") itemsID: String,
         @Arg("amount") amount: Int
     ) {
         val player = Bukkit.getPlayer(target.uniqueId)
@@ -229,8 +228,8 @@ class PitAdminSimpleCommand {
     @Permission("pit.admin")
     fun giveItem(
         @Context sender: CommandSender,
-        @Arg("target") target: String,
-        @Arg("itemsID") itemsID: String,
+        @Arg("target") @Key("pit.players") target: String,
+        @Arg("itemsID") @Key("pit.give-items") itemsID: String,
         @Arg("amount") amount: Int
     ) {
         val player = Bukkit.getPlayer(target)
@@ -298,7 +297,7 @@ class PitAdminSimpleCommand {
     @Execute(name = "unwipe")
     @Permission("pit.admin")
     @Async
-    fun unWipe(@Context player: Player, @Arg("target") target: String) {
+    fun unWipe(@Context player: Player, @Arg("target") @Key("pit.players") target: String) {
         val profile = ThePit.getInstance().profileOperator.namedIOperator(target)
         if (profile == null) {
             player.sendMessage(CC.translate("&cすみません！あのプレイヤーは見つかりませんでした！もう一度確認してください！"))
@@ -322,7 +321,7 @@ class PitAdminSimpleCommand {
     @Execute(name = "rollback")
     @Permission("pit.admin")
     @Async
-    fun rollback(@Context player: Player, @Arg("name") name: String): String {
+    fun rollback(@Context player: Player, @Arg("name") @Key("pit.players") name: String): String {
         val profile = ThePit.getInstance().profileOperator.namedIOperator(name)
         if (profile.profile() == null || profile.profile().playerName == "NotLoadPlayer") {
             return CC.translate("&c该玩家不存在")
@@ -395,7 +394,7 @@ class PitAdminSimpleCommand {
 
     @Execute(name = "disablePlugin")
     @Permission("pit.admin")
-    fun disablePlugin(@Context player: Player, @Arg("plugin") name: String) {
+    fun disablePlugin(@Context player: Player, @Arg("plugin") @Key("pit.plugins") name: String) {
         val target = Bukkit.getPluginManager().getPlugin(name)
         if (target == null) {
             player.sendMessage(CC.translate("&c没有找到那个插件"))
