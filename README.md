@@ -1,58 +1,52 @@
-# ThePitGay-NextGen（维护分支）
+# ThePitGay-NextGen
 
-本分支在原项目基础上维护核心修复、ThePitAddon / ThePitRepairExTend / NPCView 兼容及性能改进。
+## What is ThePitGay-NextGen and why should I use it?
 
-- [下载核心 Release](https://github.com/ImMengXin0/ThePitGay-NextGen/releases/latest)
-- [构建与测试说明](docs/BUILDING.md)
-- [累计更新说明](CHANGELOG.md)
+ThePitGay-NextGen is a maintenance fork of [ThePitGay](https://github.com/Patcher0/ThePitGay), continuing the ThePitStudy / ThePitPremium codebase with core fixes, plugin compatibility improvements, and performance optimizations.
 
-Release 的 `ThePitGay-V.jar` 是可部署核心。停服后替换旧核心并完整重启，保留现有配置及数据；不要同时加载两份核心。NPC 旧默认皮肤会自动迁移为星穹铁道角色皮肤，自定义皮肤配置保留。
+* Configurable gameplay and menus
+* Compatibility fixes for ThePitAddon, ThePitRepairExTend, and NPCView
+* Improved item handling, trading, and player data persistence
+* Reduced repeated work in music playback, enchantment animations, and scoreboards
 
-以下保留上游项目说明；其中性能宣传不代表本维护分支的实服测量结果。
+Builds are available on [GitHub Releases](https://github.com/ImMengXin0/ThePitGay-NextGen/releases/latest). See the [changelog](CHANGELOG.md) for the accumulated fixes.
 
----
-
-# ThePitStudy
-## What is ThePitStudy and why should I use it?
-
-ThePitStudy is designed for efficient server running.
-* Simple to set up and use
-* Extremely configurable
-* Uses minimal CPU/Memory
-* Safe for many players to use
-* Insanely fast, when using the slowest mode
- 
-ThePitStudy is a fork of ThePitPremium that has huge speed and memory improvements and considerably more features.  
-If you use other plugins which depend on ThePitPremium, simply having "TPS" installed will boost their performance.
-
-
-Snapshots are available on [Github Actions](https://github.com/ThePitPlus/ThePitPlus).
+To update, stop the server, replace the existing core with `ThePitGay-V.jar`, and restart fully. Keep your existing configuration and player data, and load only one copy of the core.
 
 ## Features
 
-* Over 200 Commands
-* Unique equipment UUIDs;
-* Thread Safety
+* Unique equipment UUIDs and persistent custom item names
+* Trade session validation and pending item returns
+* Enchantment table viewing with membership-based privacy controls
+* Command completion, menu, scoreboard, and TAB improvements
+* A complete Angel armor set
+* Ten built-in humanoid NPC skins featuring Honkai: Star Rail characters
+
+Old default NPC skins migrate automatically, while custom skin configurations are preserved. Villager and silverfish NPCs retain their original entity models.
 
 ### Performance
 
-CPU & Memory usage is better than ThePitPremium 1000%
+This fork reduces repeated item parsing, shares common scoreboard calculations, avoids unnecessary enchantment menu refreshes, and releases inactive music and NPC tasks. The maintenance release passed 407 automated tests; live-server CPU, memory, and TPS improvements have not been benchmarked.
 
 ### Logging and Rollback
 
-By default you can use `/rollback` to search and rollback player inventories
+Use `/rollback` to inspect and restore player inventory backups. Trade fixes improve session validation and item returns, but do not provide cross-player database transactions or automatic recovery from a forced shutdown.
 
 ### Developer API
 
-Put the latest build version to your project as a dependency.
+Use the latest core build as a dependency when developing integrations. Compatibility bridges preserve legacy interfaces used by supported extensions. See the [build and test instructions](docs/BUILDING.md) for required dependencies and test fixtures.
 
 ## Contributing
 
-Want to add new features to ThePitStudy or fix bugs yourself? You can get the game running, with ThePitStudy, from the code here:
+Want to add features or fix bugs? Clone this repository, follow the [build instructions](docs/BUILDING.md), and run the relevant regression tests before submitting a pull request.
+
+The project uses a Java 17 compilation toolchain and targets Minecraft 1.8.8 R3 with PandaSpigot extensions. Full compatibility tests require the external plugin JARs documented in the build instructions.
 
 ## Special thanks
+
+Thanks to the upstream ThePitGay, ThePitStudy, and ThePitPremium contributors, and to the community creators of the Minecraft character skins bundled with this fork.
 
 <a href="https://jb.gg/OpenSourceSupport"><img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg" width="150">
 </a>
 
-[JetBrains](https://jb.gg/OpenSourceSupport), creators of the IntelliJ IDEA, supports us with their Open Source Licenses.
+[JetBrains](https://jb.gg/OpenSourceSupport), creators of IntelliJ IDEA, supports open-source projects through its Open Source Licenses program.
