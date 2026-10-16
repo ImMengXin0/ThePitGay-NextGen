@@ -36,9 +36,10 @@ class HuntEvent : AbstractEvent(), INormalEvent, Listener,
 
     override fun getEventName() = "猎杀"
 
-    override fun requireOnline(): Int = eventOnlineRequired[eventInternalName]!!
+    override fun requireOnline(): Int = eventOnlineRequired[eventInternalName] ?: 10
 
     override fun onActive() {
+        killMap.clear()
         isActive = true
         CC.boardCast("&c&l猎杀!\n&7五分钟内获得：\n  &b速度 x2\n  &a跳跃提升 x3\n&7效果\n&7每击杀15名玩家将获得 &6声望 +1 &7最高可获得5声望.")
         Bukkit.getPluginManager()
@@ -47,7 +48,7 @@ class HuntEvent : AbstractEvent(), INormalEvent, Listener,
     }
 
     private fun runEffectTask() {
-        object : BukkitRunnable() {
+        trackTask(object : BukkitRunnable() {
             override fun run() {
                 if (isActive) {
                     Bukkit.getOnlinePlayers().forEach {
@@ -56,33 +57,28 @@ class HuntEvent : AbstractEvent(), INormalEvent, Listener,
                             .setCount(3).play()
                     }
                 } else {
-                    Bukkit.getOnlinePlayers().forEach { removeEffect(it) }
                     cancel()
                 }
             }
-        }.runTaskTimer(ThePit.getInstance(), 0L, 20L)
+        }.runTaskTimer(ThePit.getInstance(), 0L, 20L))
     }
 
     override fun onInactive() {
         HandlerList.unregisterAll(this)
         isActive = false
+        killMap.clear()
         CC.boardCast("&c&l猎杀! &7已结束")
     }
 
     private fun playerEffect(player: Player) {
-        PlayerUtil.addPotionEffect(player, PotionEffect(PotionEffectType.SPEED, 114514, 1, true))
-        PlayerUtil.addPotionEffect(player, PotionEffect(PotionEffectType.JUMP, 114514, 2, true))
-    }
-
-    private fun removeEffect(player: Player) {
-        player.removePotionEffect(PotionEffectType.SPEED)
-        player.removePotionEffect(PotionEffectType.JUMP)
+        PlayerUtil.addPotionEffect(player, PotionEffect(PotionEffectType.SPEED, 40, 1, true))
+        PlayerUtil.addPotionEffect(player, PotionEffect(PotionEffectType.JUMP, 40, 2, true))
     }
 
     @EventHandler
     fun onJoin(event: PlayerJoinEvent) {
         if (isActive) {
-            event.player.sendMessage(CC.translate("&c&l猎杀!\n&7五分钟内获得：\n  &b速度 x2\n  &a跳跃提升 x3\n&7效果\n&7每击杀8名玩家将获得 &6声望 +1"))
+            event.player.sendMessage(CC.translate("&c&l猎杀!\n&7五分钟内获得：\n  &b速度 x2\n  &a跳跃提升 x3\n&7效果\n&7每击杀15名玩家将获得 &6声望 +1"))
         }
     }
 

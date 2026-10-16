@@ -58,11 +58,12 @@ import java.util.stream.Collectors;
 public class AuctionEvent extends AbstractEvent implements INormalEvent, Listener {
 
     private static final String prefix = "&6&l竞拍! &7";
-    private static final float rate = 1.15F;
+    private static final double rate = 1.15D;
     public boolean isCustom = false;
     private LotsData lots;
-    private List<BidHistory> bidHistories;
-    private List<UUID> allowedParticipants;
+    private List<BidHistory> bidHistories = new ArrayList<>();
+    private List<UUID> allowedParticipants = new ArrayList<>();
+    private boolean settled;
     private BukkitRunnable runnable;
     private Cooldown timer;
     private boolean startByAdmin = false;
@@ -164,9 +165,9 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
     public static void sendMail(UUID uuid, Mail mail) {
         ProfileOperator profileOperator = (ProfileOperator) ThePit.getInstance().getProfileOperator();
 
-        profileOperator.operator(uuid).ifPresent(operator -> {
-            operator.pendingUntilLoaded(prof -> prof.getMailData().sendMail(mail));
-        });
+        net.mizukilab.pit.data.operator.PackedOperator operator = profileOperator.operator(uuid)
+                .orElseGet(() -> profileOperator.getOrLoadOperatorOffline(uuid, uuid.toString()));
+        operator.pendingUntilLoaded(prof -> prof.getMailData().sendMail(mail));
 
     }
 
@@ -459,11 +460,14 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
 
     @Override
     public int requireOnline() {
-        return NewConfiguration.INSTANCE.getEventOnlineRequired().get(getEventInternalName());
+        return NewConfiguration.INSTANCE.getEventOnlineRequired().getOrDefault(getEventInternalName(), 10);
     }
 
     @Override
     public void onActive() {
+        settled = false;
+        bidHistories = new ArrayList<>();
+        allowedParticipants = new ArrayList<>();
         if (!isCustom || lots == null) {
             if (RandomUtil.hasSuccessfullyByChance(0.25)) {
                 lots = randomEnchantment();
@@ -502,6 +506,7 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
                     if (timer.hasExpired() && ThePit.getInstance().getEventFactory().getActiveNormalEvent() != null) {
                         ThePit.getInstance().getEventFactory().inactiveEvent(ThePit.getInstance().getEventFactory().getActiveNormalEvent());
                         this.cancel();
+                        return;
                     }
 
                     if (Math.floorDiv(getTimer().getRemaining(), 1000L) % 10 == 0 && getTimer().getRemaining() > 5 * 1000L) {
@@ -517,14 +522,16 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
                     }
                 }
             };
-            runnable.runTaskTimer(ThePit.getInstance(), 20, 20);
+            trackTask(runnable.runTaskTimer(ThePit.getInstance(), 20, 20));
         } catch (Exception e) {
-            Bukkit.getOnlinePlayers().forEach(player -> CC.printError(player, e));
+            throw new IllegalStateException("Could not start auction", e);
         }
     }
 
     @Override
     public void onInactive() {
+        if (settled) return;
+        settled = true;
         isCustom = false;
         try {
             runnable.cancel();
@@ -537,13 +544,12 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
             CC.boardCast(prefix + "流拍! 无人参与竞拍.");
             return;
         }
-        this.saveAuctionLogs();
-        if (!getTimer().hasExpired()) {
+        if (isAborting() || getTimer() == null || !getTimer().hasExpired()) {
             CC.boardCast(prefix + "拍卖被取消,竞拍硬币已全部退还.");
             getParticipants().forEach(uuid -> {
                         if (getHighestBidHistory(uuid) != null) {
                             Player player = Bukkit.getPlayer(uuid);
-                            if (player != null && player.isOnline()) {
+                            if (player != null && player.isOnline() && PlayerProfile.getPlayerProfileByUuid(uuid).isLoaded()) {
                                 //if player is online,give back coins to the profile
                                 PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(uuid);
                                 profile.setCoins(profile.getCoins() + getHighestBidHistory(uuid).getCoins());
@@ -561,14 +567,13 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
                         }
                     }
             );
-            this.saveAuctionLogs();
             return;
         }
         if (getHighestBidHistory() != null) {
             BidHistory highestBid = getHighestBidHistory();
             PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(highestBid.getUuid());
-            new HighestBidMedal().addProgress(profile, 1);
-            CC.boardCast(prefix + "恭喜 " + profile.getFormattedName() + " &7以 &6" + highestBid.getCoins() + " 硬币 &7的价格买下了 " + (lots.getIcon().getAmount() > 1 ? "&f" + lots.getIcon().getAmount() + "x " : "") + (lots.getIcon().getItemMeta().getDisplayName() == null ? "&f" + lots.getIcon().getType().toString() : lots.getIcon().getItemMeta().getDisplayName()) + " &7!");
+            if (profile.isLoaded()) new HighestBidMedal().addProgress(profile, 1);
+            CC.boardCast(prefix + "恭喜 " + (profile.isLoaded() ? profile.getFormattedName() : highestBid.getUuid().toString()) + " &7以 &6" + highestBid.getCoins() + " 硬币 &7的价格买下了 " + (lots.getIcon().getAmount() > 1 ? "&f" + lots.getIcon().getAmount() + "x " : "") + (lots.getIcon().getItemMeta().getDisplayName() == null ? "&f" + lots.getIcon().getType().toString() : lots.getIcon().getItemMeta().getDisplayName()) + " &7!");
             getParticipants().forEach(uuid -> {
                         Player player = Bukkit.getPlayer(uuid);
                         Mail mail = new Mail();
@@ -585,24 +590,31 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
                             if (player != null && player.isOnline()) {
                                 player.sendMessage(CC.translate(prefix + "你赢得了竞拍! 物品已发放至你的邮箱中,请及时收取."));
                             }
-                        } else if (player != null && getHighestBidHistory(player.getUniqueId()) != null) {
-                            if (player.isOnline()) {
-                                PlayerProfile participantProfile = PlayerProfile.getPlayerProfileByUuid(uuid);
+                        } else if (getHighestBidHistory(uuid) != null) {
+                            PlayerProfile participantProfile = PlayerProfile.getPlayerProfileByUuid(uuid);
+                            if (player != null && player.isOnline() && participantProfile.isLoaded()) {
                                 participantProfile.setCoins(participantProfile.getCoins() + getHighestBidHistory(uuid).getCoins());
-                                player.sendMessage(CC.translate(prefix + "参与竞拍的 &6" +  getHighestBidHistory(player.getUniqueId()).getCoins() + " 硬币 &7已直接退还到您的账户当中."));
+                                player.sendMessage(CC.translate(prefix + "竞拍硬币已退还至账户中。"));
                             } else {
-                                mail.setCoins(getHighestBidHistory(player.getUniqueId()).getCoins());
+                                mail.setCoins(getHighestBidHistory(uuid).getCoins());
                                 mail.setTitle("&e[拍卖行] 竞拍硬币退还");
-                                mail.setContent("&f你在 " + dateFormat.format(System.currentTimeMillis()) + " 参与的拍卖中未能拍下物品. \\n&f于当时投入的硬币现已退还.");
+                                mail.setContent("&f本次竞拍未成功，投入的硬币已退还。");
                                 sendMail(uuid, mail);
                             }
                         }
                     }
             );
+            if (ThePit.getInstance().isEnabled()) {
+                try { this.saveAuctionLogs(); }
+                catch (Exception failure) { ThePit.getInstance().getLogger().log(java.util.logging.Level.WARNING, "Auction log failed", failure); }
+            }
         }
     }
 
     public boolean playerBid(PlayerProfile profile, long paidCoins) {
+        if (!Bukkit.isPrimaryThread() || settled || timer == null || lots == null || paidCoins < 0
+                || ThePit.getInstance().getEventFactory().getActiveNormalEvent() != this
+                || !isAllowedToParticipate(profile.getPlayerUuid()) || !Double.isFinite(profile.getCoins())) return false;
         //check if player's profile is loaded
         try {
 
@@ -616,8 +628,12 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
                 return false;
             }
             Player player = Bukkit.getPlayer(profile.getPlayerUuid());
+            if (player == null || !player.isOnline()) return false;
             BidHistory highestBid = getHighestBidHistory();
-            long price = !getParticipants().isEmpty() ? (long) (rate * highestBid.getCoins()) : lots.getStartPrice();
+            long price = highestBid != null ? java.math.BigDecimal.valueOf(highestBid.getCoins())
+                    .multiply(java.math.BigDecimal.valueOf(rate)).setScale(0, java.math.RoundingMode.CEILING).longValueExact()
+                    : lots.getStartPrice();
+            if (price <= 0 || Math.max(paidCoins, price) > 9_007_199_254_740_991L) return false;
             //check if player is holding highest bid
             if (highestBid != null) {
                 if (System.currentTimeMillis() - highestBid.getTime() < 1000) {
@@ -707,7 +723,7 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
         for (BidHistory bidHistory : finalBidHistories) {
             bidCoins.add(bidHistory.getCoins());
         }
-        double max = Collections.max(bidCoins);
+        long max = Collections.max(bidCoins);
         for (BidHistory bidHistory : finalBidHistories) {
             if (bidHistory.getCoins() == max) {
                 return bidHistory;
@@ -738,7 +754,7 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
         for (BidHistory bidHistory : bidHistories) {
             bidCoins.add(bidHistory.getCoins());
         }
-        double max = Collections.max(bidCoins);
+        long max = Collections.max(bidCoins);
         for (BidHistory bidHistory : bidHistories) {
             if (bidHistory.getCoins() == max) {
                 return bidHistory;
@@ -754,9 +770,7 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
     }
 
     public void saveAuctionLogs() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
+        {
                 BidHistory highestBid = getHighestBidHistory();
                 getParticipants().forEach(uuid -> {
                     TradeData tradeData = new TradeData("auction", uuid.toString(), "[SYS] Auction", CC.stripColor(RankUtil.getPlayerRealColoredName(uuid)));
@@ -791,8 +805,7 @@ public class AuctionEvent extends AbstractEvent implements INormalEvent, Listene
                     tradeData.setAPaidItem(aInv);
                     tradeData.save();
                 });
-            }
-        }.runTaskAsynchronously(ThePit.getInstance());
+        }
     }
 
     @Data

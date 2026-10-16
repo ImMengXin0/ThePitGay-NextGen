@@ -46,8 +46,8 @@ public class DoubleRewardsEvent extends AbstractEvent implements INormalEvent, I
     @Override
     public void handlePlayerKilled(int enchantLevel, Player myself, Entity target, AtomicDouble coins, AtomicDouble experience) {
         if (isActive) {
-            coins.addAndGet(2 * coins.get());
-            experience.addAndGet(2 * experience.get());
+            coins.addAndGet(coins.get());
+            experience.addAndGet(experience.get());
         }
     }
 }

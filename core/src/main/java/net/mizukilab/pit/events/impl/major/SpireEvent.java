@@ -89,11 +89,12 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
 
     @Override
     public int requireOnline() {
-        return NewConfiguration.INSTANCE.getEventOnlineRequired().get(getEventInternalName());
+        return NewConfiguration.INSTANCE.getEventOnlineRequired().getOrDefault(getEventInternalName(), 10);
     }
 
     @Override
     public void onActive() {
+        dataMap.clear(); rankMap.clear(); cooldownList.clear();
         this.timer = new Cooldown(5, TimeUnit.MINUTES);
         this.runnable = new BukkitRunnable() {
             @Override
@@ -101,12 +102,13 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
                 if (timer.hasExpired()) {
                     cancel();
                     if (SpireEvent.this.equals(ThePit.getInstance().getEventFactory().getActiveEpicEvent())) {
-                        Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
+                        {
                             ThePit.getInstance()
                                     .getEventFactory()
                                     .inactiveEvent(SpireEvent.this);
-                        });
+                        }
                     }
+                    return;
                 }
                 ThePit.getInstance()
                         .getBossBar()
@@ -120,7 +122,7 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
             }
         };
 
-        this.runnable.runTaskTimerAsynchronously(ThePit.getInstance(), 20, 20);
+        trackTask(this.runnable.runTaskTimer(ThePit.getInstance(), 20, 20));
 
         Bukkit.getPluginManager().registerEvents(this, ThePit.getInstance());
 
@@ -133,20 +135,10 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
                     .get(RandomUtil.random.nextInt(ThePit.getInstance().getPitConfig().getSpawnLocations().size()));
             player.teleport(location);
             player.playSound(player.getLocation(), Sound.ENDERDRAGON_GROWL, 1, 0.5F);
-            PlayerProfile playerProfileByUuid = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-            if(playerProfileByUuid.isLoaded()){
-                playerProfileByUuid.getEnderChest().snapshot();
-                playerProfileByUuid.getWarehouse().snapshot();
-            }
         }
 
-        FaweAPI.getTaskManager().async(() -> {
-            if (this.session != null) {
-                this.session.undo(this.session);
-                this.session.flushQueue();
-            }
+        cn.charlotte.pit.events.EventWorldEdits.build(this, () -> {
 
-            final InputStream inputStream = ThePit.getInstance().getClass().getClassLoader().getResourceAsStream("spire.schematic");
 
             final Location location = ThePit.getInstance().getPitConfig().getSpireLoc();
 
@@ -159,21 +151,22 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
             final MCEditSchematicFormat mcedit = (MCEditSchematicFormat) SchematicFormat.MCEDIT;
 
 
-            try {
+            try (InputStream inputStream = ThePit.getInstance().getResource("spire.schematic")) {
+                if (inputStream == null) throw new IllegalStateException("Missing spire.schematic");
                 final CuboidClipboard clipboard = mcedit.load(inputStream);
                 clipboard.paste(session, vector, false);
 
-                session.flushQueue();
+                cn.charlotte.pit.events.EventWorldEdits.flush(session);
 
             } catch (Exception e) {
-                e.printStackTrace();
+                throw new IllegalStateException("Could not build Spire", e);
             }
 
             Location middle = ThePit.getInstance().getPitConfig().getRagePitMiddle();
             BlockVector wallVec = new BlockVector(middle.getBlockX(), middle.getBlockY(), middle.getBlockZ());
             wall = FaweAPI.getEditSessionBuilder(world).build();
             wall.makeCylinder(wallVec, new SingleBlockPattern(new BaseBlock(BlockID.GLASS)), ThePit.getInstance().getPitConfig().getRagePitRadius(), ThePit.getInstance().getPitConfig().getRagePitHeight(), false);
-            wall.flushQueue();
+            cn.charlotte.pit.events.EventWorldEdits.flush(wall);
 
             if (teleport == null) {
                 teleport = FaweAPI.getEditSessionBuilder(world).build();
@@ -184,7 +177,7 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
                 BlockVector posB = new BlockVector(portalB.getBlockX(), portalB.getBlockY(), portalB.getBlockZ());
 
                 teleport.replaceBlocks(new CuboidRegion(posA, posB), new BlockMask(teleport.getExtent(), new BaseBlock(BlockID.AIR)), new BaseBlock(BlockID.END_PORTAL));
-                teleport.flushQueue();
+                cn.charlotte.pit.events.EventWorldEdits.flush(teleport);
             }
         });
     }
@@ -195,6 +188,8 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
             event.setCancelled(true);
 
             final Player player = event.getPlayer();
+            final PlayerProfile joiningProfile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
+            if (!joiningProfile.isLoaded() || joiningProfile.isTempInvUsing()) return;
 
             if (!dataMap.containsKey(player.getUniqueId())) {
 
@@ -213,11 +208,12 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
 
             player.closeInventory();
             final PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-            profile.setInventory(PlayerInv.fromPlayerInventory(player.getInventory()));
             profile.setTempInvUsing(true);
+            profile.setInventory(PlayerInv.fromPlayerInventory(player.getInventory()));
             profile.getEnderChest().snapshot();
             profile.getWarehouse().snapshot();
 
+            if (!isActive() || !player.isOnline() || dataMap.get(player.getUniqueId()) != data) return;
             PlayerUtil.resetPlayer(player, true, true);
             this.giveInvSets(player);
             this.teleportPlayer(player, data);
@@ -233,7 +229,7 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
         final PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(event.getPlayer().getUniqueId());
 
 
-        if (profile.isLoaded()) {
+        if (data != null && profile.isLoaded() && profile.isTempInvUsing()) {
             profile.getInventory()
                     .applyItemToPlayer(event.getPlayer());
             profile.getEnderChest().rollback();
@@ -323,7 +319,8 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
             TitleUtil.sendTitle(killer, CC.translate("&a击杀!"), this.getFloorColor(data.floor) + "第" + (data.floor + 1) + "层", 5, 20, 10);
             killer.playSound(killer.getLocation(), Sound.LEVEL_UP, 1, 1.5F);
 
-            Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), () -> {
+            runEventTaskLater(() -> {
+                if (!killer.isOnline() || dataMap.get(killer.getUniqueId()) != data) return;
                 int amount = InventoryUtil.getAmountOfItem(killer, "broken_soul");
 
                 this.handleUpdate(killer, data);
@@ -367,17 +364,13 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
             }
 
 
-            targetData.floor--;
-            if (targetData.floor < 0) {
-                targetData.floor = 0;
-                targetData.lastFloorChange = System.currentTimeMillis();
-                targetData.soul = targetData.soul - Math.min(targetData.soul, this.getDeadPunishmentSouls(targetData));
+            targetData.soul = Math.max(0, targetData.soul - this.getDeadPunishmentSouls(targetData));
+            targetData.floor = Math.max(0, targetData.floor - 1);
+            targetData.lastFloorChange = System.currentTimeMillis();
+            TitleUtil.sendTitle(target, CC.translate("&c被击杀"), this.getFloorColor(targetData.floor) + "第" + (targetData.floor + 1) + "层", 5, 10, 20);
+            runEventTaskLater(() -> this.handleUpdate(target, targetData), 2L);
 
-                TitleUtil.sendTitle(target, CC.translate("&c被击杀"), this.getFloorColor(data.floor) + "第" + (data.floor + 1) + "层", 5, 10, 20);
-            }
-            Bukkit.getScheduler().scheduleSyncDelayedTask(ThePit.getInstance(), () -> this.handleUpdate(target, targetData), 2L);
-
-            Bukkit.getScheduler().runTaskAsynchronously(ThePit.getInstance(), this::refreshRank);
+            refreshRank();
         } catch (Exception e) {
             CC.printErrorWithCode(event.getKiller(), e);
         }
@@ -437,9 +430,11 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
     }
 
     private void handleUpdate(Player player, PlayerSpireData data) {
+        if (!isActive() || !player.isOnline() || dataMap.get(player.getUniqueId()) != data) return;
         PlayerUtil.resetPlayer(player, true, true);
         this.giveInvSets(player);
-        Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
+        runEventTask(() -> {
+            if (!player.isOnline() || dataMap.get(player.getUniqueId()) != data) return;
             this.teleportPlayer(player, data);
 
             if (data.floor >= 4) {
@@ -463,20 +458,20 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
 
     private int getDeadPunishmentSouls(PlayerSpireData data) {
         return switch (data.floor) {
-            case 4, 5 -> -3;
-            case 6 -> -5;
-            case 7 -> -6;
-            case 8 -> -20;
+            case 4, 5 -> 3;
+            case 6 -> 5;
+            case 7 -> 6;
+            case 8 -> 20;
             default -> 0;
         };
     }
 
     @Override
     public void onInactive() {
-        Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), () -> {
+        {
             Bukkit.getOnlinePlayers().forEach(player -> {
                 final PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-                if (profile.isTempInvUsing()) {
+                if (dataMap.containsKey(player.getUniqueId()) && profile.isLoaded() && profile.isTempInvUsing()) {
                     profile.getInventory().applyItemToPlayer(player);
                     //?
                     profile.getEnderChest().rollback();
@@ -490,31 +485,21 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
 
                 player.teleport(location);
             });
-        }, 1L);
+        }
 
         HandlerList.unregisterAll(this);
 
-        this.runnable.cancel();
+        if (this.runnable != null) this.runnable.cancel();
 
-        FaweAPI.getTaskManager().async(() -> {
-            try {
-                session.undo(session);
-
-                teleport.undo(teleport);
-
-                wall.undo(wall);
-
-                teleport.flushQueue();
-
-                session.flushQueue();
-
-                wall.flushQueue();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        cn.charlotte.pit.events.EventWorldEdits.undo(() -> {
+            if (teleport != null) { cn.charlotte.pit.events.EventWorldEdits.restore(teleport); cn.charlotte.pit.events.EventWorldEdits.flush(teleport); teleport = null; }
+            if (wall != null) { cn.charlotte.pit.events.EventWorldEdits.restore(wall); cn.charlotte.pit.events.EventWorldEdits.flush(wall); wall = null; }
+            if (session != null) { cn.charlotte.pit.events.EventWorldEdits.restore(session); cn.charlotte.pit.events.EventWorldEdits.flush(session); session = null; }
         });
 
-        refreshCooldownPlayer();
+        for (UUID uuid : cooldownList) PlayerMoveHandler.getCantMoveList().remove(Bukkit.getPlayer(uuid));
+        cooldownList.clear();
+        refreshRank();
 
         CC.boardCast(CC.CHAT_BAR);
         CC.boardCast("&6&l天坑事件结束: " + this.getEventName() + "&6&l!");
@@ -522,16 +507,19 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
         for (Player player : Bukkit.getOnlinePlayers()) {
             final PlayerSpireData data = dataMap.get(player.getUniqueId());
 
-            final int rank = rankMap.containsKey(player.getUniqueId()) ? (rankMap.get(player.getUniqueId()) + 1) : -1;
+            final int rank = rankMap.containsKey(player.getUniqueId()) ? rankMap.get(player.getUniqueId()) : -1;
             final PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
-            profile.getEnderChest().unsnapshot();
-            profile.getWarehouse().unsnapshot();
+            if (data != null && profile.isLoaded()) {
+                profile.getEnderChest().unsnapshot();
+                profile.getWarehouse().unsnapshot();
+            }
+            if (isAborting() || !profile.isLoaded()) continue;
             double rewardCoins = 0;
             int rewardRenown = 0;
-            if (rank <= 3) {
+            if (rank > 0 && rank <= 3) {
                 rewardCoins += 2000;
                 rewardRenown += 2;
-            } else if (rank <= 20) {
+            } else if (rank > 0 && rank <= 20) {
                 rewardCoins += 500;
                 rewardRenown += 1;
             } else {
@@ -547,7 +535,7 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
             if (PlayerUtil.isVenom(player) || PlayerUtil.isEquippingSomber(player)) {
                 enchantBoostLevel = 0;
             }
-            if (enchantBoostLevel > 0) {
+            if (data != null && enchantBoostLevel > 0) {
                 rewardCoins += 0.5 * enchantBoostLevel * rewardCoins;
                 rewardRenown += MathHelper.floor(0.5 * enchantBoostLevel * rewardRenown);
                 MythicLeggingsItem mythicLeggings = new MythicLeggingsItem();
@@ -561,7 +549,7 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
                     }
                 }
             }
-            if (PlayerUtil.isPlayerUnlockedPerk(player, "self_confidence")) {
+            if (rank > 0 && PlayerUtil.isPlayerUnlockedPerk(player, "self_confidence")) {
                 if (rank <= 5) {
                     rewardCoins += 5000;
                 } else if (rank <= 10) {

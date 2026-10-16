@@ -37,7 +37,7 @@ public class RespawnFamilyEvent extends AbstractEvent implements IEpicEvent, Lis
 
     @Override
     public int requireOnline() {
-        return NewConfiguration.INSTANCE.getEventOnlineRequired().get(getEventInternalName());
+        return NewConfiguration.INSTANCE.getEventOnlineRequired().getOrDefault(getEventInternalName(), 10);
     }
 
     @EventHandler
@@ -54,12 +54,13 @@ public class RespawnFamilyEvent extends AbstractEvent implements IEpicEvent, Lis
                 if (timer.hasExpired()) {
                     cancel();
                     if (RespawnFamilyEvent.this.equals(ThePit.getInstance().getEventFactory().getActiveEpicEvent())) {
-                        Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
+                        {
                             ThePit.getInstance()
                                     .getEventFactory()
                                     .inactiveEvent(RespawnFamilyEvent.this);
-                        });
+                        }
                     }
+                    return;
                 }
                 ThePit.getInstance()
                         .getBossBar()
@@ -71,7 +72,7 @@ public class RespawnFamilyEvent extends AbstractEvent implements IEpicEvent, Lis
                         .setProgress(timer.getRemaining() / (1000 * 60 * 5f));
             }
         };
-        this.runnable.runTaskTimer(ThePit.getInstance(), 20, 10);
+        trackTask(this.runnable.runTaskTimer(ThePit.getInstance(), 20, 10));
 
         CC.boardCast(MessageType.EVENT, "&a&l大型事件! &7庇护，现在所有人都不会掉毛,掉命。");
         Bukkit.getPluginManager().registerEvents(this, ThePit.getInstance());
@@ -79,6 +80,7 @@ public class RespawnFamilyEvent extends AbstractEvent implements IEpicEvent, Lis
 
     @Override
     public void onInactive() {
+        if (runnable != null) runnable.cancel();
         HandlerList.unregisterAll(this);
 
     }

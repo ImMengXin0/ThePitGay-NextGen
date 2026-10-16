@@ -58,9 +58,7 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
         })
     }
 
-    private val timer by lazy {
-        Cooldown(5, TimeUnit.MINUTES)
-    }
+    private var timer = Cooldown(0)
 
     private val unusedColor by lazy {
         ArrayList(colors)
@@ -75,7 +73,7 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
 
     private var state = State.PREPARE
 
-    private val logicRunnable by lazy {
+    private fun newLogicRunnable(): BukkitRunnable =
         object : BukkitRunnable() {
             override fun run() {
                 for (banner in banners) {
@@ -83,9 +81,8 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
                 }
             }
         }
-    }
 
-    private val effectRunnable by lazy {
+    private fun newEffectRunnable(): BukkitRunnable =
         object : BukkitRunnable() {
             override fun run() {
                 for (banner in banners) {
@@ -94,7 +91,6 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
                 refreshRank()
             }
         }
-    }
 
     override fun getEventInternalName(): String {
         return "squads"
@@ -109,15 +105,24 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
     }
 
     override fun onActive() {
+        timer = Cooldown(5, TimeUnit.MINUTES)
+        teamMap.clear()
+        playerMap.clear()
+        unFullTeams.clear()
+        usedChars.clear()
+        unusedColor.clear()
+        unusedColor.addAll(colors)
+        banners.clear()
         val config = ThePit.getInstance().pitConfig
         for (location in config.squadsLocations) {
+            val original = location.block.state
             location.block.type = Material.STANDING_BANNER
             val blockState = location.block.state
             val banner = blockState as Banner
             banner.baseColor = DyeColor.WHITE
             banner.update()
 
-            val bannerData = BannerData(location)
+            val bannerData = BannerData(location.clone()).also { it.original = original }
             banners.add(bannerData)
         }
 
@@ -140,8 +145,9 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
                 val bDiffWorld = b.location.world != player.world
 
                 when {
-                    aDiffWorld && !bDiffWorld -> -1
-                    !aDiffWorld && bDiffWorld -> 1
+                    aDiffWorld && !bDiffWorld -> 1
+                    !aDiffWorld && bDiffWorld -> -1
+                    aDiffWorld && bDiffWorld -> 0
                     else -> a.location.distanceSquared(player.location)
                         .compareTo(b.location.distanceSquared(player.location))
                 }
@@ -162,24 +168,24 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
         }
 
         Bukkit.getPluginManager().registerEvents(this, ThePit.getInstance())
-        logicRunnable.runTaskTimerAsynchronously(ThePit.getInstance(), 20L, 20L)
-        effectRunnable.runTaskTimerAsynchronously(ThePit.getInstance(), 20L, 10L)
+        trackTask(newLogicRunnable().runTaskTimer(ThePit.getInstance(), 20L, 20L))
+        trackTask(newEffectRunnable().runTaskTimer(ThePit.getInstance(), 20L, 10L))
 
-        object : BukkitRunnable() {
+        trackTask(object : BukkitRunnable() {
             override fun run() {
                 if (timer.hasExpired()) {
                     ThePit.getInstance().eventFactory.inactiveEvent(this@SquadsEvent)
                     cancel()
                 }
             }
-        }.runTaskTimer(ThePit.getInstance(), 20L, 20L)
+        }.runTaskTimer(ThePit.getInstance(), 20L, 20L))
 
         state = State.GAMING
     }
 
     override fun onInactive() {
         for (banner in banners) {
-            banner.location.block.type = Material.AIR
+            banner.original?.update(true, false)
 
 //            if (banner.firstLine.isSpawned) {
 //                banner.firstLine.deSpawn()
@@ -192,9 +198,9 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
 //            }
         }
 
-        logicRunnable.cancel()
-        effectRunnable.cancel()
+        state = State.PREPARE
         HandlerList.unregisterAll(this)
+        if (isAborting) return
 
         refreshRank()
 
@@ -305,7 +311,7 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
 
     @EventHandler
     fun onBlockBreak(event: BlockBreakEvent) {
-        if (event.block.type == Material.BANNER) {
+        if (banners.any { it.location.block == event.block }) {
             event.isCancelled = true
         }
     }
@@ -320,7 +326,7 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
             this.playerMap[player.uniqueId] = playerData
         }
 
-        if (state == State.GAMING) {
+        if (state == State.GAMING && !teamMap.containsKey(player.uniqueId)) {
             val teamData =
                 if (unFullTeams.isEmpty()) {
                     val team = createTeam()
@@ -330,6 +336,7 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
                     unFullTeams.first()
                 }
 
+            teamMap[player.uniqueId] = teamData
             teamData.addPlayer(player)
         }
     }
@@ -340,6 +347,7 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
             return
         }
 
+        if (this.players.any { it.playerUuid == player.uniqueId }) return
         this.players.add(PlayerProfile.getPlayerProfileByUuid(player.uniqueId))
         if (this.players.size >= 3) {
             unFullTeams.remove(this)
@@ -369,6 +377,7 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
     }
 
     class BannerData(val location: Location) {
+        var original: org.bukkit.block.BlockState? = null
         companion object {
             @JvmStatic
             private val timeFormat = SimpleDateFormat("mm分ss秒")
@@ -428,15 +437,16 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
                 val capturingTeam = teams.first()
                 if (this.capturingTeam != capturingTeam) {
                     this.capturingTeam = capturingTeam
+                    this.capturingState = 0
                 }
 
                 this.capturingState++
                 this.bannerStatus = BannerStatus.CAPTURING
 
                 if (capturingState > 5) {
-                    Bukkit.getScheduler().runTask(ThePit.getInstance()) {
+                    event.runEventTask {
                         val state = this.location.block.state
-                        val banner = state as Banner
+                        val banner = state as? Banner ?: return@runEventTask
                         banner.baseColor = DyeColor.getByDyeData(chatColorToData[capturingTeam.chatColor]!!.toByte())
                         banner.update(true, false)
                     }
@@ -469,7 +479,7 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
                     setCapturedHologram()
 
                     capturingTeam.banners.add(this)
-                    Bukkit.getScheduler().runTask(ThePit.getInstance()) {
+                    event.runEventTask {
                         val firework = BoomFirework((location.world as CraftWorld).handle)
                         val meta = (firework.bukkitEntity as Firework).fireworkMeta
                         meta.addEffect(
@@ -507,6 +517,8 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
         }
 
         private fun drawCircle(effect: EnumParticle, color: Color?) {
+            val viewers = Bukkit.getOnlinePlayers().filter { it.world == location.world && it.location.distanceSquared(location) <= 4096 }
+            if (viewers.isEmpty()) return
             val clone = location.clone()
             for (degree in 0..359) {
                 if (degree % 3 != 0) {
@@ -530,7 +542,7 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
                     0,
                     0
                 )
-                Bukkit.getOnlinePlayers().forEach {
+                viewers.forEach {
                     (it as CraftPlayer).handle.playerConnection.sendPacket(packet)
                 }
                 clone.subtract(x, 0.0, y)
@@ -633,6 +645,6 @@ class SquadsEvent : IEpicEvent, AbstractEvent(),
 
     override fun getRank(player: Player): Int {
         val team = teamMap[player.uniqueId] ?: return 100000
-        return 'Z'.code - team.char.code
+        return team.rank
     }
 }

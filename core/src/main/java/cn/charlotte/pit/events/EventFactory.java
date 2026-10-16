@@ -36,8 +36,57 @@ public class EventFactory {
 
     private IEpicEvent nextEpicEvent;
     private Cooldown nextEpicEventTimer;
+    private Cooldown epicEnd = new Cooldown(0);
+    public Cooldown getEpicEnd() { return epicEnd; }
 
     EventTimer eventTimer;
+    private org.bukkit.scheduler.BukkitTask timerTask, normalBarTask, preparationTask;
+    private boolean closing;
+
+    private boolean defer(Runnable action) {
+        if (Bukkit.isPrimaryThread()) return false;
+        if (!closing) Bukkit.getScheduler().runTask(ThePit.getInstance(), action);
+        return true;
+    }
+
+    private void clearBar() {
+        if (ThePit.getInstance().getBossBar() != null && ThePit.getInstance().getBossBar().getBossBar() != null)
+            ThePit.getInstance().getBossBar().getBossBar().setTitle("");
+    }
+
+    private boolean valid(AbstractEvent event) {
+        try { EventLocations.validate(event); return true; }
+        catch (RuntimeException failure) {
+            ThePit.getInstance().getLogger().log(java.util.logging.Level.WARNING,
+                    "Activity cannot start: " + event.getEventInternalName(), failure);
+            return false;
+        }
+    }
+
+    public void abort(AbstractEvent event, Throwable failure) {
+        event.markAborting();
+        ThePit.getInstance().getLogger().log(java.util.logging.Level.SEVERE,
+                "Activity failed: " + event.getEventInternalName(), failure);
+        if (event instanceof INormalEvent normal) inactiveEvent(normal);
+        if (event instanceof IEpicEvent epic) inactiveEvent(epic);
+    }
+
+    public void shutdown() {
+        closing = true;
+        if (timerTask != null) timerTask.cancel();
+        if (preparationTask != null) preparationTask.cancel();
+        if (normalBarTask != null) normalBarTask.cancel();
+        nextEpicEvent = null;
+        nextEpicEventTimer = null;
+        if (activeNormalEvent != null) {
+            ((AbstractEvent) activeNormalEvent).markAborting();
+            inactiveEvent(activeNormalEvent);
+        }
+        if (activeEpicEvent != null) {
+            ((AbstractEvent) activeEpicEvent).markAborting();
+            inactiveEvent(activeEpicEvent);
+        }
+    }
 
     public EventFactory() {
         this.normalEvents = new ObjectArrayList<>();
@@ -53,6 +102,7 @@ public class EventFactory {
     }
 
     public void pushEvent(IEpicEvent event, boolean force) {
+        if (defer(() -> pushEvent(event, force)) || closing) return;
         if (force || Bukkit.getOnlinePlayers().size() >= ((AbstractEvent) event).requireOnline()) {
             readyEpicEvent(event);
         }
@@ -63,7 +113,8 @@ public class EventFactory {
     }
 
     public void pushEvent(INormalEvent event, boolean force) {
-        if (Bukkit.getOnlinePlayers().size() >= ((AbstractEvent) event).requireOnline()) {
+        if (defer(() -> pushEvent(event, force)) || closing) return;
+        if (force || Bukkit.getOnlinePlayers().size() >= ((AbstractEvent) event).requireOnline()) {
             activeEvent(event);
         }
     }
@@ -91,8 +142,9 @@ public class EventFactory {
             }
         }
 
-        Bukkit.getScheduler()
-                .runTaskTimerAsynchronously(ThePit.getInstance(), eventTimer = new EventTimer(), 20, 20);
+        if (timerTask != null) timerTask.cancel();
+        timerTask = Bukkit.getScheduler()
+                .runTaskTimer(ThePit.getInstance(), eventTimer = new EventTimer(), 20, 20);
 
     }
 
@@ -111,14 +163,18 @@ public class EventFactory {
     }
 
     public void activeEvent(INormalEvent event) {
+        if (defer(() -> activeEvent(event)) || closing || event == null) return;
+        if (activeNormalEvent != null || activeEpicEvent != null || nextEpicEvent != null) return;
         AbstractEvent iEvent = (AbstractEvent) event;
-        iEvent.onActive();
-        iEvent.setActive(true);
         this.lastNormalEvent = System.currentTimeMillis();
         this.activeNormalEvent = event;
         this.normalEnd = new Cooldown(5, TimeUnit.MINUTES);
+        iEvent.beginLifecycle();
+        try { iEvent.onActive(); } catch (Throwable failure) { abort(iEvent, failure); return; }
+        // One-shot events and invalid configurations can stop themselves in onActive.
+        if (activeNormalEvent != event) return;
 
-        new BukkitRunnable() {
+        normalBarTask = new BukkitRunnable() {
             int tick = 0;
 
             @Override
@@ -162,49 +218,64 @@ public class EventFactory {
 
                 tick++;
             }
-        }.runTaskTimerAsynchronously(ThePit.getInstance(), 10, 10);
+        }.runTaskTimer(ThePit.getInstance(), 10, 10);
     }
 
     public void inactiveEvent(INormalEvent event) {
-        if (activeNormalEvent != event) return;
-
+        if (event == null || defer(() -> inactiveEvent(event)) || activeNormalEvent != event) return;
         this.activeNormalEvent = null;
+        if (normalBarTask != null) { normalBarTask.cancel(); normalBarTask = null; }
         AbstractEvent iEvent = (AbstractEvent) event;
-        iEvent.setActive(false);
-        iEvent.onInactive();
+        iEvent.endLifecycle();
+        try { iEvent.onInactive(); }
+        catch (Throwable failure) { ThePit.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Activity cleanup failed", failure); }
+        finally { clearBar(); }
     }
 
     public void safeInactiveEvent(INormalEvent event) {
-        if (activeNormalEvent != event) return;
-        this.normalEnd.fastExpired();
-        eventTimer.getCooldown().fastExpired();
+        if (defer(() -> safeInactiveEvent(event))) return;
+        inactiveEvent(event);
+        if (eventTimer != null) eventTimer.getCooldown().fastExpired();
     }
 
     public void cooldown() {
+        if (eventTimer == null) return;
         eventTimer.setCooldown(new Cooldown(1, TimeUnit.MINUTES));
     }
 
     public void readyEpicEvent(IEpicEvent event) {
+        if (defer(() -> readyEpicEvent(event)) || closing || event == null) return;
+        if (activeEpicEvent != null || nextEpicEvent != null) return;
+        if (!valid((AbstractEvent) event)) return;
+        if (activeNormalEvent != null) inactiveEvent(activeNormalEvent);
         this.nextEpicEvent = event;
         this.nextEpicEventTimer = new Cooldown(5, TimeUnit.MINUTES);
         AbstractEvent iEvent = (AbstractEvent) event;
 
         if (event instanceof IPreparative) {
-            ((IPreparative) event).onPreActive();
+            try { ((IPreparative) event).onPreActive(); }
+            catch (Throwable failure) {
+                nextEpicEvent = null;
+                nextEpicEventTimer = null;
+                abort(iEvent, failure);
+                return;
+            }
         }
         PitGlobalConfig pitWorldConfig = ThePit.getInstance().getGlobalConfig();
-        List<String> animationForEpicEvent = pitWorldConfig.animationForEpicEvent;
+        List<String> animationForEpicEvent = pitWorldConfig.animationForEpicEvent == null
+                ? java.util.Collections.emptyList() : pitWorldConfig.animationForEpicEvent;
         int periodForEpicEvent = pitWorldConfig.periodForEpicEvent;
-        new BukkitRunnable() {
+        preparationTask = new BukkitRunnable() {
             Iterator<String> iterator = animationForEpicEvent.iterator();
             @Override
             public void run() {
+                if (nextEpicEvent != event || closing) { cancel(); return; }
                 if (nextEpicEventTimer.hasExpired()) {
                     ThePit.getInstance()
                             .getBossBar()
                             .getBossBar()
                             .setTitle("");
-                    Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> activeEvent(event));
+                    activeEvent(event);
                     cancel();
                     return;
                 }
@@ -227,26 +298,39 @@ public class EventFactory {
                         .getBossBar()
                         .setProgress(nextEpicEventTimer.getRemaining() / (5 * 1000 * 60f));
             }
-        }.runTaskTimerAsynchronously(ThePit.getInstance(), 10, periodForEpicEvent);
+        }.runTaskTimer(ThePit.getInstance(), 10, Math.max(1, periodForEpicEvent));
     }
 
     public void activeEvent(IEpicEvent event) {
-        AbstractEvent iEvent = (AbstractEvent) event;
-        iEvent.onActive();
-        iEvent.setActive(true);
+        if (defer(() -> activeEvent(event)) || closing || event == null) return;
+        if (activeEpicEvent != null || (nextEpicEvent != null && nextEpicEvent != event)) return;
+        if (!valid((AbstractEvent) event)) {
+            if (preparationTask != null) preparationTask.cancel();
+            nextEpicEvent = null;
+            nextEpicEventTimer = null;
+            clearBar();
+            return;
+        }
+        if (activeNormalEvent != null) inactiveEvent(activeNormalEvent);
+        if (preparationTask != null) { preparationTask.cancel(); preparationTask = null; }
         this.nextEpicEvent = null;
+        this.nextEpicEventTimer = null;
         this.activeEpicEvent = event;
-        this.normalEnd = new Cooldown(5, TimeUnit.MINUTES);
+        this.epicEnd = new Cooldown(5, TimeUnit.MINUTES);
+        AbstractEvent iEvent = (AbstractEvent) event;
+        iEvent.beginLifecycle();
+        try { iEvent.onActive(); } catch (Throwable failure) { abort(iEvent, failure); }
     }
 
     public void inactiveEvent(IEpicEvent event) {
-        if (activeEpicEvent != event) return;
-
+        if (event == null || defer(() -> inactiveEvent(event)) || activeEpicEvent != event) return;
         this.activeEpicEvent = null;
         AbstractEvent iEvent = (AbstractEvent) event;
-        Bukkit.getOnlinePlayers().forEach(player -> player.playSound(player.getLocation(), BURP, 1, 0.72F));
-        iEvent.setActive(false);
-        iEvent.onInactive();
+        iEvent.endLifecycle();
+        try { iEvent.onInactive(); }
+        catch (Throwable failure) { ThePit.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Activity cleanup failed", failure); }
+        finally { clearBar(); }
+        if (!closing) Bukkit.getOnlinePlayers().forEach(player -> player.playSound(player.getLocation(), BURP, 1, 0.72F));
     }
 
     public List<INormalEvent> getNormalEvents() {

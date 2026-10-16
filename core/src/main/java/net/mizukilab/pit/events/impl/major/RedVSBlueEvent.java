@@ -64,7 +64,7 @@ public class RedVSBlueEvent extends AbstractEvent implements IEpicEvent, Listene
 
     @Override
     public int requireOnline() {
-        return NewConfiguration.INSTANCE.getEventOnlineRequired().get(getEventInternalName());
+        return NewConfiguration.INSTANCE.getEventOnlineRequired().getOrDefault(getEventInternalName(), 10);
     }
 
     public boolean isRedTeam(Player player) {
@@ -94,6 +94,8 @@ public class RedVSBlueEvent extends AbstractEvent implements IEpicEvent, Listene
 
     @Override
     public void onActive() {
+        redTeam.clear(); blueTeam.clear(); kaMap.clear();
+        redKills = 0; blueKills = 0;
         Bukkit.getPluginManager()
                 .registerEvents(this, ThePit.getInstance());
 
@@ -102,7 +104,7 @@ public class RedVSBlueEvent extends AbstractEvent implements IEpicEvent, Listene
         ArrayList<? extends Player> players = new ArrayList<>(Bukkit.getOnlinePlayers());
         Collections.shuffle(players);
 
-        new BukkitRunnable() {
+        trackTask(new BukkitRunnable() {
             @Override
             public void run() {
                 if (timer.hasExpired()) {
@@ -110,7 +112,7 @@ public class RedVSBlueEvent extends AbstractEvent implements IEpicEvent, Listene
                             .getEventFactory()
                             .inactiveEvent(RedVSBlueEvent.this);
                     cancel();
-
+                    return;
                 }
                 ThePit.getInstance()
                         .getBossBar()
@@ -121,7 +123,7 @@ public class RedVSBlueEvent extends AbstractEvent implements IEpicEvent, Listene
                         .getBossBar()
                         .setProgress(timer.getRemaining() / (1000 * 60 * 5f));
             }
-        }.runTaskTimer(ThePit.getInstance(), 20, 20);
+        }.runTaskTimer(ThePit.getInstance(), 20, 20));
 
         for (Player player : players) {
             scatterTeam(player);
@@ -133,6 +135,7 @@ public class RedVSBlueEvent extends AbstractEvent implements IEpicEvent, Listene
     }
 
     private void scatterTeam(Player player) {
+        if (redTeam.contains(player.getUniqueId()) || blueTeam.contains(player.getUniqueId())) return;
         if (player.hasMetadata("NPC") || player.hasMetadata("Bot")) {
             return;
         }
@@ -170,6 +173,10 @@ public class RedVSBlueEvent extends AbstractEvent implements IEpicEvent, Listene
         try {
             HandlerList.unregisterAll(this);
             resetArmor();
+            if (isAborting()) {
+                redKills = 0; blueKills = 0; redTeam.clear(); blueTeam.clear(); kaMap.clear();
+                return;
+            }
             boolean redWin = redKills >= blueKills;
             if (redKills == blueKills) {
                 redKills++;

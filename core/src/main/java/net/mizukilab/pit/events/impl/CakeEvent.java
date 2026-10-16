@@ -5,7 +5,6 @@ import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.events.AbstractEvent;
 import cn.charlotte.pit.events.trigger.type.INormalEvent;
 import com.boydti.fawe.FaweAPI;
-import com.boydti.fawe.util.TaskManager;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.Vector;
 import com.sk89q.worldedit.blocks.BaseBlock;
@@ -53,17 +52,9 @@ public class CakeEvent extends AbstractEvent implements INormalEvent, Listener {
     private AABB alignedBB;
     private Map<UUID, CakePlayerData> dataCache;
 
-    public CakeEvent() {
-        if (regions == null) {
-            PitWorldConfig config = ThePit.getInstance().getPitConfig();
-            regions = new CuboidRegion[]{
-                    new CuboidRegion(BukkitUtil.toVector(config.getCakeZoneAPosA()), BukkitUtil.toVector(config.getCakeZoneAPosB())),
-                    new CuboidRegion(BukkitUtil.toVector(config.getCakeZoneBPosA()), BukkitUtil.toVector(config.getCakeZoneBPosB())),
-                    new CuboidRegion(BukkitUtil.toVector(config.getCakeZoneCPosA()), BukkitUtil.toVector(config.getCakeZoneCPosB())),
-                    new CuboidRegion(BukkitUtil.toVector(config.getCakeZoneDPosA()), BukkitUtil.toVector(config.getCakeZoneDPosB()))
-            };
-        }
-    }
+    private org.bukkit.World eventWorld;
+
+    public CakeEvent() { }
 
     @Override
     public String getEventInternalName() {
@@ -77,7 +68,7 @@ public class CakeEvent extends AbstractEvent implements INormalEvent, Listener {
 
     @Override
     public int requireOnline() {
-        return NewConfiguration.INSTANCE.getEventOnlineRequired().get(getEventInternalName());
+        return NewConfiguration.INSTANCE.getEventOnlineRequired().getOrDefault(getEventInternalName(), 10);
     }
 
     @Override
@@ -86,13 +77,24 @@ public class CakeEvent extends AbstractEvent implements INormalEvent, Listener {
 
         this.dataCache = new HashMap<>();
 
-        final CuboidRegion region = regions[RandomUtil.random.nextInt(regions.length)];
+        PitWorldConfig config = ThePit.getInstance().getPitConfig();
+        Location[][] zones = {{config.getCakeZoneAPosA(), config.getCakeZoneAPosB()},
+                {config.getCakeZoneBPosA(), config.getCakeZoneBPosB()},
+                {config.getCakeZoneCPosA(), config.getCakeZoneCPosB()},
+                {config.getCakeZoneDPosA(), config.getCakeZoneDPosB()}};
+        java.util.List<Location[]> valid = new java.util.ArrayList<>();
+        for (Location[] zone : zones) if (zone[0] != null && zone[1] != null && zone[0].getWorld() != null
+                && zone[0].getWorld().equals(zone[1].getWorld())) valid.add(zone);
+        if (valid.isEmpty()) throw new IllegalStateException("No valid cake regions configured");
+        Location[] zone = valid.get(RandomUtil.random.nextInt(valid.size()));
+        eventWorld = zone[0].getWorld();
+        final CuboidRegion region = new CuboidRegion(BukkitUtil.toVector(zone[0]), BukkitUtil.toVector(zone[1]));
         final Vector pos1 = region.getPos1();
         final Vector pos2 = region.getPos2();
         this.alignedBB = new AABB(pos1.getX(), pos1.getY(), pos1.getZ(), pos2.getX(), pos2.getY(), pos2.getZ());
 
-        TaskManager.IMP.async(() -> {
-            BukkitWorld world = new BukkitWorld(Bukkit.getWorlds().get(0));
+        cn.charlotte.pit.events.EventWorldEdits.build(this, () -> {
+            BukkitWorld world = new BukkitWorld(eventWorld);
             this.session = FaweAPI.getEditSessionBuilder(world).build();
 
             final RandomPattern pattern = new RandomPattern();
@@ -102,7 +104,7 @@ public class CakeEvent extends AbstractEvent implements INormalEvent, Listener {
 
             session.setBlocks(region, pattern);
 
-            session.flushQueue();
+            cn.charlotte.pit.events.EventWorldEdits.flush(session);
         });
 
         Bukkit.getPluginManager()
@@ -113,13 +115,14 @@ public class CakeEvent extends AbstractEvent implements INormalEvent, Listener {
 
     @Override
     public void onInactive() {
-        TaskManager.IMP.async(() -> {
-            this.session.undo(session);
-            this.session.flushQueue();
+        cn.charlotte.pit.events.EventWorldEdits.undo(() -> {
+            if (this.session != null) cn.charlotte.pit.events.EventWorldEdits.restore(session);
+            if (this.session != null) { cn.charlotte.pit.events.EventWorldEdits.flush(session); this.session = null; }
         });
 
         HandlerList.unregisterAll(this);
 
+        if (dataCache == null || isAborting()) return;
         for (UUID uuid : dataCache.keySet()) {
             if (dataCache.get(uuid).coins >= 5000 && Bukkit.getPlayer(uuid) != null) {
                 new CakeEventMedal().addProgress(PlayerProfile.getPlayerProfileByUuid(uuid), 1);
@@ -134,13 +137,18 @@ public class CakeEvent extends AbstractEvent implements INormalEvent, Listener {
         }
 
         final Block block = event.getClickedBlock();
+        if (block == null || alignedBB == null || !block.getWorld().equals(eventWorld)) return;
         final Location location = block.getLocation();
         final AABB blockAABB = new AABB(location.getX() - 1, location.getY() - 1, location.getZ() - 1, location.getX() + 1, location.getY() + 1, location.getZ() + 1);
         final Player player = event.getPlayer();
         final PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
 
 
-        if (alignedBB.intersectsWith(blockAABB)) {
+        if (location.getBlockX() >= alignedBB.minX && location.getBlockX() <= alignedBB.maxX
+                && location.getBlockY() >= alignedBB.minY && location.getBlockY() <= alignedBB.maxY
+                && location.getBlockZ() >= alignedBB.minZ && location.getBlockZ() <= alignedBB.maxZ) {
+            event.setCancelled(true);
+            if (!profile.isLoaded()) return;
             CakePlayerData cakePlayerData = dataCache.get(player.getUniqueId());
             if (cakePlayerData == null) {
                 cakePlayerData = new CakePlayerData();
@@ -206,7 +214,7 @@ public class CakeEvent extends AbstractEvent implements INormalEvent, Listener {
 
                     double totalXp = 20;
                     cakePlayerData.clicked++;
-                    cakePlayerData.coins += totalXp;
+
 
                     profile.setExperience(profile.getExperience() + totalXp);
                     profile.applyExperienceToPlayer(player);

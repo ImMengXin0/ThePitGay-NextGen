@@ -30,7 +30,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class QuickMathEvent extends AbstractEvent implements INormalEvent, Listener {
 
-    public String TheEquation;
+    public volatile String TheEquation;
     public String TheEquationQuests;
     private final Set<UUID> alreadyAnswered = new ConcurrentHashSet<>();
 
@@ -42,7 +42,7 @@ public class QuickMathEvent extends AbstractEvent implements INormalEvent, Liste
         TheEquation = ans;
     }
 
-    private boolean ended = false;
+    private volatile boolean ended = false;
 
     public QuickMathEvent() {
 
@@ -60,11 +60,12 @@ public class QuickMathEvent extends AbstractEvent implements INormalEvent, Liste
 
     @Override
     public int requireOnline() {
-        return NewConfiguration.INSTANCE.getEventOnlineRequired().get(getEventInternalName());
+        return NewConfiguration.INSTANCE.getEventOnlineRequired().getOrDefault(getEventInternalName(), 10);
     }
 
     @Override
     public void onActive() {
+        ended = false;
         NumberGenerator numberGenerator = NumberGenerator.get();
         try {
             if (TheEquation == null || TheEquationQuests == null) {
@@ -77,6 +78,7 @@ public class QuickMathEvent extends AbstractEvent implements INormalEvent, Liste
             ThePit.getInstance()
                     .getEventFactory()
                     .safeInactiveEvent(this);
+            return;
         }
         setTop(0);
         setStartTime(System.currentTimeMillis());
@@ -92,28 +94,25 @@ public class QuickMathEvent extends AbstractEvent implements INormalEvent, Liste
 
     @EventHandler(priority = EventPriority.LOW)
     public void onChat(AsyncPlayerChatEvent e) {
-        if (e.getMessage().contains(TheEquation)) {
-            if (!alreadyAnswered.add(e.getPlayer().getUniqueId())) {
-                e.getRecipients().clear();
-                e.getRecipients().add(e.getPlayer());
-            } else {
-                e.setCancelled(true);
-                top++;
-                PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(e.getPlayer().getUniqueId());
-                if (System.currentTimeMillis() - startTime <= 2.5 * 1000) {
-                    new QuickMathsMedal().addProgress(profile, 1);
-                }
-                CC.boardCast("&5&l速算! &e#" + top + " " + profile.getFormattedName() + " &7在 &e" + TimeUtil.millisToRoundedTime(System.currentTimeMillis() - startTime) + " &7内回答正确!");
-                profile.setCoins(profile.getCoins() + 520);
-                profile.grindCoins(520);
-                profile.setExperience(profile.getExperience() + LevelUtil.getLevelExpRequired(profile.getPrestige(), profile.getLevel()));
-                if (top >= 5) {
-                    ThePit.getInstance()
-                            .getEventFactory()
-                            .inactiveEvent(this);
-                }
-            }
-        }
+        String answer = TheEquation;
+        if (ended || answer == null || !e.getMessage().trim().equals(answer)) return;
+        e.setCancelled(true);
+        Player player = e.getPlayer();
+        runEventTask(() -> awardAnswer(player));
+    }
+
+    private void awardAnswer(Player player) {
+        if (ended || top >= 5 || !player.isOnline()) return;
+        PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
+        if (!profile.isLoaded() || !alreadyAnswered.add(player.getUniqueId())) return;
+        top++;
+        if (System.currentTimeMillis() - startTime <= 2500) new QuickMathsMedal().addProgress(profile, 1);
+        CC.boardCast("&5&l速算! &e#" + top + " " + profile.getFormattedName() + " &7在 &e" +
+                TimeUtil.millisToRoundedTime(System.currentTimeMillis() - startTime) + " &7内回答正确!");
+        profile.setCoins(profile.getCoins() + 100);
+        profile.grindCoins(100);
+        profile.setExperience(profile.getExperience() + LevelUtil.getLevelExpRequired(profile.getPrestige(), profile.getLevel()));
+        if (top >= 5) ThePit.getInstance().getEventFactory().inactiveEvent(this);
     }
 
     @Override

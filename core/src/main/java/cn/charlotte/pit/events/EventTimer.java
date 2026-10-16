@@ -20,56 +20,39 @@ public class EventTimer implements Runnable {
     @Setter
     private Cooldown cooldown = new Cooldown(0L);
 
+    private LocalDateTime lastMajorSlot;
+
     @Override
     public void run() {
-
-        final EventFactory factory = ThePit.getInstance().getEventFactory();
-
-        if (!cooldown.hasExpired()) {
+        EventFactory factory = ThePit.getInstance().getEventFactory();
+        if (factory.getActiveEpicEvent() != null && factory.getEpicEnd().hasExpired()) {
+            factory.inactiveEvent(factory.getActiveEpicEvent());
+            cooldown = new Cooldown(3, TimeUnit.MINUTES);
+        }
+        // Expiry is independent of the interval between attempts to start events.
+        if (factory.getActiveNormalEvent() != null && factory.getNormalEnd().hasExpired()) {
+            factory.inactiveEvent(factory.getActiveNormalEvent());
+            cooldown = new Cooldown(3, TimeUnit.MINUTES);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime slot = now.withSecond(0).withNano(0);
+        if (now.getMinute() == 50 && !slot.equals(lastMajorSlot)
+                && factory.getActiveEpicEvent() == null && factory.getNextEpicEvent() == null) {
+            lastMajorSlot = slot;
+            String major = EventsHandler.INSTANCE.nextEvent(true);
+            factory.getEpicEvents().stream().filter(event ->
+                    ((AbstractEvent) event).getEventInternalName().equals(major)).findFirst()
+                    .ifPresent(factory::pushEvent);
+            cooldown = new Cooldown(3, TimeUnit.MINUTES);
             return;
         }
-        if (factory.getNormalEnd().hasExpired() || factory.getNextEpicEvent() != null) { // patch
-            INormalEvent activeNormalEvent = factory.getActiveNormalEvent();
-            if (activeNormalEvent != null) {
-                factory.inactiveEvent(activeNormalEvent);
-            }
-            cooldown = new Cooldown(3L, TimeUnit.MINUTES);
-        }
-
-        if (factory.getActiveEpicEvent() != null || factory.getActiveNormalEvent() != null) {
-            cooldown = new Cooldown(3L, TimeUnit.MINUTES);
-        }
-        final int min = LocalDateTime.now().getMinute();
-        if (min == 50) {
-            String major = EventsHandler.INSTANCE.nextEvent(true);
-            cooldown = new Cooldown(3, TimeUnit.MINUTES);
-            factory.getEpicEvents()
-                    .stream()
-                    .map(event -> (AbstractEvent) event)
-                    .filter(iEvent -> iEvent.getEventInternalName().equals(major))
-                    .findFirst()
-                    .ifPresent(iEvent -> factory.pushEvent((IEpicEvent) iEvent));
-        }
-
-        boolean b = min != 55 && min != 50;
-        if (b) {
-            if (factory.getActiveEpicEvent() == null && factory.getNextEpicEvent() == null) {
-                if (factory.getActiveNormalEvent() == null) {
-                    String mini = EventsHandler.INSTANCE.nextEvent(false);
-                    if (mini.equals("NULL")) {
-                        return;
-                    }
-                    cooldown = new Cooldown(1, TimeUnit.MINUTES);
-
-                    factory.getNormalEvents()
-                            .stream()
-                            .map(event -> (AbstractEvent) event)
-                            .filter(iEvent -> iEvent.getEventInternalName().equals(mini))
-                            .findFirst()
-                            .ifPresent(iEvent -> factory.pushEvent((INormalEvent) iEvent));
-                }
-            }
-        }
-
+        if (!cooldown.hasExpired() || factory.getActiveEpicEvent() != null
+                || factory.getNextEpicEvent() != null || factory.getActiveNormalEvent() != null) return;
+        if (now.getMinute() == 50 || now.getMinute() == 55) return;
+        cooldown = new Cooldown(1, TimeUnit.MINUTES);
+        String minor = EventsHandler.INSTANCE.nextEvent(false);
+        factory.getNormalEvents().stream().filter(event ->
+                ((AbstractEvent) event).getEventInternalName().equals(minor)).findFirst()
+                .ifPresent(factory::pushEvent);
     }
 }

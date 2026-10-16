@@ -94,10 +94,12 @@ public class AuctionBidButton extends Button {
             if (!event.isAllowedToParticipate(player.getUniqueId())) {
                 return;
             }
+            final long generation = event.getGeneration();
             if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
                 ThePit.getInstance()
                         .getSignGui()
                         .open(player, new String[]{"", "~~~~~~~~~~~~~", "请在此输入", "你的出价"}, (player1, lines) -> {
+                            if (!player.isOnline() || event.getGeneration() != generation || eventFactory.getActiveNormalEvent() != event) return;
                             player.closeInventory();
                             try {
                                 final long bidPrice = Long.parseLong(lines[0]);

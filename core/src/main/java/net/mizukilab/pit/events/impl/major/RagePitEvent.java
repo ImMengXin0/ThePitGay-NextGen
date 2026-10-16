@@ -7,7 +7,6 @@ import cn.charlotte.pit.event.PitKillEvent;
 import cn.charlotte.pit.events.trigger.type.IEpicEvent;
 import cn.charlotte.pit.events.AbstractEvent;
 import com.boydti.fawe.FaweAPI;
-import com.boydti.fawe.util.TaskManager;
 import com.sk89q.worldedit.BlockVector;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
@@ -110,37 +109,27 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
 
     @Override
     public int requireOnline() {
-        return NewConfiguration.INSTANCE.getEventOnlineRequired().get(getEventInternalName());
+        return NewConfiguration.INSTANCE.getEventOnlineRequired().getOrDefault(getEventInternalName(), 10);
     }
 
     @Override
     public void onActive() {
+        this.timer = new Cooldown(5, TimeUnit.MINUTES);
+        killed = 0;
+        damageMap.clear();
         try {
             Bukkit.getPluginManager()
                     .registerEvents(this, ThePit.getInstance());
             //build wall - start
             Location middle = ThePit.getInstance().getPitConfig().getRagePitMiddle();
             BlockVector vector = new BlockVector(middle.getBlockX(), middle.getBlockY(), middle.getBlockZ());
-            BukkitWorld world = new BukkitWorld(Bukkit.getWorlds().get(0));
-            try {
+            BukkitWorld world = new BukkitWorld(middle.getWorld());
+            cn.charlotte.pit.events.EventWorldEdits.build(this, () -> {
                 session = FaweAPI.getEditSessionBuilder(world).build();
-
-
-                Runnable runnable1 = () -> {
-                    session.makeCylinder(vector, new JustAirBlockPattern(new BaseBlock(BlockID.GLASS)), ThePit.getInstance().getPitConfig().getRagePitRadius(), ThePit.getInstance().getPitConfig().getRagePitHeight(), false);
-                    session.flushQueue();
-                };
-
-                TaskManager.IMP.async(runnable1);
-            } catch (Throwable e){
-                session = WorldEdit.getInstance().getEditSessionFactory().getEditSession(world, Integer.MAX_VALUE);
-
-                Runnable runnable1 = () -> {
-                    session.makeCylinder(vector, new JustAirBlockPattern(new BaseBlock(BlockID.GLASS)), ThePit.getInstance().getPitConfig().getRagePitRadius(), ThePit.getInstance().getPitConfig().getRagePitHeight(), false);
-                    session.flushQueue();
-                };
-                Bukkit.getScheduler().runTask(ThePit.getInstance(), runnable1);
-            }
+                session.makeCylinder(vector, new JustAirBlockPattern(new BaseBlock(BlockID.GLASS)),
+                        ThePit.getInstance().getPitConfig().getRagePitRadius(), ThePit.getInstance().getPitConfig().getRagePitHeight(), false);
+                cn.charlotte.pit.events.EventWorldEdits.flush(session);
+            });
 
 
             GlobalSweeper.get().getPlacedBlock().removeIf((loc, blockData) -> {
@@ -151,7 +140,7 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
 
             //set Player's max health and teleport to spawn
             for (Player player : Bukkit.getOnlinePlayers()) {
-                player.setMaxHealth(player.getMaxHealth() * 2);
+                player.setMaxHealth(PlayerProfile.getPlayerProfileByUuid(player.getUniqueId()).getExtraMaxHealthValue() + 40.0);
                 player.setHealth(player.getMaxHealth());
 
                 Location location = ThePit.getInstance().getPitConfig()
@@ -183,8 +172,9 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
                 }
             };
 
-            runnable.runTaskTimer(ThePit.getInstance(), 0, 20);
-        } catch (Exception ignored) {
+            trackTask(runnable.runTaskTimer(ThePit.getInstance(), 0, 20));
+        } catch (Exception failure) {
+            throw new IllegalStateException("Could not start Rage Pit", failure);
         }
     }
 
@@ -214,28 +204,17 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
             InventoryUtil.removeItemWithInternalName(player, "angry_potato");
         }
         //取消Runnable
-        runnable.cancel();
+        if (runnable != null) runnable.cancel();
         //还原建筑
-        try{
-        FaweAPI.getTaskManager().async(() -> {
-            session.undo(session);
-            session.flushQueue();
+        cn.charlotte.pit.events.EventWorldEdits.undo(() -> {
+            if (session != null) { cn.charlotte.pit.events.EventWorldEdits.restore(session); cn.charlotte.pit.events.EventWorldEdits.flush(session); session = null; }
         });
-        } catch (Throwable e){
-            Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
-                session.undo(session);
-                session.flushQueue();
-            });
-        }
-        /* TaskManager.IMP.async(() -> {
-            session.undo(session);
-            session.flushQueue();
-        }); */
         //还原BossBar
         ThePit.getInstance()
                 .getBossBar()
                 .getBossBar()
                 .setTitle("");
+        if (isAborting()) { damageMap.clear(); killed = 0; return; }
         //获取伤害前3名玩家
         HashSet<Map.Entry<UUID, DamageData>> entry = new HashSet<>(damageMap.entrySet());
         List<DamageData> collect = entry
@@ -244,8 +223,9 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
                 .sorted(Comparator.comparingDouble(DamageData::getDamage).reversed())
                 .collect(Collectors.toList());
         //结算消息
-        int rank = 1;
+        int position = 0;
         for (DamageData data : collect) {
+            int rank = ++position;
             Player player = Bukkit.getPlayer(data.getUuid());
             if (player == null || !player.isOnline()) {
                 continue;
@@ -336,7 +316,6 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
             }
 
 
-            rank++;
         }
 
         damageMap.clear();

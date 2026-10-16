@@ -48,6 +48,7 @@ public class CarePackageEvent extends AbstractEvent implements INormalEvent, Lis
     private Location chest;
     @Getter
     private ChestData chestData;
+    private org.bukkit.block.BlockState previousBlock;
 
 
 /*
@@ -66,7 +67,7 @@ public class CarePackageEvent extends AbstractEvent implements INormalEvent, Lis
 
     @Override
     public int requireOnline() {
-        return NewConfiguration.INSTANCE.getEventOnlineRequired().get(getEventInternalName());
+        return NewConfiguration.INSTANCE.getEventOnlineRequired().getOrDefault(getEventInternalName(), 10);
     }
 
     private Location generateLocation() {
@@ -75,7 +76,7 @@ public class CarePackageEvent extends AbstractEvent implements INormalEvent, Lis
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        if (ThePit.getInstance().getEventFactory().getActiveNormalEvent() == this) {
+        if (ThePit.getInstance().getEventFactory().getActiveNormalEvent() == this && chestData != null) {
             final Hologram firstHologram = chestData.getFirstHologram();
             if (firstHologram != null) {
                 firstHologram.spawn(Collections.singletonList(event.getPlayer()));
@@ -90,7 +91,7 @@ public class CarePackageEvent extends AbstractEvent implements INormalEvent, Lis
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
-        if (ThePit.getInstance().getEventFactory().getActiveNormalEvent() == this) {
+        if (ThePit.getInstance().getEventFactory().getActiveNormalEvent() == this && chestData != null) {
             if (event.getClickedBlock() != null && event.getClickedBlock().getType() == Material.CHEST && event.getClickedBlock().getLocation().equals(chest)) {
                 event.setCancelled(true);
                 if (chestData == null) {
@@ -146,12 +147,12 @@ public class CarePackageEvent extends AbstractEvent implements INormalEvent, Lis
                 .registerEvents(this, ThePit.getInstance());
         location.getWorld().strikeLightningEffect(location);
         CC.boardCast0("&6&l空投! &7一个新的空投已在地图降落!打开可以获得神话物品,声望等稀有物资!");
-        Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
-            location.getBlock().setType(Material.CHEST);
-        });
+        previousBlock = location.getBlock().getState();
+        location.getBlock().setType(Material.CHEST);
         chest = location;
 
         Map<Integer, ItemStack> items = PackageMenu.getItems();
+        items.clear();
         for (int i = 0; i < RandomUtil.random.nextInt(3) + 3; i++) {
             int nextInt = RandomUtil.random.nextInt(27);
             while (items.get(nextInt) != null && items.get(nextInt).getType() != Material.AIR) {
@@ -195,18 +196,20 @@ public class CarePackageEvent extends AbstractEvent implements INormalEvent, Lis
     public void onInactive() {
         HandlerList.unregisterAll(this);
 
-        chestData.getSecondHologram().deSpawn();
-        chestData.getFirstHologram().deSpawn();
+        if (chestData != null) {
+            if (chestData.getSecondHologram() != null) chestData.getSecondHologram().deSpawn();
+            if (chestData.getFirstHologram() != null) chestData.getFirstHologram().deSpawn();
+        }
         PackageMenu.getItems().clear();
-        Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
-            chest.getBlock().setType(Material.AIR);
-        });
-        //we didnt have to set chestData = null;
+        if (previousBlock != null) previousBlock.update(true, false);
+        previousBlock = null;
+        chestData = null;
+        chest = null;
     }
 
     @Override
     public List<String> insert(Player player) {
-        if (chest == null) return null;
+        if (chest == null || chestData == null || !player.getWorld().equals(chest.getWorld())) return null;
 
         List<String> lines = new ObjectArrayList<>();
         String targetDirection = DirectionUtil.getDetailedDirection(player, chest);

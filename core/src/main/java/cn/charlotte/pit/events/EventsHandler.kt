@@ -10,8 +10,8 @@ import java.util.*
 import kotlin.random.Random
 
 object EventsHandler {
-    val epicQueue: Queue<String> = LinkedList()
-    val normalQueue: Queue<String> = LinkedList()
+    val epicQueue: Queue<String> = java.util.concurrent.ConcurrentLinkedQueue()
+    val normalQueue: Queue<String> = java.util.concurrent.ConcurrentLinkedQueue()
 
     fun refreshEvents() {
         val factory = ThePit.getInstance().eventFactory
@@ -19,7 +19,7 @@ object EventsHandler {
         var count = epicQueue.size
         if (count < 50) {
             val need = 50 - count
-            for (index in 0..need) {
+            for (index in 0 until need) {
                 var until = factory.epicEvents.size
                 if (until > 0) {
                     var nextInt = Random.nextInt(until)
@@ -33,7 +33,7 @@ object EventsHandler {
 
         if (count < 100) {
             val need = 100 - count
-            for (index in 0..need) {
+            for (index in 0 until need) {
                 var until1 = factory.normalEvents.size
                 if(until1 < 1) {
                     continue;
@@ -96,9 +96,9 @@ object EventsHandler {
         if (epicQueue.isEmpty() || normalQueue.isEmpty()) {
             this.refreshEvents()
         }
-        if (epicQueue.isEmpty() && normalQueue.isEmpty()) {
+        if ((if (major) epicQueue else normalQueue).isEmpty()) {
             return "NULL"
         }
-        if (major) return epicQueue.poll() else return normalQueue.poll()
+        return (if (major) epicQueue.poll() else normalQueue.poll()) ?: "NULL"
     }
 }

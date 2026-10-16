@@ -114,7 +114,7 @@ import java.lang.Boolean
 
 object PitHook {
     @JvmStatic
-    val gitVersion = "4.4.9-20261015"
+    val gitVersion = "4.4.9-20261016"
 
     @JvmStatic
     val itemVersion = "buuid"

@@ -327,6 +327,8 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
     @Override
     public void onDisable() {
+        if (eventFactory != null) eventFactory.shutdown();
+        cn.charlotte.pit.events.EventWorldEdits.shutdown();
         if (npcViewCompatibility != null) npcViewCompatibility.close();
         net.mizukilab.pit.menu.trade.TradeManager.cancelAll();
         PacketHologramRunnable.deSpawnAll();

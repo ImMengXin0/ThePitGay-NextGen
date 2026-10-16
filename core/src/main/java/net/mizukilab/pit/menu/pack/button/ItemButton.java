@@ -19,9 +19,12 @@ import org.bukkit.inventory.ItemStack;
  * @Date: 2021/1/30 17:20
  */
 public class ItemButton extends DisplayButton {
+    private final CarePackageEvent.ChestData session;
 
     public ItemButton(ItemStack itemStack) {
         super(itemStack, true);
+        INormalEvent active = ThePit.getInstance().getEventFactory().getActiveNormalEvent();
+        session = active instanceof CarePackageEvent care ? care.getChestData() : null;
     }
 
     @Override
@@ -29,7 +32,7 @@ public class ItemButton extends DisplayButton {
         INormalEvent activeNormalEvent = ThePit.getInstance().getEventFactory().getActiveNormalEvent();
         if (activeNormalEvent instanceof CarePackageEvent event) {
             CarePackageEvent.ChestData chestData = event.getChestData();
-            if (chestData == null) {
+            if (chestData == null || chestData != session || chestData.getNum() > 0) {
                 return;
             }
 
@@ -39,6 +42,16 @@ public class ItemButton extends DisplayButton {
 
             if (chestData.getRewarded().contains(player.getUniqueId())) {
                 player.playSound(player.getLocation(), Sound.ENDERMAN_TELEPORT, 1, 1);
+                return;
+            }
+            PlayerProfile loaded = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
+            if (!loaded.isLoaded() || loaded.isTempInvUsing()) return;
+            ItemStack candidate = PackageMenu.getItems().get(slot);
+            if (candidate == null) return;
+            String kind = ItemUtil.getInternalName(candidate);
+            if (!"xp_reward".equals(kind) && !"coin_reward".equals(kind) && !"renown_reward".equals(kind)
+                    && player.getInventory().firstEmpty() < 0) {
+                player.sendMessage(CC.translate("&c请先腾出一个背包空位。"));
                 return;
             }
             ItemStack itemStack = PackageMenu.getItems().remove(slot);

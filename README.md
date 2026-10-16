@@ -26,7 +26,7 @@ Old default NPC skins migrate automatically, while custom skin configurations ar
 
 ### Performance
 
-This fork reduces repeated item parsing, shares common scoreboard calculations, avoids unnecessary enchantment menu refreshes, and releases inactive music and NPC tasks. The maintenance release passed 407 automated tests; live-server CPU, memory, and TPS improvements have not been benchmarked.
+This fork reduces repeated item parsing, shares common scoreboard calculations, avoids unnecessary enchantment menu refreshes, and releases inactive music and NPC tasks. The maintenance release passed 430 automated tests; live-server CPU, memory, and TPS improvements have not been benchmarked.
 
 ### Logging and Rollback
 
