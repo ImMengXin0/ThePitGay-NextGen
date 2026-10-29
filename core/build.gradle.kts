@@ -27,6 +27,10 @@ group = "top.mcrw"
 version = "V"
 repositories {
     exclusiveContent {
+        forRepository { maven("https://repo.panda-lang.org/releases") }
+        filter { includeGroup("dev.rollczi") }
+    }
+    exclusiveContent {
         forRepository { mavenCentral() }
         filter {
             includeGroup("junit")
@@ -36,12 +40,12 @@ repositories {
             includeGroup("org.objenesis")
         }
     }
+    mavenCentral()
     maven("https://maven.aliyun.com/repository/public/") {
         content {
             includeGroupByRegex(".*")
         }
     }
-    mavenCentral()
     maven("https://maven.cleanroommc.com")
     maven("https://repo.crazycrew.us/releases")
     maven("https://repo.codemc.io/repository/nms/")
@@ -51,7 +55,6 @@ repositories {
     maven("https://jitpack.io")
     maven("https://repo.rosewooddev.io/repository/public/")
     maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
-    maven("https://repo.panda-lang.org/releases")
 }
 val gitVersion = rootProject.extra["gitVersionString"].toString()
 
@@ -88,13 +91,21 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("cn.hutool", "net.mizukilab.pit.libs")
     relocate("net.kyori", "net.mizukilab.pit.libs")
     relocate("net.jodah", "net.mizukilab.pit.libs")
-    relocate("net.jitse", "net.mizukilab.pit.libs")
+    // Preserve the NPC API descriptors consumed by existing extensions.
+    relocate("cn.mythicland.npclib", "net.mizukilab.pit.libs.npclib")
+    relocate("cn.mythicland.framework", "net.mizukilab.pit.libs.mythicframework")
+    relocate("org.reflections", "net.mizukilab.pit.libs.mythicframework.reflections")
+    relocate("javassist", "net.mizukilab.pit.libs.mythicframework.javassist")
+    relocate("com.google.gson", "net.mizukilab.pit.libs.mythicframework.gson")
+    relocate("net.sourceforge.pinyin4j", "net.mizukilab.pit.libs.mythicframework.pinyin4j")
+    relocate("org.yaml.snakeyaml", "net.mizukilab.pit.libs.mythicframework.yaml")
     relocate("xyz.upperlevel.spigot", "net.mizukilab.pit.libs")
     exclude("kotlin/**", "junit/**", "org/junit/**")
     from("build/tmp/processed-resources")
     mergeServiceFiles()
 }
 dependencies {
+    implementation(project(":mythic-framework-bukkit"))
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-inline:4.11.0")
 
@@ -102,7 +113,8 @@ dependencies {
     // PandaSpigot adds the tracker/spawn events used by the source tree.
     compileOnly(files(rootProject.file(providers.gradleProperty("pandaSpigotJar")
         .orElse("libs/pandaspigot-221.jar").get())))
-    compileOnly(fileTree(mapOf("dir" to "../libs", "include" to listOf("*.jar"))))
+    compileOnly(fileTree(mapOf("dir" to "../libs", "include" to listOf("*.jar"),
+        "exclude" to listOf("citizens*.jar", "Citizens*.jar"))))
     implementation(libs.reflectionhelper)
 
     implementation(libs.hutool.crypto)
@@ -139,6 +151,10 @@ sourceSets.test {
 }
 tasks.test {
     useJUnit()
+    // Keep the 1.8 server's bundled libraries ahead of raw framework dependencies.
+    // Production isolates those dependencies through Shadow relocation.
+    classpath = files(rootProject.file(providers.gradleProperty("pandaSpigotJar")
+        .orElse("libs/pandaspigot-221.jar").get()), file("libs/spigot-1.8.8-R0.1-SNAPSHOT.jar")) + classpath
     // Binary integration tests need the same relocated libraries shipped to Bukkit.
     dependsOn(tasks.named("shadowJar"))
     val repairExtendJar = rootProject.file(providers.gradleProperty("repairExtendJar")
@@ -154,6 +170,10 @@ tasks.test {
         inputs.files(fixture).withPropertyName(property)
         systemProperty(property, fixture.absolutePath)
     }
+    val nativeRepairJar = rootProject.file(providers.gradleProperty("nativeRepairJar")
+        .orElse("test-fixtures/ThePitRepairExTend-5.3.0.jar").get())
+    inputs.files(nativeRepairJar).withPropertyName("nativeRepairJar")
+    systemProperty("nativeRepairJar", nativeRepairJar.absolutePath)
 }
 kotlin {
     jvmToolchain(17)
@@ -200,4 +220,7 @@ tasks.withType<Javadoc> {
 
 tasks.build {
     dependsOn(tasks.shadowJar)
+}
+tasks.check {
+    dependsOn(":mythic-framework-core:test", ":mythic-framework-bukkit:test")
 }

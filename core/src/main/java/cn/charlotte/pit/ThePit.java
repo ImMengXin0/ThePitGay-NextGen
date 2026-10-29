@@ -155,6 +155,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
     private PlayerPointsAPI playerPoints;
     private LuckPerms luckPerms;
     private NpcViewCompatibility npcViewCompatibility;
+    private net.mizukilab.pit.npc.MythicBotCombat mythicBotCombat;
 
     @Setter
     @Getter
@@ -238,6 +239,8 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
     }
 
     private void postLoad() {
+        mythicBotCombat = new net.mizukilab.pit.npc.MythicBotCombat(this);
+        mythicBotCombat.start();
         npcViewCompatibility = new NpcViewCompatibility(this);
         npcViewCompatibility.start();
         loadEventPoller();
@@ -327,9 +330,12 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
     @Override
     public void onDisable() {
+        if (mythicBotCombat != null) mythicBotCombat.close();
         if (eventFactory != null) eventFactory.shutdown();
         cn.charlotte.pit.events.EventWorldEdits.shutdown();
         if (npcViewCompatibility != null) npcViewCompatibility.close();
+        if (npcFactory != null) npcFactory.shutdown();
+        if (customEntityNPCFactory != null) customEntityNPCFactory.cleanup();
         net.mizukilab.pit.menu.trade.TradeManager.cancelAll();
         PacketHologramRunnable.deSpawnAll();
         synchronized (Bukkit.getOnlinePlayers()) {

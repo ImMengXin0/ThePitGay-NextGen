@@ -9,12 +9,8 @@ import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
 import com.comphenix.protocol.wrappers.WrappedWatchableObject;
-import net.citizensnpcs.api.CitizensAPI;
-import net.citizensnpcs.api.event.DespawnReason;
-import net.citizensnpcs.api.event.NPCDespawnEvent;
-import net.citizensnpcs.api.event.NPCSpawnEvent;
-import net.citizensnpcs.api.npc.NPC;
-import net.citizensnpcs.api.npc.NPCRegistry;
+import net.mizukilab.pit.npc.NpcIdentity;
+import cn.mythicland.npclib.internal.NPCManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -24,6 +20,10 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -32,13 +32,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** 1.8 client-only cleanup: never cancels damage, death, drops or Citizens respawning. */
+/** 1.8 client-only cleanup: never cancels damage, death, drops or bot respawning. */
 final class NpcDeathAnimationListener extends PacketAdapter implements Listener {
     private static final long RETAIN_NANOS = TimeUnit.SECONDS.toNanos(10);
     private final ProtocolManager protocol;
     // Packet callbacks only consult IDs, including packets sent off the main thread.
     private final ConcurrentHashMap<Integer, TrackedNpc> tracked = new ConcurrentHashMap<>();
     private BukkitTask cleanup;
+    private boolean active;
 
     NpcDeathAnimationListener(Plugin plugin) {
         super(plugin, ListenerPriority.HIGHEST, PacketType.Play.Server.ENTITY_STATUS,
@@ -48,40 +49,49 @@ final class NpcDeathAnimationListener extends PacketAdapter implements Listener 
     }
 
     void start() {
+        active = true;
         Bukkit.getPluginManager().registerEvents(this, getPlugin());
-        for (NPCRegistry registry : CitizensAPI.getNPCRegistries()) {
-            for (NPC npc : registry) {
-                if (npc.isSpawned()) track(npc.getEntity());
-            }
-        }
+        for (org.bukkit.World world : Bukkit.getWorlds()) for (Entity entity : world.getEntities()) track(entity);
         protocol.addPacketListener(this);
         // Only expire cached IDs; no repeating world/NPC registry scans.
         cleanup = Bukkit.getScheduler().runTaskTimer(getPlugin(), () -> {
             long now = System.nanoTime();
-            tracked.entrySet().removeIf(entry -> entry.getValue().expired(now));
+            tracked.entrySet().removeIf(entry -> {
+                TrackedNpc npc = entry.getValue();
+                Entity entity = npc.entity.get();
+                if (npc.retireAt == 0 && (entity == null || !entity.isValid())) npc.retireAt = now + RETAIN_NANOS;
+                return npc.expired(now);
+            });
         }, 100L, 100L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onSpawn(NPCSpawnEvent event) {
-        track(event.getNPC().getEntity());
+    public void onSpawn(CreatureSpawnEvent event) { trackLater(event.getEntity()); }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) { trackLater(event.getPlayer()); }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onQuit(PlayerQuitEvent event) { retire(event.getPlayer(), false); }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onDamage(EntityDamageEvent event) { track(event.getEntity()); }
+
+    private void trackLater(Entity entity) {
+        Bukkit.getScheduler().runTask(getPlugin(), () -> { if (active && entity.isValid()) track(entity); });
     }
 
     private void track(Entity entity) {
-        if (entity instanceof LivingEntity) tracked.put(entity.getEntityId(), new TrackedNpc());
+        if (entity instanceof LivingEntity && NpcIdentity.isNpc(entity)) {
+            tracked.compute(entity.getEntityId(), (id, existing) -> existing != null && existing.entity.get() == entity
+                    ? existing : new TrackedNpc(entity));
+        }
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onDeath(EntityDeathEvent event) {
-        // Includes PlayerDeathEvent; run before Citizens removes the entity association.
+        track(event.getEntity());
         retire(event.getEntity(), true);
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onDespawn(NPCDespawnEvent event) {
-        boolean death = event.getReason() == DespawnReason.DEATH;
-        // Citizens still despawns on DEATH even when this event is cancelled.
-        if (!event.isCancelled() || death) retire(event.getNPC().getEntity(), death);
     }
 
     private void retire(Entity entity, boolean death) {
@@ -104,7 +114,7 @@ final class NpcDeathAnimationListener extends PacketAdapter implements Listener 
         Integer id = packet.getIntegers().readSafely(0);
         if (id == null) return;
         TrackedNpc npc = tracked.get(id);
-        if (npc == null) return;
+        if (npc == null && NPCManager.getByEntityId(id) == null) return;
 
         if (packet.getType() == PacketType.Play.Server.ENTITY_STATUS) {
             if (Byte.valueOf((byte) 3).equals(packet.getBytes().readSafely(0))) {
@@ -113,7 +123,7 @@ final class NpcDeathAnimationListener extends PacketAdapter implements Listener 
             }
             return; // Preserve normal hurt/status animations.
         }
-        if (npc.dead.get()) {
+        if (npc != null && npc.dead.get()) {
             event.setCancelled(true); // Late spawn/metadata must not resurrect an old corpse.
             return;
         }
@@ -155,6 +165,7 @@ final class NpcDeathAnimationListener extends PacketAdapter implements Listener 
     }
 
     void close() {
+        active = false;
         protocol.removePacketListener(this);
         HandlerList.unregisterAll(this);
         if (cleanup != null) cleanup.cancel();
@@ -162,8 +173,11 @@ final class NpcDeathAnimationListener extends PacketAdapter implements Listener 
     }
 
     private static final class TrackedNpc {
+        final java.lang.ref.WeakReference<Entity> entity;
         final AtomicBoolean dead = new AtomicBoolean();
         volatile long retireAt;
+
+        TrackedNpc(Entity entity) { this.entity = new java.lang.ref.WeakReference<>(entity); }
 
         boolean expired(long now) {
             return retireAt != 0 && now - retireAt >= 0;

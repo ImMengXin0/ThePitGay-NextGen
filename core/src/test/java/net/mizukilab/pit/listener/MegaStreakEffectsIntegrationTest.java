@@ -229,6 +229,9 @@ public class MegaStreakEffectsIntegrationTest extends BukkitDataTestSupport {
     @Test
     public void lethalSeaOfTimeHitReachesCoreDeathDamagePath() throws Exception {
         purchase("SeaOfTime");
+        // Newer Addon builds cap this hit at half max health; keep the victim
+        // below that cap to exercise a lethal hit with both Addon versions.
+        health.set(5);
         kills(500);
         damaged(Set.of());
         verify(player).setNoDamageTicks(0);

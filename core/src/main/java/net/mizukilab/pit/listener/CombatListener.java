@@ -541,6 +541,7 @@ public class CombatListener implements Listener {
         // Only suppress the Bukkit event; its later explicit settlement must still run.
         if (event != null && isSuppressedDeath(player)) return;
         if (deathsInProgress.get(player.getUniqueId()) == player) return;
+        if (!net.mizukilab.pit.npc.MythicBotCombat.claimDeath(player)) return;
         deathsInProgress.put(player.getUniqueId(), player);
         try {
             player.setMetadata(DEATH_HANDLED_METADATA,
@@ -565,6 +566,17 @@ public class CombatListener implements Listener {
     }
 
     private void processPlayerDeath(PlayerDeathEvent event, Player player, Player killer, boolean shouldRespawn) {
+        if (net.mizukilab.pit.npc.NpcIdentity.isMythicBot(player)) {
+            if (killer != null && killer.isOnline() && !PlayerUtil.isNPC(killer)) {
+                PlayerProfile killerProfile = PlayerProfile.getPlayerProfileByUuid(killer.getUniqueId());
+                if (killerProfile.isLoaded()) {
+                    handleKill(killer, killerProfile, player,
+                            net.mizukilab.pit.npc.MythicBotCombat.profileFor(player), true);
+                }
+            }
+            finishDeath(player);
+            return;
+        }
         net.mizukilab.pit.menu.trade.TradeManager.cancelFor(player);
         PlayerProfile playerProfile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
         boolean npc = PlayerUtil.isNPC(player);

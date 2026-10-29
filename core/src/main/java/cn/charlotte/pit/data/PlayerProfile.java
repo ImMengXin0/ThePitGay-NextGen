@@ -339,7 +339,8 @@ public class PlayerProfile {
     public static PlayerProfile getPlayerProfileByUuid(UUID uuid) {
         PlayerProfile rawCache = getRawCache(uuid);
         if (rawCache == null) {
-            return NONE_PROFILE;
+            PlayerProfile bot = net.mizukilab.pit.npc.MythicBotCombat.profile(uuid);
+            return bot != null ? bot : NONE_PROFILE;
         }
         return rawCache;
     }
@@ -347,6 +348,8 @@ public class PlayerProfile {
     @Deprecated
     public static PlayerProfile getPlayerProfile(Entity player) {
         if (player instanceof Player) {
+            PlayerProfile bot = net.mizukilab.pit.npc.MythicBotCombat.profileFor((Player) player);
+            if (bot != null) return bot;
             return getPlayerProfileByUuid(player.getUniqueId());
         }
         return NONE_PROFILE;

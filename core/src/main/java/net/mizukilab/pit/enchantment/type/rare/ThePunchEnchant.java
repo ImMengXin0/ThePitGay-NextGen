@@ -2,7 +2,7 @@ package net.mizukilab.pit.enchantment.type.rare;
 
 import cn.charlotte.pit.ThePit;
 import com.google.common.util.concurrent.AtomicDouble;
-import net.citizensnpcs.api.CitizensAPI;
+import net.mizukilab.pit.npc.NpcIdentity;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.IActionDisplayEnchant;
 import net.mizukilab.pit.enchantment.param.item.BowOnly;
@@ -74,7 +74,7 @@ public class ThePunchEnchant extends AbstractEnchantment implements Listener,IAt
 
     @Override
     public void handleAttackEntity(int enchantLevel, Player attacker, Entity target, double damage, AtomicDouble finalDamage, AtomicDouble boostDamage, AtomicBoolean cancel) {
-        if (CitizensAPI.getNPCRegistry().isNPC(target)) {
+        if (NpcIdentity.isNpc(target)) {
             return;
         }
         if (cooldown.getOrDefault(attacker.getUniqueId(), new Cooldown(0)).hasExpired()) {
@@ -87,7 +87,7 @@ public class ThePunchEnchant extends AbstractEnchantment implements Listener,IAt
 
     @Override
     public void handleShootEntity(int enchantLevel, Player attacker, Entity target, double damage, AtomicDouble finalDamage, AtomicDouble boostDamage, AtomicBoolean cancel) {
-        if (CitizensAPI.getNPCRegistry().isNPC(target)) {
+        if (NpcIdentity.isNpc(target)) {
             return;
         }
         if (cooldown.getOrDefault(attacker.getUniqueId(), new Cooldown(0)).hasExpired()) {

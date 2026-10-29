@@ -21,12 +21,15 @@ To update, stop the server, replace the existing core with `ThePitGay-V.jar`, an
 * Command completion, menu, scoreboard, and TAB improvements
 * A complete Angel armor set
 * Ten built-in humanoid NPC skins featuring Honkai: Star Rail characters
+* Embedded MythicNPCLib and MythicFramework Core/Bukkit; core NPCs work without Citizens
 
 Old default NPC skins migrate automatically, while custom skin configurations are preserved. Villager and silverfish NPCs retain their original entity models.
 
+See the [NPC migration notes](docs/MYTHIC-NPC-MIGRATION.md) for embedded-library details and extension compatibility. The older NPCView plugin independently requires Citizens and must be updated or removed when uninstalling Citizens.
+
 ### Performance
 
-This fork reduces repeated item parsing, shares common scoreboard calculations, avoids unnecessary enchantment menu refreshes, and releases inactive music and NPC tasks. The maintenance release passed 430 automated tests; live-server CPU, memory, and TPS improvements have not been benchmarked.
+This fork reduces repeated item parsing, shares common scoreboard calculations, avoids unnecessary enchantment menu refreshes, and releases inactive music and NPC tasks. The current core and embedded-framework build passed 482 automated tests, with one legacy Addon test skipped because its retired class is absent from the supplied Addon build. Live-server CPU, memory, and TPS improvements have not been benchmarked.
 
 ### Logging and Rollback
 

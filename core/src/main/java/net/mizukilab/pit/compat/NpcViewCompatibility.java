@@ -8,7 +8,7 @@ import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.Plugin;
 
-/** Keeps Citizens optional and follows either plugin's enable/disable lifecycle. */
+/** Optional packet cleanup for NPCView; the core itself requires no NPC plugin. */
 public final class NpcViewCompatibility implements Listener {
     private final Plugin plugin;
     private Runnable stopBridge;
@@ -23,8 +23,7 @@ public final class NpcViewCompatibility implements Listener {
     }
 
     private void enableIfAvailable() {
-        if (stopBridge != null || !Bukkit.getPluginManager().isPluginEnabled("NPCView")
-                || !Bukkit.getPluginManager().isPluginEnabled("Citizens")) return;
+        if (stopBridge != null || !Bukkit.getPluginManager().isPluginEnabled("NPCView")) return;
         NpcDeathAnimationListener bridge = new NpcDeathAnimationListener(plugin);
         bridge.start();
         stopBridge = bridge::close;
@@ -42,7 +41,7 @@ public final class NpcViewCompatibility implements Listener {
     }
 
     private boolean isDependency(Plugin dependency) {
-        return dependency.getName().equals("NPCView") || dependency.getName().equals("Citizens");
+        return dependency.getName().equals("NPCView");
     }
 
     private void stopBridge() {

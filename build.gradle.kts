@@ -3,7 +3,7 @@ plugins {
     id("java")
 }
 // Keep local builds reproducible when the source is distributed without .git metadata.
-version = providers.gradleProperty("pluginVersion").orElse("4.4.9-20261016").get()
+version = providers.gradleProperty("pluginVersion").orElse("4.4.11-20261028").get()
 extra["gitVersionString"] = version.toString()
 allprojects {
     extra["gitVersionString"] = version.toString()

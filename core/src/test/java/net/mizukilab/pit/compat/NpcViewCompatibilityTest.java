@@ -9,10 +9,6 @@ import com.comphenix.protocol.events.PacketListener;
 import com.comphenix.protocol.reflect.StructureModifier;
 import com.comphenix.protocol.utility.MinecraftReflection;
 import com.comphenix.protocol.utility.MinecraftVersion;
-import net.citizensnpcs.api.CitizensAPI;
-import net.citizensnpcs.api.event.*;
-import net.citizensnpcs.api.npc.NPC;
-import net.citizensnpcs.api.npc.NPCRegistry;
 import net.minecraft.server.v1_8_R3.*;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -41,7 +37,6 @@ import static org.mockito.Mockito.*;
 /** Real 1.8 packets and ProtocolLib accessors; server/network services are mocked. */
 public class NpcViewCompatibilityTest {
     private MockedStatic<Bukkit> bukkit;
-    private MockedStatic<CitizensAPI> citizens;
     private MockedStatic<ProtocolLibrary> protocolLibrary;
     private ProtocolManager protocol;
     private Plugin plugin;
@@ -50,7 +45,7 @@ public class NpcViewCompatibilityTest {
     private BukkitTask cleanup;
     private NpcDeathAnimationListener listener;
     private Player bot, viewer;
-    private NPC npc;
+    private Player currentBot;
     private World world;
     private final List<PacketContainer> sent = new ArrayList<>();
 
@@ -61,7 +56,6 @@ public class NpcViewCompatibilityTest {
         var packages = MinecraftReflection.class.getDeclaredMethod("setMinecraftPackage", String.class, String.class);
         packages.setAccessible(true);
         packages.invoke(null, "net.minecraft.server.v1_8_R3", "org.bukkit.craftbukkit.v1_8_R3");
-        citizens = mockStatic(CitizensAPI.class);
         protocolLibrary = mockStatic(ProtocolLibrary.class);
         protocol = mock(ProtocolManager.class);
         protocolLibrary.when(ProtocolLibrary::getProtocolManager).thenReturn(protocol);
@@ -76,11 +70,10 @@ public class NpcViewCompatibilityTest {
         world = mock(World.class);
         bot = player(41); viewer = player(12);
         when(world.getPlayers()).thenReturn(List.of(viewer, bot));
-        npc = mock(NPC.class);
-        when(npc.isSpawned()).thenReturn(true); when(npc.getEntity()).thenReturn(bot);
-        NPCRegistry registry = mock(NPCRegistry.class);
-        when(registry.iterator()).thenAnswer(call -> List.of(npc).iterator());
-        citizens.when(CitizensAPI::getNPCRegistries).thenReturn(List.of(registry));
+        currentBot = bot;
+        when(bot.hasMetadata("NPC")).thenReturn(true);
+        bukkit.when(Bukkit::getWorlds).thenReturn(List.of(world));
+        when(world.getEntities()).thenReturn(List.of(bot, viewer));
         when(protocol.createPacket(PacketType.Play.Server.ENTITY_DESTROY)).thenAnswer(call ->
                 wrap(PacketType.Play.Server.ENTITY_DESTROY, new PacketPlayOutEntityDestroy()));
         doAnswer(call -> { sent.add(call.getArgument(1)); return null; })
@@ -92,13 +85,13 @@ public class NpcViewCompatibilityTest {
     @After public void teardown() {
         if (listener != null) listener.close();
         if (protocolLibrary != null) protocolLibrary.close();
-        if (citizens != null) citizens.close();
         if (bukkit != null) bukkit.close();
     }
 
     private Player player(int id) {
         Player player = mock(Player.class);
         when(player.getEntityId()).thenReturn(id);
+        when(player.isValid()).thenReturn(true);
         when(player.getWorld()).thenReturn(world);
         when(player.getUniqueId()).thenReturn(UUID.randomUUID());
         return player;
@@ -147,8 +140,10 @@ public class NpcViewCompatibilityTest {
 
     private void respawn(int id) {
         Player newBot = player(id);
-        when(npc.getEntity()).thenReturn(newBot);
-        listener.onSpawn(new NPCSpawnEvent(npc, null, SpawnReason.RESPAWN));
+        currentBot = newBot;
+        when(newBot.hasMetadata("NPC")).thenReturn(true);
+        listener.onDamage(new org.bukkit.event.entity.EntityDamageEvent(newBot,
+                org.bukkit.event.entity.EntityDamageEvent.DamageCause.CUSTOM, 1));
     }
 
     @Test public void deathStatusIsReplacedWithImmediateDestroy() {
@@ -182,12 +177,10 @@ public class NpcViewCompatibilityTest {
 
     @Test public void deathEventClearsCorpseOnceWithoutAlteringDeathSettlement() {
         PlayerDeathEvent event = death();
-        listener.onDespawn(new NPCDespawnEvent(npc, DespawnReason.DEATH));
+        listener.onDeath(event);
         assertEquals(1, sent.size());
         assertEquals(17, event.getDroppedExp());
         assertEquals("unchanged", event.getDeathMessage());
-        verify(npc, never()).despawn(any(DespawnReason.class));
-        verify(npc, never()).spawn(any());
         verify(bot, never()).remove();
     }
 
@@ -198,7 +191,7 @@ public class NpcViewCompatibilityTest {
         assertTrue(send(spawn(41, 20, false)).isCancelled());
         assertFalse(send(metadata(42, 20)).isCancelled());
         assertFalse(send(status(42, 2)).isCancelled());
-        listener.onDeath(new PlayerDeathEvent((Player) npc.getEntity(), new ArrayList<>(), 0, null));
+        listener.onDeath(new PlayerDeathEvent(currentBot, new ArrayList<>(), 0, null));
         assertTrue(send(spawn(42, 20, false)).isCancelled());
     }
 
@@ -235,9 +228,7 @@ public class NpcViewCompatibilityTest {
 
     @Test public void packetCallbacksDoNotLookUpWorldEntitiesOrNpcRegistry() {
         clearInvocations(bot, viewer, world);
-        citizens.clearInvocations();
         send(status(41, 3)); send(metadata(41, 0)); send(metadata(999, 0));
-        citizens.verifyNoInteractions();
         verifyNoInteractions(bot, world);
         verify(viewer, never()).getWorld();
     }
@@ -248,16 +239,14 @@ public class NpcViewCompatibilityTest {
         assertTrue(sent.isEmpty());
     }
 
-    @Test public void cancelledNormalDespawnDoesNotRemoveLiveNpc() {
-        NPCDespawnEvent event = new NPCDespawnEvent(npc, DespawnReason.CHUNK_UNLOAD);
-        event.setCancelled(true); listener.onDespawn(event);
+    @Test public void quittingBotRetiresIdWithoutChangingHealthyPackets() {
+        listener.onQuit(new org.bukkit.event.player.PlayerQuitEvent(bot, null));
         assertFalse(send(metadata(41, 10)).isCancelled());
         assertTrue(sent.isEmpty());
     }
 
-    @Test public void deathDespawnStillCleansUpWhenCitizensIgnoresCancellation() {
-        NPCDespawnEvent event = new NPCDespawnEvent(npc, DespawnReason.DEATH);
-        event.setCancelled(true); listener.onDespawn(event);
+    @Test public void repeatedDeathEventCleansUpOnlyOnce() {
+        death(); death();
         assertEquals(1, sent.size());
         assertTrue(send(metadata(41, 0)).isCancelled());
     }
@@ -278,7 +267,8 @@ public class NpcViewCompatibilityTest {
 
     @Test public void actualNpcViewBatchSuppressionCannotCancelDeathCleanup() throws Exception {
         try (URLClassLoader jar = new URLClassLoader(new URL[]{Path.of(System.getProperty("npcViewJar"))
-                .toUri().toURL()}, getClass().getClassLoader())) {
+                .toUri().toURL(), Path.of("../libs/citizens-main-2.0.34-SNAPSHOT.jar").toUri().toURL()},
+                getClass().getClassLoader())) {
             Class<?> main = jar.loadClass("cn.apnf.npcview.Main");
             Class<?> type = jar.loadClass("cn.apnf.npcview.PacketBatcher");
             Object batcher = type.getConstructor(main).newInstance(mock(main));
@@ -304,7 +294,6 @@ public class NpcViewCompatibilityTest {
         compat.start();
         verify(protocol, never()).addPacketListener(any());
         when(plugins.isPluginEnabled("NPCView")).thenReturn(true);
-        when(plugins.isPluginEnabled("Citizens")).thenReturn(true);
         Plugin npcView = mock(Plugin.class); when(npcView.getName()).thenReturn("NPCView");
         compat.onEnable(new PluginEnableEvent(npcView));
         compat.onEnable(new PluginEnableEvent(npcView));

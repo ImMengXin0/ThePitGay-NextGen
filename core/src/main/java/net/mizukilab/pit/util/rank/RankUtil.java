@@ -62,6 +62,8 @@ public class RankUtil {
     private static Boolean mmEnable = null;
 
     public static String getPlayerName(UUID uuid) {
+        PlayerProfile bot = net.mizukilab.pit.npc.MythicBotCombat.profile(uuid);
+        if (bot != null) return bot.getPlayerName();
         if (uuid == PlayerProfile.CONSTANT_UUID_BOT_UNLOADED_PLAYER) {
             return CONSTANT_BOT_NAME;
         }
@@ -126,6 +128,8 @@ public class RankUtil {
     public final static String CONSTANT_BOT_NAME = ThePit.getInstance().getGlobalConfig().getBotName();
 
     public static String getNameFormatWithPrefix(UUID uuid) {
+        PlayerProfile bot = net.mizukilab.pit.npc.MythicBotCombat.profile(uuid);
+        if (bot != null) return bot.getFormattedName();
         if (uuid == PlayerProfile.CONSTANT_UUID_BOT_UNLOADED_PLAYER) {
             return CONSTANT_BOT_NAME;
         }
@@ -137,6 +141,7 @@ public class RankUtil {
     }
 
     public static ChatColor getNameColor(UUID uuid) {
+        if (net.mizukilab.pit.npc.MythicBotCombat.profile(uuid) != null) return ChatColor.GRAY;
         BaseComponent[] text = TextComponent.fromLegacyText(LuckPermsUtil.getPrefix(uuid));
         ChatColor color = text[text.length - 1].getColor();
         if (color == ChatColor.WHITE) color = ChatColor.GRAY;

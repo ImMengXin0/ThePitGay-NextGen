@@ -5,7 +5,7 @@ import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.DroppedEntityData;
 import cn.charlotte.pit.data.sub.PerkData;
 import cn.charlotte.pit.data.sub.PlacedBlockData;
-import net.jitse.npclib.nms.v1_8_R3.NPC_v1_8_R3;
+import cn.mythicland.npclib.nms.v1_8_R3.NPC_v1_8_R3;
 import net.mizukilab.pit.medal.impl.challenge.ObsidianBreakMedal;
 import net.mizukilab.pit.npc.AbstractPitNPC;
 import net.mizukilab.pit.parm.AutoRegister;

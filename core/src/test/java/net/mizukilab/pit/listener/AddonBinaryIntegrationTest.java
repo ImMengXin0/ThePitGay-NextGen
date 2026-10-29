@@ -223,7 +223,10 @@ public class AddonBinaryIntegrationTest extends BukkitDataTestSupport {
             bukkit.when(Bukkit::getPluginManager).thenReturn(plugins);
             PerkFactory live = new PerkFactory();
             when(plugin.getPerkFactory()).thenReturn(live);
-            Class<?> type = loader.loadClass("cn.apnf.mistral.streak.CrazyDogStreakMode");
+            String legacyClass = "cn.apnf.mistral.streak.CrazyDogStreakMode";
+            Assume.assumeTrue("This Addon build has already removed the retired CrazyDog class",
+                    loader.getResource(legacyClass.replace('.', '/') + ".class") != null);
+            Class<?> type = loader.loadClass(legacyClass);
             PerkFactory temporary = new PerkFactory();
             for (int attempt = 0; attempt < 2; attempt++) {
                 temporary.init(List.of(type));

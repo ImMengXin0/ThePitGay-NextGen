@@ -1,5 +1,5 @@
 name: ThePitUltimate
-version: 4.4.9-20261016
+version: 4.4.11-20261028
 description: A Bukkit mini-game plugin.
 authors: [ KleeLoveLife, Rabbit0w0 ]
 
@@ -7,4 +7,4 @@ api-version: 1.8
 main: cn.charlotte.pit.ThePit
 load: POSTWORLD
 depend: [ LuckPerms, ProtocolLib ]
-softdepend: [ PlayerPoints, WorldEdit, FastAsyncWorldEdit, Citizens, NPCView ]
+softdepend: [ PlayerPoints, WorldEdit, FastAsyncWorldEdit, NPCView ]

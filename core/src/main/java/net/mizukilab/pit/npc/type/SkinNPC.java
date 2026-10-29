@@ -1,7 +1,7 @@
 package net.mizukilab.pit.npc.type;
 
-import net.jitse.npclib.api.NPC;
-import net.jitse.npclib.api.skin.Skin;
+import cn.mythicland.npclib.api.NPC;
+import cn.mythicland.npclib.api.skin.Skin;
 import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.npc.AbstractPitNPC;
 

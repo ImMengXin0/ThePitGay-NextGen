@@ -1,8 +1,8 @@
 package net.mizukilab.pit.npc;
 
-import net.jitse.npclib.api.NPC;
-import net.jitse.npclib.api.skin.Skin;
-import net.jitse.npclib.api.state.NPCAnimation;
+import cn.mythicland.npclib.api.NPC;
+import cn.mythicland.npclib.api.skin.Skin;
+import cn.mythicland.npclib.api.state.NPCAnimation;
 import net.mizukilab.pit.util.chat.CC;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;

@@ -321,7 +321,7 @@ public class CustomEntityNPCFactory implements Listener {
         }
     }
 
-    private void cleanup() {
+    public void cleanup() {
         fixedPositionTasks.values().forEach(BukkitTask::cancel);
         fixedPositionTasks.clear();
         entityToNPCMap.values().forEach(npc -> {
@@ -401,4 +401,4 @@ public class CustomEntityNPCFactory implements Listener {
         cleanupPlayerHolograms(event.getPlayer());
         playerNPCHolograms.remove(event.getPlayer().getUniqueId());
     }
-} 
+}

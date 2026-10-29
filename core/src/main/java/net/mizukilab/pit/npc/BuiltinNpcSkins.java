@@ -1,6 +1,6 @@
 package net.mizukilab.pit.npc;
 
-import net.jitse.npclib.api.skin.Skin;
+import cn.mythicland.npclib.api.skin.Skin;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.ConfigurationSection;
 

@@ -19,7 +19,10 @@ public class NpcRunnable extends BukkitRunnable {
     public void run() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             for (AbstractPitNPC pitNpc : ThePit.getInstance().getNpcFactory().getPitNpc()) {
-                pitNpc.getNpc().setText(player, pitNpc.getNpcTextLine(player));
+                if (pitNpc.getNpc() instanceof cn.mythicland.npclib.internal.NPCBase npc
+                        && npc.getShown().contains(player.getUniqueId())) {
+                    pitNpc.getNpc().setText(player, pitNpc.getNpcTextLine(player));
+                }
             }
         }
     }
