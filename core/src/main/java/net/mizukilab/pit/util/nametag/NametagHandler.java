@@ -82,6 +82,7 @@ public class NametagHandler {
                 continue;
             }
 
+            net.mizukilab.pit.nametag.PlayerNameFormat.reset(player);
             getBoards().remove(uuid);
             if (!isHook()) {
                 player.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());

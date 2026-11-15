@@ -34,6 +34,7 @@ public class TabPerformanceTest {
         long count(Player player) { return sent.stream().filter(s -> s.player() == player).count(); }
     }
     private Method update;
+    private MockedStatic<Bukkit> bukkit;
 
     @Before
     public void setup() throws Exception {
@@ -41,6 +42,10 @@ public class TabPerformanceTest {
         oldHead = config.getHead(); oldPart = config.getPart(); oldAnimation = config.getAnimation();
         config.setHead(List.of("&aHello")); config.setPart(List.of("World")); config.setAnimation(new HashMap<>());
         papi = mockStatic(PlaceholderAPI.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
+        var manager = mock(org.bukkit.plugin.PluginManager.class);
+        bukkit.when(Bukkit::getPluginManager).thenReturn(manager);
+        when(manager.isPluginEnabled("PlaceholderAPI")).thenReturn(true);
         tab = new RecordingTab();
         update = TabHandle.class.getDeclaredMethod("updatePlayers", Collection.class);
         update.setAccessible(true);
@@ -49,6 +54,7 @@ public class TabPerformanceTest {
     @After
     public void cleanup() {
         if (papi != null) papi.close();
+        if (bukkit != null) bukkit.close();
         TabConfiguration.INSTANCE.setHead(oldHead);
         TabConfiguration.INSTANCE.setPart(oldPart);
         TabConfiguration.INSTANCE.setAnimation(oldAnimation);
@@ -112,7 +118,7 @@ public class TabPerformanceTest {
 
     @Test
     public void placeholderAndPacketWorkRunsOnMainThread() {
-        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit(); MockedStatic<ThePit> pit = mockStatic(ThePit.class)) {
+        try (MockedStatic<ThePit> pit = mockStatic(ThePit.class)) {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);
             BukkitScheduler scheduler = mock(BukkitScheduler.class);

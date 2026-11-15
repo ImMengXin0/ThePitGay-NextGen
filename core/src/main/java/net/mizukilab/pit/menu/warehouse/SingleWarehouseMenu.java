@@ -14,32 +14,36 @@ import java.util.Map;
  * @Date: 2025/6/21
  */
 public class SingleWarehouseMenu extends Menu {
-    
+
     private final int warehouseId;
-    
+
     public SingleWarehouseMenu(int warehouseId) {
         this.warehouseId = warehouseId;
     }
-    
+
     @Override
     public String getTitle(Player player) {
         return "寄存箱 #" + warehouseId;
     }
-    
+
     @Override
     public Map<Integer, Button> getButtons(Player player) {
         return null;
     }
-    
+
     @Override
     public void openMenu(Player player) {
         PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
+        if (!profile.isLoaded()) {
+            player.sendMessage("§c档案尚未加载，请稍后再试。");
+            return;
+        }
         Inventory warehouse = profile.getWarehouse().getWarehouse(warehouseId);
         player.openInventory(warehouse);
     }
-    
+
     @Override
     public int getSize() {
         return 45;
     }
-} 
+}

@@ -37,7 +37,8 @@ public class NameTagImpl implements NametagAdapter {
         List<PlayerProfile> profiles = new ObjectArrayList<>();
 
         for (Player target : Bukkit.getOnlinePlayers()) {
-            profiles.add(PlayerProfile.getPlayerProfileByUuid(target.getUniqueId()));
+            PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(target.getUniqueId());
+            if (profile.isLoaded()) profiles.add(profile);
         }
 
         if (ThePit.getInstance().getEventFactory() == null) {
@@ -152,18 +153,9 @@ public class NameTagImpl implements NametagAdapter {
                     suffix.append(" ");
                 }
             }
-            if (displayName.length() > 16) {
-                displayName = displayName.substring(0, 15);
-
-            }
-
-            tags.add(new BufferedNametag(
-                    i + "",
-                    //&7 refers to Prefix
-                    displayName,
-                    CC.translate(suffix.toString()),
-                    false,
-                    Bukkit.getPlayer(profile.getPlayerUuid())));
+            Player target = Bukkit.getPlayer(profile.getPlayerUuid());
+            if (target != null) tags.add(PlayerNameFormat.apply(Integer.toString(i), target, profile,
+                    displayName, CC.translate(suffix.toString())));
             i--;
         }
 

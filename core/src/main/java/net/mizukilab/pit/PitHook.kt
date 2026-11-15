@@ -291,9 +291,8 @@ object PitHook {
     }
 
     private fun loadTab() {
-        if (TabConfiguration.enable) {
-            TabHandle().fetchTab()
-        }
+        // Keep one task alive so /pit reload can enable the header/footer module.
+        TabHandle().fetchTab()
     }
 
     private fun loadItems() {

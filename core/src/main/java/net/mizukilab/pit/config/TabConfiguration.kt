@@ -12,6 +12,11 @@ object TabConfiguration {
     var enable = true
     var tick = 2;
     var delay = 0;
+    var playerListEnabled = true
+    var playerListFormat = "{prefix}{name}{suffix}"
+    var nametagEnabled = true
+    var nametagPrefix = "{prefix}"
+    var nametagSuffix = "{suffix}"
     var animation = HashMap<String, List<String>>()
     var head: List<String> = listOf("   {harrys}   ", "   &bYou are playing on {title}   ", "/s")
     var part: List<String> =
@@ -80,6 +85,12 @@ object TabConfiguration {
         enable = config.getBoolean("enable")
         tick = config.getInt("tick")
         delay = config.getInt("delay")
+        playerListEnabled = config.getBoolean("player-list.enabled")
+        playerListFormat = config.getString("player-list.format", "{prefix}{name}{suffix}")!!
+        nametagEnabled = config.getBoolean("nametag.enabled")
+        nametagPrefix = config.getString("nametag.prefix", "{prefix}")!!
+        nametagSuffix = config.getString("nametag.suffix", "{suffix}")!!
+        animation.clear()
         (config.getConfigurationSection("animation") ?: config.createSection("animation")).getKeys(false).forEach {
             animation[it] = this.config.getStringList("animation.${it}")
         }
@@ -100,6 +111,11 @@ object TabConfiguration {
         "enable" to true,
         "tick" to tick,
         "delay" to delay,
+        "player-list.enabled" to true,
+        "player-list.format" to "{prefix}{name}{suffix}",
+        "nametag.enabled" to true,
+        "nametag.prefix" to "{prefix}",
+        "nametag.suffix" to "{suffix}",
         "animation.title" to title,
         "animation.harrys" to harrys,
         "head" to head,

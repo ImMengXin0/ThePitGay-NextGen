@@ -11,7 +11,6 @@ import de.oliver.fancynpcs.api.actions.ActionTrigger;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
-import net.mizukilab.pit.npc.NpcInteractionDebug;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -30,8 +29,6 @@ public class PacketListener implements org.bukkit.event.Listener {
 
     @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
     public void onFancyInteract(de.oliver.fancynpcs.api.events.NpcInteractEvent event) {
-        NpcInteractionDebug.trace(event.getPlayer(), "fancy", () -> "entity=" + event.getNpc().getEntityId()
-                + " trigger=" + event.getInteractionType() + " cancelled=" + event.isCancelled());
         if (event.isCancelled()) return;
         handleInteract(event.getPlayer(), event.getNpc().getEntityId(),
                 event.getInteractionType() == de.oliver.fancynpcs.api.actions.ActionTrigger.LEFT_CLICK);
@@ -39,10 +36,6 @@ public class PacketListener implements org.bukkit.event.Listener {
 
     @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
     public void onUnknownEntity(PlayerUseUnknownEntityEvent event) {
-        NpcInteractionDebug.trace(event.getPlayer(), "paper", () -> "entity=" + event.getEntityId()
-                + " attack=" + event.isAttack() + " hand=" + event.getHand()
-                + " position=" + event.getClickedRelativePosition()
-                + " registered=" + (NPCManager.getByEntityId(event.getEntityId()) != null));
         // Fancy 2.10 ignores INTERACT_AT for all types except armor stands.
         // Some translated clients only send this right-click variant. Forward it
         // through Fancy's normal cooldown and cancellable interaction event.
@@ -61,12 +54,10 @@ public class PacketListener implements org.bukkit.event.Listener {
         // Only the concurrent entity-ID registry is consulted off the Bukkit thread.
         NPCBase npc = NPCManager.getByEntityId(entityId);
         if (npc == null || npc.getInstance() != instance) {
-            NpcInteractionDebug.trace(player, "rejected", () -> "entity=" + entityId + " reason=unregistered-or-other-library");
             return;
         }
         UUID id = player.getUniqueId();
         if (!pending.add(id)) {
-            NpcInteractionDebug.trace(player, "debounced", () -> "entity=" + entityId + " reason=dispatch-pending");
             return;
         }
         Runnable dispatch = () -> {
@@ -75,22 +66,14 @@ public class PacketListener implements org.bukkit.event.Listener {
                         || NPCManager.getByEntityId(entityId) != npc || !npc.isCreated() || !npc.isShown(player)
                         || !player.getWorld().equals(npc.getWorld())
                         || player.getLocation().distanceSquared(npc.getLocation()) > 64) {
-                    NpcInteractionDebug.trace(player, "rejected", () -> "entity=" + entityId + " active=" + active
-                            + " shutdown=" + instance.isShutdown() + " online=" + player.isOnline() + " dead=" + player.isDead()
-                            + " created=" + npc.isCreated() + " visible=" + npc.isShown(player)
-                            + " sameWorld=" + player.getWorld().equals(npc.getWorld())
-                            + " distance=" + (player.getWorld().equals(npc.getWorld())
-                            ? Math.sqrt(player.getLocation().distanceSquared(npc.getLocation())) : "other-world"));
                     return;
                 }
                 long now = System.nanoTime();
                 Long previous = lastClick.get(id);
                 if (previous != null && now - previous < TimeUnit.MILLISECONDS.toNanos(100)) {
-                    NpcInteractionDebug.trace(player, "debounced", () -> "entity=" + entityId + " reason=duplicate-click");
                     return;
                 }
                 lastClick.put(id, now);
-                NpcInteractionDebug.trace(player, "dispatch", () -> "entity=" + entityId + " attack=" + attack);
                 Bukkit.getPluginManager().callEvent(new NPCInteractEvent(player, attack
                         ? NPCInteractEvent.ClickType.LEFT_CLICK : NPCInteractEvent.ClickType.RIGHT_CLICK, npc));
             } finally {
@@ -105,7 +88,6 @@ public class PacketListener implements org.bukkit.event.Listener {
     }
 
     public void forget(Player player) {
-        NpcInteractionDebug.forget(player);
         pending.remove(player.getUniqueId());
         lastClick.remove(player.getUniqueId());
     }

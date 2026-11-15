@@ -31,6 +31,7 @@ public class NametagListeners implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        net.mizukilab.pit.nametag.PlayerNameFormat.reset(event.getPlayer());
         NametagBoard board = getHandler().getBoards().get(event.getPlayer().getUniqueId());
 
         if (board == null) {

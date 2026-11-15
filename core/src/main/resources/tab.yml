@@ -1,0 +1,22 @@
+# enable/tick/delay control the existing header/footer animation task (ticks).
+enable: true
+tick: 2
+delay: 0
+
+# Player names in the TAB list, independently of the header/footer.
+# {prefix}: existing level/event/mega-streak prefix; {suffix}: existing star/bounty/event suffix.
+# {name}: nickname when nicked, otherwise player name; {level}: formatted visible level.
+# {rank-color}: rank color. %PlaceholderAPI_placeholders% use the displayed player's values.
+# Example: '&7[{level}] &f{name} &8| &a%player_ping%ms'
+player-list:
+  enabled: true
+  format: '{prefix}{name}{suffix}'
+
+# The vanilla name stays between prefix and suffix above the player's head.
+# Both fields support the same tokens and PAPI; & color codes work in PAPI results too.
+nametag:
+  enabled: true
+  prefix: '{prefix}'
+  suffix: '{suffix}'
+
+# Existing head/part/animation defaults are added automatically. /pit reload applies formats.
