@@ -185,7 +185,7 @@ class PitAdminCommands {
     fun setWarehouseLocLocation(@Context player: Player): String {
         ThePit.getInstance().pitConfig.warehouseNpcLocation = player.location
         ThePit.getInstance().pitConfig.save()
-        ThePit.getInstance().customEntityNPCFactory.reload()
+        ThePit.getInstance().npcFactory.reload()
         return CC.translate("&a成功设置寄存所NPC位置!")
     }
 

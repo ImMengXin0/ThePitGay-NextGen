@@ -3,20 +3,21 @@ package net.mizukilab.pit.npc.type.custom
 import cn.charlotte.pit.ThePit
 import it.unimi.dsi.fastutil.objects.ObjectArrayList
 import net.mizukilab.pit.menu.warehouse.WarehouseMainMenu
-import net.mizukilab.pit.npc.AbstractCustomEntityNPC
+import net.mizukilab.pit.npc.BuiltinNpcSkins
+import net.mizukilab.pit.npc.type.SkinNPC
 import net.mizukilab.pit.util.PlayerUtil
 import net.mizukilab.pit.util.chat.CC
 import org.bukkit.Location
-import org.bukkit.entity.Entity
-import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
-import org.bukkit.entity.Villager
 
 /**
  * @Author: Araykal
  * @Date: 2025/6/21
  */
-class WarehouseNPC : AbstractCustomEntityNPC() {
+class WarehouseNPC : SkinNPC() {
+    override fun getAnimation(): cn.mythicland.npclib.api.state.NPCAnimation? = null
+    override fun getNpcSkin(): cn.mythicland.npclib.api.skin.Skin = BuiltinNpcSkins.get(npcInternalName)
+    override fun getNpcHeldItem(): org.bukkit.inventory.ItemStack? = null
     override fun getNpcInternalName(): String {
         return "warehouse_npc"
     }
@@ -36,10 +37,6 @@ class WarehouseNPC : AbstractCustomEntityNPC() {
         return ThePit.getInstance().pitConfig.warehouseNpcLocation
     }
 
-    override fun getEntityType(): EntityType {
-        return EntityType.VILLAGER
-    }
-
     override fun handlePlayerInteract(player: Player) {
         if (PlayerUtil.isPlayerUnlockedPerk(player, "cloak_room")) {
             WarehouseMainMenu().openMenu(player)
@@ -48,11 +45,4 @@ class WarehouseNPC : AbstractCustomEntityNPC() {
         }
     }
 
-    override fun customizeEntity(entity: Entity) {
-        if (entity is Villager) {
-            val villager = entity
-            villager.profession = Villager.Profession.LIBRARIAN
-            villager.removeWhenFarAway = false
-        }
-    }
 }

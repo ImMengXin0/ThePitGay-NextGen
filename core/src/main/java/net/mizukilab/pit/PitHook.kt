@@ -719,7 +719,8 @@ private fun loadNpcs() {
             PrestigeNPC::class.java,
             QuestNpc::class.java,
             ShopNPC::class.java,
-            StatusNPC::class.java
+            StatusNPC::class.java,
+            WarehouseNPC::class.java
         )
     )
     println("load Npc...")
@@ -733,7 +734,6 @@ private fun loadCustomEntityNpcs() {
     customNpcFactory.init(
         listOf(
             SewersNpc::class.java,
-            WarehouseNPC::class.java,
         )
     )
     println("load Custom Entity NPCs...")
