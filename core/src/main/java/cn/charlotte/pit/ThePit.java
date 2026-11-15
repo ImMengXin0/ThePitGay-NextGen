@@ -48,10 +48,6 @@ import net.mizukilab.pit.util.BannerUtil;
 import net.mizukilab.pit.util.DateCodeUtils;
 import net.mizukilab.pit.util.bossbar.BossBarHandler;
 import net.mizukilab.pit.util.chat.CC;
-import net.mizukilab.pit.util.dependencies.Dependency;
-import net.mizukilab.pit.util.dependencies.DependencyManager;
-import net.mizukilab.pit.util.dependencies.loaders.LoaderType;
-import net.mizukilab.pit.util.dependencies.loaders.ReflectionClassLoader;
 import net.mizukilab.pit.util.nametag.NametagHandler;
 import net.mizukilab.pit.util.rank.RankUtil;
 import net.mizukilab.pit.util.sign.SignGui;
@@ -158,6 +154,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
     private LuckPerms luckPerms;
     private NpcViewCompatibility npcViewCompatibility;
     private net.mizukilab.pit.npc.MythicBotCombat mythicBotCombat;
+    private boolean resourcesClosed;
 
     @Setter
     @Getter
@@ -205,6 +202,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
     @Override
     public void onEnable() {
+        resourcesClosed = false;
         fancyTexts = new net.mizukilab.pit.platform.paper.FancyTextService(this);
         fancyNpcs = new net.mizukilab.pit.platform.paper.FancyNpcService(this, fancyTexts);
         BASE_VERSION = this.getDescription().getVersion();
@@ -227,15 +225,15 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
         Bukkit.getServer().getPluginManager().registerEvents(spigot, this);
         //preload
         try {
-            preLoad(whiteList);
-        } catch (Exception e) {
-            e.printStackTrace();
-            onDisable();
-            return;
+            preLoad();
+            Loader.start();
+            postLoad();
+        } catch (Exception | LinkageError e) {
+            getLogger().log(java.util.logging.Level.SEVERE, "Failed to enable ThePitUltimate; releasing initialized resources", e);
+            Bukkit.getPluginManager().disablePlugin(this);
+        } finally {
+            Bukkit.getServer().setWhitelist(whiteList);
         }
-        //Post load, delayed init
-        Loader.start();
-        postLoad();
 
     }
 
@@ -247,7 +245,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
         loadEventPoller();
     }
 
-    private void preLoad(boolean whiteList) throws Exception {
+    private void preLoad() throws Exception {
         if (!this.loadConfig()) {
             throw new IllegalStateException("Failed to load config");
         }
@@ -290,7 +288,6 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
         messenger.registerOutgoingPluginChannel(this, "BungeeCord");
         messenger.registerIncomingPluginChannel(this, "BungeeCord", this);
         FixedRewardData.Companion.refreshAll();
-        Bukkit.getServer().setWhitelist(whiteList);
     }
 
     private void loadMapSelector() {
@@ -331,30 +328,52 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
     @Override
     public void onDisable() {
-        if (signGui != null) signGui.close();
-        for (World world : Bukkit.getWorlds()) world.removePluginChunkTickets(this);
-        if (mythicBotCombat != null) mythicBotCombat.close();
-        if (eventFactory != null) eventFactory.shutdown();
-        cn.charlotte.pit.events.EventWorldEdits.shutdown();
-        if (npcViewCompatibility != null) npcViewCompatibility.close();
-        if (npcFactory != null) npcFactory.shutdown();
-        if (customEntityNPCFactory != null) customEntityNPCFactory.cleanup();
-        net.mizukilab.pit.menu.trade.TradeManager.cancelAll();
-        HologramAPI.shutdown();
-        if (fancyNpcs != null) fancyNpcs.close();
-        if (fancyTexts != null) fancyTexts.close();
-        synchronized (Bukkit.getOnlinePlayers()) {
-            CC.boardCast0("&6&l公告! &7正在执行关闭服务器...");
-            PlayerProfile.saveAllSync(false);
-            CC.boardCast0("&6&l公告! &7正在关闭服务器...");
-        }
-        System.out.println("Switching io executions to current thread");
+        if (resourcesClosed) return;
+        resourcesClosed = true;
         try {
-            configManager.save();
-            profileOperator.close();
-        } catch (Exception e) {
-            System.err.println("Failed to execute!");
+            shutdownStep("scheduled tasks", () -> Bukkit.getScheduler().cancelTasks(this));
+            shutdownStep("sign inputs", () -> { if (signGui != null) signGui.close(); });
+            shutdownStep("chunk tickets", () -> {
+                for (World world : Bukkit.getWorlds()) world.removePluginChunkTickets(this);
+            });
+            shutdownStep("nametags", () -> { if (nametagHandler != null) nametagHandler.cleanup(); });
+            shutdownStep("bot combat", () -> { if (mythicBotCombat != null) mythicBotCombat.close(); });
+            shutdownStep("events", () -> { if (eventFactory != null) eventFactory.shutdown(); });
+            shutdownStep("world edits", cn.charlotte.pit.events.EventWorldEdits::shutdown);
+            shutdownStep("NPCView compatibility", () -> { if (npcViewCompatibility != null) npcViewCompatibility.close(); });
+            shutdownStep("NPCs", () -> { if (npcFactory != null) npcFactory.shutdown(); });
+            shutdownStep("custom NPCs", () -> { if (customEntityNPCFactory != null) customEntityNPCFactory.cleanup(); });
+            shutdownStep("trades", net.mizukilab.pit.menu.trade.TradeManager::cancelAll);
+            shutdownStep("holograms", HologramAPI::shutdown);
+            shutdownStep("FancyNpcs", () -> { if (fancyNpcs != null) fancyNpcs.close(); });
+            shutdownStep("FancyHolograms", () -> { if (fancyTexts != null) fancyTexts.close(); });
+            shutdownStep("player profiles", () -> {
+                if (profileOperator != null) {
+                    CC.boardCast0("&6&l公告! &7正在执行关闭服务器...");
+                    PlayerProfile.saveAllSync(false);
+                    CC.boardCast0("&6&l公告! &7正在关闭服务器...");
+                }
+            });
+            shutdownStep("configuration", () -> { if (configManager != null) configManager.save(); });
+            // Drain pending profile writes while the database is still open.
+            shutdownStep("profile operations", () -> { if (profileOperator != null) profileOperator.close(); });
+        } finally {
+            shutdownStep("MongoDB", () -> { if (mongoDB != null) mongoDB.close(); });
+            shutdownStep("Redis", () -> { if (jedis != null) jedis.close(); });
         }
+    }
+
+    private void shutdownStep(String resource, ShutdownAction action) {
+        try {
+            action.run();
+        } catch (Throwable failure) {
+            getLogger().log(java.util.logging.Level.SEVERE, "Failed to shut down " + resource, failure);
+        }
+    }
+
+    @FunctionalInterface
+    private interface ShutdownAction {
+        void run() throws Exception;
     }
 
 
@@ -530,7 +549,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
     public final void onLoad() {
         instance = this;
-        // Runtime libraries are resolved by Gradle and shipped in the plugin.
+        // Paper loads the libraries declared in plugin.yml before constructing us.
         // Paper supplies Netty, Adventure, SLF4J, fastutil and Guava.
     }
 

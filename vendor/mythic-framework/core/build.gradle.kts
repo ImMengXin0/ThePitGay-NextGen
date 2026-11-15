@@ -11,7 +11,7 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.2")
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("org.mockito:mockito-inline:4.11.0")
+    testImplementation("org.mockito:mockito-core:5.18.0")
     testRuntimeOnly("it.unimi.dsi:fastutil:8.5.15")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

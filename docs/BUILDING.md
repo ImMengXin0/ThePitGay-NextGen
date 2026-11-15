@@ -1,16 +1,16 @@
 # 构建与测试（ThePitGay-High）
 
-本分支目标为 Paper/Purpur **1.21.11、Java 21**，使用 Gradle Wrapper **8.14.3**、Kotlin **2.1.20** 和 Paperweight 开发包。构建无需 1.8.8 服务端 JAR。首次构建需要联网，依赖缓存完整后才能使用 `--offline`。
+本分支目标为 Paper/Purpur **1.21.11、Java 25**，使用 Gradle Wrapper **8.14.3**、Kotlin **2.1.20** 和 Paperweight 开发包。Gradle 和编译工具链使用 JDK 21，测试和服务端运行使用 JDK 25。构建无需 1.8.8 服务端 JAR。首次构建需要联网，依赖缓存完整后才能使用 `--offline`。
 
 ## 构建
 
-安装 JDK 21，在仓库根目录执行：
+安装 JDK 21 和 JDK 25，设置 `JAVA_HOME` 为 JDK 21，在仓库根目录执行：
 
 ```powershell
-.\gradlew.bat build --continue --console=plain
+.\gradlew.bat build :core:paperLibrarySmoke --continue --console=plain
 ```
 
-Linux/macOS 使用 `bash gradlew build --continue --console=plain`。该命令编译全部模块、执行自动化测试并生成 `core/build/libs/ThePitGay-High.jar`。仅打包可执行 `:core:shadowJar`，但不会运行测试。
+Linux/macOS 使用 `bash gradlew build :core:paperLibrarySmoke --continue --console=plain`。该命令编译全部模块、执行自动化测试和 Paper 原生依赖加载验证，生成 `core/build/libs/ThePitGay-High.jar`。仅打包可执行 `:core:shadowJar`，但不会运行测试。
 
 如果 Windows 的企业证书或系统代理证书只安装在系统证书库，可在当前 PowerShell 会话设置：
 
@@ -30,7 +30,15 @@ $env:JAVA_TOOL_OPTIONS='-Djavax.net.ssl.trustStoreType=Windows-ROOT'
 | MythicMobs | API 5.12.1 | 使用相应功能时安装，尚未实服验证 |
 | PlaceholderAPI / PlayerPoints | 可选 | 按现有功能配置安装目标版本 |
 
-FancyNpcs 2.10+ 和 FancyHolograms 2.11+ 的已检查构建要求 Java 25，因此这里固定使用支持 Java 21 的上述版本。ProtocolLib 正式版 5.4.0 只明确列出支持到 1.21.8；固定开发构建的下载来源和校验值见 [依赖说明](../vendor/dependencies/README.md)。这些服务端插件不会打包进核心 JAR。
+FancyHolograms **2.10.1 的插件入口类已经要求 Java 25**，因此服务端必须使用 Java 25；不能只凭其 API 类的字节码版本判断运行要求。ProtocolLib 正式版 5.4.0 只明确列出支持到 1.21.8；固定开发构建的下载来源和校验值见 [依赖说明](../vendor/dependencies/README.md)。这些服务端插件不会打包进核心 JAR。
+
+## Paper 运行库下载与缓存
+
+构建会将解析后的 21 个运行库及其精确版本写入产物 `plugin.yml` 的原生 `libraries:` 字段。Kotlin、MongoDB/MongoJack、Jackson、Jedis、Nashorn 及其依赖由 Paper 在创建插件类加载器前下载到**服务端根目录的 `libraries/`**，之后使用缓存。核心 JAR 继续内嵌需要重定位的框架库。
+
+首次启动需要可访问 Maven Central，下载失败会阻止插件加载。保留完整的 JAR 和 POM 缓存后可以复用；更换依赖版本会下载新文件。Paper 使用自身的仓库配置和传输校验，无需放置旧版本的 `libs` 文件夹或自定义下载器。
+
+`:core:paperLibrarySmoke` 使用目标 Paper 的真实 `LibraryLoader`，在独立空缓存中下载并核对全部 21 个 JAR 的 SHA-256，验证薄 JAR、JSON 和脚本运行，然后切换为离线会话检查缓存复用及空缓存拒绝启动。结果位于 `core/build/paper-library-smoke/result.txt`。该任务首次需联网，故纯离线构建可只执行 `build --offline`。
 
 ## 自动化测试
 

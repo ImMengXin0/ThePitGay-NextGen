@@ -1,6 +1,6 @@
 # ThePitGay-High
 
-This branch targets **Paper/Purpur 1.21.11 and Java 21**, using **FancyNpcs 2.9.2** and **FancyHolograms 2.10.1**. See the [High migration notes](docs/HIGH-MIGRATION.md) for validation results and remaining server checks.
+This branch targets **Paper/Purpur 1.21.11 and Java 25**, using **FancyNpcs 2.9.2** and **FancyHolograms 2.10.1**. Paper downloads the libraries declared in `plugin.yml` on first startup and reuses the server's `libraries/` cache. See the [High migration notes](docs/HIGH-MIGRATION.md) for validation results and remaining server checks.
 
 ## Project
 
@@ -11,7 +11,7 @@ ThePitGay-NextGen is a maintenance fork of [ThePitGay](https://github.com/Patche
 * Improved item handling, trading, and player data persistence
 * Reduced repeated work in music playback, enchantment animations, and scoreboards
 
-Build this branch with `bash gradlew build` (Windows: `.\gradlew.bat build`). The plugin is `core/build/libs/ThePitGay-High.jar`. Existing GitHub releases may belong to the 1.8 maintenance branch.
+Install JDK 21 for Gradle/compilation and JDK 25 for tests. Build this branch with `bash gradlew build :core:paperLibrarySmoke` (Windows: `.\gradlew.bat build :core:paperLibrarySmoke`). The plugin is `core/build/libs/ThePitGay-High.jar`. Existing GitHub releases may belong to the 1.8 maintenance branch.
 
 Prepare a separate 1.21.11 environment with copies of the maps, configuration and database backups before server validation. Modern item saves require restoring the original backups when rolling back to a 1.8 core.
 
@@ -45,7 +45,7 @@ Use the latest core build as a dependency when developing integrations. Some fac
 
 Want to add features or fix bugs? Clone this repository, follow the [build instructions](docs/BUILDING.md), and run the relevant regression tests before submitting a pull request.
 
-The High branch uses Java 21 and targets Paper/Purpur 1.21.11. Full extension integration tests require migrated external plugin JARs as documented in the build instructions.
+The High branch runs on Java 25 and targets Paper/Purpur 1.21.11. Full extension integration tests require migrated external plugin JARs as documented in the build instructions.
 
 ## Special thanks
 

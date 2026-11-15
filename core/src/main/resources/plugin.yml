@@ -8,3 +8,6 @@ main: cn.charlotte.pit.ThePit
 load: POSTWORLD
 depend: [ LuckPerms, ProtocolLib, FancyNpcs, FancyHolograms ]
 softdepend: [ PlayerPoints, WorldEdit, FastAsyncWorldEdit, MythicMobs, PlaceholderAPI, NPCView ]
+
+# Resolved, pinned coordinates are inserted by processResources.
+# @paper-libraries@

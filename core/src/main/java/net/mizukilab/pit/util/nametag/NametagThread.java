@@ -1,13 +1,11 @@
 package net.mizukilab.pit.util.nametag;
 
-import cn.charlotte.pit.ThePit;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class NametagThread extends BukkitRunnable {
 
-    private NametagHandler handler;
+    private final NametagHandler handler;
 
     /**
      * Nametag Thread.
@@ -16,12 +14,12 @@ public class NametagThread extends BukkitRunnable {
      */
     public NametagThread(NametagHandler handler) {
         this.handler = handler;
-        Bukkit.getScheduler().runTaskTimer(ThePit.getInstance(), this, 0, 20);
+        runTaskTimer(handler.getPlugin(), 0L, 20L);
     }
 
     @Override
     public void run() {
-        if (!ThePit.getInstance().isEnabled()) {
+        if (!handler.getPlugin().isEnabled()) {
             return;
         }
         tick();

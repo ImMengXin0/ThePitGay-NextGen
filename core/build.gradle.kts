@@ -1,5 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.Scanner
+import java.util.HexFormat
+import java.security.MessageDigest
 import org.apache.tools.ant.filters.ReplaceTokens
 import proguard.gradle.ProGuardTask
 import java.io.ByteArrayOutputStream
@@ -26,6 +28,52 @@ plugins {
 group = "top.mcrw"
 
 version = rootProject.version
+// Paper resolves these libraries before constructing the plugin class loader.
+// Keep them on Gradle's classpaths for compilation and tests, but out of Shadow.
+val paperLibraries by configurations.creating {
+    isCanBeConsumed = false
+}
+configurations.implementation { extendsFrom(paperLibraries) }
+val paperLibraryArtifacts = providers.provider {
+    paperLibraries.resolvedConfiguration.resolvedArtifacts.sortedBy { it.moduleVersion.id.toString() }
+}
+val paperLibraryCoordinates = paperLibraryArtifacts.map { artifacts ->
+    artifacts.map { artifact ->
+        require(artifact.classifier == null && artifact.extension == "jar") {
+            "Unsupported Paper library: $artifact"
+        }
+        artifact.moduleVersion.id.toString()
+    }
+}
+val paperLibraryModules = paperLibraryArtifacts.map { artifacts ->
+    artifacts.map { "${it.moduleVersion.id.group}:${it.moduleVersion.id.name}" }.toSet()
+}
+val paperLibraryResources = layout.buildDirectory.dir("generated/paper-libraries")
+val generatePaperLibraries by tasks.registering {
+    inputs.files(paperLibraries)
+    inputs.property("coordinates", paperLibraryCoordinates)
+    outputs.dir(paperLibraryResources)
+    doLast {
+        val manifest = paperLibraryResources.get().file("paper-libraries.txt").asFile
+        manifest.parentFile.mkdirs()
+        manifest.writeText(paperLibraryArtifacts.get().joinToString("\n", postfix = "\n") { artifact ->
+            val digest = MessageDigest.getInstance("SHA-256").digest(artifact.file.readBytes())
+            "${artifact.moduleVersion.id} ${HexFormat.of().formatHex(digest)}"
+        }, Charsets.UTF_8)
+    }
+}
+sourceSets.main { resources.srcDir(paperLibraryResources) }
+tasks.processResources {
+    dependsOn(generatePaperLibraries)
+    inputs.property("paperLibraries", paperLibraryCoordinates)
+    filesMatching("plugin.yml") {
+        filter { line: String ->
+            if (line == "# @paper-libraries@") {
+                paperLibraryCoordinates.get().joinToString("\n", prefix = "libraries:\n") { "  - $it" }
+            } else line
+        }
+    }
+}
 repositories {
     maven("https://mvn.lumine.io/repository/maven-public/") {
         content { includeGroup("io.lumine") }
@@ -113,6 +161,11 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude("junit/**", "org/junit/**")
     from("build/tmp/processed-resources")
     mergeServiceFiles()
+    dependencies {
+        exclude { dependency ->
+            "${dependency.moduleGroup}:${dependency.moduleName}" in paperLibraryModules.get()
+        }
+    }
 }
 dependencies {
     implementation(project(":paper-platform"))
@@ -142,17 +195,17 @@ dependencies {
     compileOnly(libs.luckperms)
     compileOnly("com.github.f4b6a3:uuid-creator:6.0.0")
     compileOnly(libs.papi)
-    implementation(libs.narshorn)
+    add(paperLibraries.name, libs.narshorn)
     compileOnly(files(rootProject.file("vendor/dependencies/ProtocolLib-5.5.0-SNAPSHOT-Spigot.jar")))
-    implementation(libs.jedis)
-    implementation("org.mongojack:mongojack:5.0.1")
-    implementation("org.mongodb:mongodb-driver-sync:5.2.0")
+    add(paperLibraries.name, libs.jedis)
+    add(paperLibraries.name, "org.mongojack:mongojack:5.0.1")
+    add(paperLibraries.name, "org.mongodb:mongodb-driver-sync:5.2.0")
 
     compileOnly(libs.fastutil)
     compileOnly("us.crazycrew.crazycrates:api:0.7")
     compileOnly(libs.luckperms)
     compileOnly(libs.playerpoints)
-    implementation(kotlin("reflect"))
+    add(paperLibraries.name, kotlin("reflect"))
 }
 sourceSets.test {
     compileClasspath += configurations.compileClasspath.get()
@@ -228,4 +281,16 @@ tasks.build {
 }
 tasks.check {
     dependsOn(":mythic-framework-core:test", ":mythic-framework-bukkit:test")
+}
+
+tasks.register<JavaExec>("paperLibrarySmoke") {
+    group = "verification"
+    description = "Exercise Paper's native library loader with a fresh cache and then offline."
+    dependsOn(tasks.testClasses, tasks.shadowJar)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("net.mizukilab.pit.bootstrap.PaperLibrariesSmokeTool")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) })
+    environment("PAPER_DEFAULT_CENTRAL_REPOSITORY", "https://repo.maven.apache.org/maven2/")
+    args(tasks.named<ShadowJar>("shadowJar").get().archiveFile.get().asFile.absolutePath,
+        layout.buildDirectory.dir("paper-library-smoke").get().asFile.absolutePath)
 }

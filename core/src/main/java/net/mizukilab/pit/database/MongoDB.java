@@ -29,7 +29,7 @@ import java.util.logging.Logger;
  */
 
 @Getter
-public class MongoDB {
+public class MongoDB implements AutoCloseable {
 
     private static final Logger log = ThePit.getInstance().getLogger();
 
@@ -45,7 +45,10 @@ public class MongoDB {
 
     private JacksonMongoCollection<EventQueue> eventQueueCollection;
 
-    public void connect() {
+    public synchronized void connect() {
+        if (mongoClient != null) {
+            throw new IllegalStateException("MongoDB is already connected");
+        }
         log.info("Connecting to database... (正在连接数据库<<<<)");
         Instant connects = Instant.now();
 
@@ -77,6 +80,21 @@ public class MongoDB {
             thePit = builder1.applicationName("ThePitUnsafe").build();
         }
         this.mongoClient = MongoClients.create(thePit);
+        try {
+            initializeCollections(databaseName);
+        } catch (RuntimeException | Error failure) {
+            try {
+                close();
+            } catch (RuntimeException | Error closeFailure) {
+                failure.addSuppressed(closeFailure);
+            }
+            throw failure;
+        }
+        log.info("Connected! (连接成功>>>>)");
+        log.info("Costs " + ChronoUnit.MILLIS.between(connects, Instant.now()));
+    }
+
+    private void initializeCollections(String databaseName) {
         this.database = mongoClient.getDatabase(databaseName);
         this.collection = database.getCollection("players");
 
@@ -113,8 +131,16 @@ public class MongoDB {
         this.eventQueueCollection = builder.build(this.database.getCollection("event_queue", EventQueue.class), EventQueue.class, UuidRepresentation.JAVA_LEGACY);
 
         createIndex(mailCollection, "uuidIndex", "uuid");
-        log.info("Connected! (连接成功>>>>)");
-        log.info("Costs " + ChronoUnit.MILLIS.between(connects, Instant.now()));
+    }
+
+    /** Stop the driver's connection pools and monitor threads before plugin unloading. */
+    @Override
+    public synchronized void close() {
+        MongoClient client = mongoClient;
+        mongoClient = null;
+        if (client != null) {
+            client.close();
+        }
     }
 
     static void ensureTimeIndex(MongoCollection<Document> collection, String field) {

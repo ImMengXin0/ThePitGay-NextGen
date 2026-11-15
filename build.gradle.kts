@@ -8,6 +8,13 @@ version = providers.gradleProperty("pluginVersion").orElse("5.0.0-HIGH-SNAPSHOT"
 extra["gitVersionString"] = version.toString()
 allprojects {
     extra["gitVersionString"] = version.toString()
+    plugins.withId("java") {
+        tasks.withType<Test>().configureEach {
+            javaLauncher.set(project.extensions.getByType<JavaToolchainService>().launcherFor {
+                languageVersion.set(JavaLanguageVersion.of(25))
+            })
+        }
+    }
 }
 println("ThePitGay-High version: $version")
 tasks.named<Jar>("jar") {

@@ -32,7 +32,10 @@ public class NametagPerformanceTest {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);
             when(plugin.isEnabled()).thenReturn(true);
-            bukkit.when(Bukkit::getScheduler).thenReturn(mock(BukkitScheduler.class));
+            BukkitScheduler scheduler = mock(BukkitScheduler.class);
+            when(scheduler.runTaskTimer(eq(plugin), any(Runnable.class), anyLong(), anyLong()))
+                    .thenReturn(mock(org.bukkit.scheduler.BukkitTask.class));
+            bukkit.when(Bukkit::getScheduler).thenReturn(scheduler);
             List<Player> players = new ArrayList<>();
             Map<UUID, NametagBoard> boards = new HashMap<>();
             for (int i = 0; i < 100; i++) {
