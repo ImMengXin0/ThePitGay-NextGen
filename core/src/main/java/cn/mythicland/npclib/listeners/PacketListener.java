@@ -5,13 +5,12 @@ import cn.mythicland.npclib.NPCLib;
 import cn.mythicland.npclib.api.events.NPCInteractEvent;
 import cn.mythicland.npclib.internal.NPCBase;
 import cn.mythicland.npclib.internal.NPCManager;
-import com.comphenix.protocol.PacketType;
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
-import com.comphenix.protocol.events.*;
-import com.comphenix.protocol.wrappers.EnumWrappers;
+import com.destroystokyo.paper.event.player.PlayerUseUnknownEntityEvent;
+import de.oliver.fancynpcs.api.FancyNpcsPlugin;
+import de.oliver.fancynpcs.api.actions.ActionTrigger;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -20,8 +19,6 @@ public class PacketListener implements org.bukkit.event.Listener {
     private final Set<UUID> pending = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Long> lastClick = new HashMap<>();
     private NPCLib instance;
-    private ProtocolManager protocol;
-    private PacketAdapter adapter;
     private volatile boolean active;
 
     public void start(NPCLib instance) {
@@ -30,10 +27,26 @@ public class PacketListener implements org.bukkit.event.Listener {
         Bukkit.getPluginManager().registerEvents(this, instance.getPlugin());
     }
 
-    @org.bukkit.event.EventHandler(ignoreCancelled = true)
+    @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
     public void onFancyInteract(de.oliver.fancynpcs.api.events.NpcInteractEvent event) {
+        if (event.isCancelled()) return;
         handleInteract(event.getPlayer(), event.getNpc().getEntityId(),
                 event.getInteractionType() == de.oliver.fancynpcs.api.actions.ActionTrigger.LEFT_CLICK);
+    }
+
+    @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onUnknownEntity(PlayerUseUnknownEntityEvent event) {
+        // Fancy 2.10 ignores INTERACT_AT for all types except armor stands.
+        // Some translated clients only send this right-click variant. Forward it
+        // through Fancy's normal cooldown and cancellable interaction event.
+        if (!active || event.isAttack() || event.getHand() != EquipmentSlot.HAND
+                || event.getClickedRelativePosition() == null) return;
+        NPCBase npc = NPCManager.getByEntityId(event.getEntityId());
+        if (npc == null || npc.getInstance() != instance) return;
+        var visual = FancyNpcsPlugin.get().getNpcManager().getNpc(event.getEntityId());
+        if (visual != null && visual.getData().getType() != org.bukkit.entity.EntityType.ARMOR_STAND) {
+            visual.interact(event.getPlayer(), ActionTrigger.RIGHT_CLICK);
+        }
     }
 
     void handleInteract(Player player, int entityId, boolean attack) {
@@ -74,7 +87,6 @@ public class PacketListener implements org.bukkit.event.Listener {
     public void stop() {
         active = false;
         org.bukkit.event.HandlerList.unregisterAll(this);
-        adapter = null;
         pending.clear();
         lastClick.clear();
     }

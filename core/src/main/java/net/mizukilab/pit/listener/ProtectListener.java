@@ -29,8 +29,6 @@ import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.event.weather.WeatherChangeEvent;
-import org.bukkit.event.world.ChunkUnloadEvent;
-import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -45,17 +43,6 @@ import java.util.concurrent.TimeUnit;
 @AutoRegister
 @Skip
 public class ProtectListener implements Listener {
-    public ProtectListener() {
-        for (org.bukkit.World world : Bukkit.getWorlds()) {
-            if (isPitWorld(world)) for (org.bukkit.Chunk chunk : world.getLoadedChunks())
-                chunk.addPluginChunkTicket(ThePit.getInstance());
-        }
-    }
-    private static boolean isPitWorld(org.bukkit.World world) {
-        var config = ThePit.getInstance().getConfigManager();
-        return config != null && config.getPitConfigs().values().stream()
-                .anyMatch(map -> world.getName().equals(map.getWorldName()));
-    }
 
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -65,12 +52,6 @@ public class ProtectListener implements Listener {
         ) {
             event.setCancelled(true);
         }
-    }
-
-    @EventHandler
-    public void onWorldLoad(WorldLoadEvent event) {
-        if (isPitWorld(event.getWorld())) for (org.bukkit.Chunk chunk : event.getWorld().getLoadedChunks())
-            chunk.addPluginChunkTicket(ThePit.getInstance());
     }
 
     @EventHandler
@@ -407,11 +388,6 @@ public class ProtectListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     private void onFoodLevel(FoodLevelChangeEvent event) {
         event.setCancelled(true);
-    }
-
-    @EventHandler
-    private void onChunkLoad(org.bukkit.event.world.ChunkLoadEvent e) {
-        if (isPitWorld(e.getWorld())) e.getChunk().addPluginChunkTicket(ThePit.getInstance());
     }
 
     @EventHandler

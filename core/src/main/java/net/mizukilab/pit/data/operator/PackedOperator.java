@@ -35,7 +35,7 @@ public class PackedOperator implements IOperator {
     @Getter
     Player lastBoundPlayer = null;
     @NotNull
-    PlayerProfile profile = PlayerProfile.NONE_PROFILE;
+    volatile PlayerProfile profile = PlayerProfile.NONE_PROFILE;
 
     public PackedOperator(ThePit inst) {
         this.policy = ExecutionPolicy.EXECUTION_POLICY_DEFAULT;
@@ -287,8 +287,16 @@ public class PackedOperator implements IOperator {
 
     @SneakyThrows
     public void waitForLoad() {
+        if (isLoaded()) return;
+        if (Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException("Cannot wait for profile I/O on the server thread; use pendingUntilLoaded");
+        }
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
         while (!this.isLoaded()) {
-            Thread.onSpinWait();
+            if (throwable != null) throw new IllegalStateException("Profile loading failed", throwable);
+            if (System.nanoTime() >= deadline) throw new IllegalStateException("Profile loading timed out after 30 seconds");
+            if (Thread.currentThread().isInterrupted()) throw new InterruptedException("Profile wait interrupted");
+            java.util.concurrent.locks.LockSupport.parkNanos(java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(5));
         }
     }
 
@@ -308,6 +316,10 @@ public class PackedOperator implements IOperator {
         }
         new BukkitRunnable() {
             public void run() {
+                if (throwable != null && !isLoaded()) {
+                    this.cancel();
+                    return;
+                }
                 if (isLoaded()) {
                     this.cancel();
                     pendingIfLoaded(profileConsumer);

@@ -4,10 +4,20 @@ import cn.mythicland.npclib.NPCLib;
 import cn.mythicland.npclib.api.events.NPCInteractEvent;
 import cn.mythicland.npclib.internal.NPCBase;
 import cn.mythicland.npclib.internal.NPCManager;
+import com.destroystokyo.paper.event.player.PlayerUseUnknownEntityEvent;
+import de.oliver.fancynpcs.api.FancyNpcsPlugin;
+import de.oliver.fancynpcs.api.Npc;
+import de.oliver.fancynpcs.api.NpcData;
+import de.oliver.fancynpcs.api.NpcManager;
+import de.oliver.fancynpcs.api.actions.ActionTrigger;
+import de.oliver.fancynpcs.api.events.NpcInteractEvent;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.EntityType;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.util.Vector;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.*;
@@ -70,6 +80,51 @@ public class PacketInteractionTest {
         listener.handleInteract(player, npc.getEntityId(), false);
         listener.handleInteract(player, npc.getEntityId(), false);
         verify(plugins).callEvent(any(NPCInteractEvent.class));
+    }
+
+    @Test public void positionalRightClickPassesThroughFancyAndOpensMenuOnlyOnce() {
+        try (var api = mockStatic(FancyNpcsPlugin.class)) {
+            FancyNpcsPlugin fancy = mock(FancyNpcsPlugin.class);
+            api.when(FancyNpcsPlugin::get).thenReturn(fancy);
+            when(fancy.getAttributeManager()).thenReturn(mock(de.oliver.fancynpcs.api.AttributeManager.class));
+            NpcManager manager = mock(NpcManager.class);
+            Npc visual = mock(Npc.class);
+            NpcData data = mock(NpcData.class);
+            int entityId = npc.getEntityId();
+            when(fancy.getNpcManager()).thenReturn(manager);
+            when(manager.getNpc(npc.getEntityId())).thenReturn(visual);
+            when(visual.getEntityId()).thenReturn(entityId);
+            when(visual.getData()).thenReturn(data);
+            when(data.getType()).thenReturn(EntityType.PLAYER);
+            doAnswer(call -> {
+                listener.onFancyInteract(new NpcInteractEvent(visual, ignored -> {}, List.of(), player, ActionTrigger.RIGHT_CLICK));
+                return null;
+            }).when(visual).interact(player, ActionTrigger.RIGHT_CLICK);
+            listener.onUnknownEntity(new PlayerUseUnknownEntityEvent(player, npc.getEntityId(), false,
+                    EquipmentSlot.HAND, new Vector(0, 1, 0)));
+            // Clients may follow INTERACT_AT with INTERACT in the same tick.
+            listener.onFancyInteract(new NpcInteractEvent(visual, ignored -> {}, List.of(), player, ActionTrigger.RIGHT_CLICK));
+            verify(visual).interact(player, ActionTrigger.RIGHT_CLICK);
+            verify(plugins).callEvent(any(NPCInteractEvent.class));
+        }
+    }
+
+    @Test public void fallbackLeavesRegularPacketsOffhandAndForeignEntitiesToFancy() {
+        try (var api = mockStatic(FancyNpcsPlugin.class)) {
+            listener.onUnknownEntity(new PlayerUseUnknownEntityEvent(player, npc.getEntityId(), false, EquipmentSlot.HAND, null));
+            listener.onUnknownEntity(new PlayerUseUnknownEntityEvent(player, npc.getEntityId(), false, EquipmentSlot.OFF_HAND, new Vector()));
+            listener.onUnknownEntity(new PlayerUseUnknownEntityEvent(player, npc.getEntityId(), true, EquipmentSlot.HAND, new Vector()));
+            listener.onUnknownEntity(new PlayerUseUnknownEntityEvent(player, 123, false, EquipmentSlot.HAND, new Vector()));
+            api.verifyNoInteractions();
+            verify(plugins, never()).callEvent(any());
+        }
+    }
+
+    @Test public void cancelledFancyInteractionCannotOpenMenu() {
+        NpcInteractEvent event = mock(NpcInteractEvent.class);
+        when(event.isCancelled()).thenReturn(true);
+        listener.onFancyInteract(event);
+        verify(plugins, never()).callEvent(any());
     }
 
     @Test public void eachLibraryDispatchesOnlyItsOwnNpcs() {

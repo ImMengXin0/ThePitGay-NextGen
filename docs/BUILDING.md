@@ -95,3 +95,5 @@ HTML 报告分别位于各模块的 `build/reports/tests/test/`，XML 位于 `bu
 | NPCView 1.0 | `test-fixtures/NPCView-1.0-SNAPSHOT.jar` | `-PnpcViewJar=/path/to/npcview.jar` |
 
 这些名称代表原有测试样本。1.8 扩展中引用旧 Bukkit/NMS 的部分需要迁移源码并重新编译；提供旧 JAR 不代表能够在 1.21.11 上加载。迁移范围、数据格式和实服待验内容见 [迁移说明](HIGH-MIGRATION.md)。
+
+重复实体 UUID 的只读检查工具位于 `scripts/scan_entity_uuids.py`，使用 Python 3.10+，不需要额外包。用 `python -m unittest discover -s scripts -p 'test_scan_entity_uuids.py' -v` 执行其 4 项回归；只扫描停服后的世界副本，命令和报告边界见 [spark 补丁说明](HIGH-SPARK-2026-11-15.md)。

@@ -109,7 +109,7 @@ public class PlayerProfile {
     @JsonIgnore
     UUID cachedUUID;
     @JsonIgnore
-    private boolean loaded;
+    private volatile boolean loaded;
     private String playerName;
     private String uuid;
     private String lowerName;
@@ -1178,11 +1178,19 @@ public class PlayerProfile {
     }
 
     public void setRenown(int renown) {
-        final Player player = Bukkit.getPlayer(this.getPlayerUuid());
-        if (player != null && renown > this.renown) {
-            new PitGainRenownEvent(player, renown - this.renown).callEvent();
-        }
+        int gained = renown - this.renown;
         this.renown = renown;
+        // MongoJack invokes setters while decoding on the database executor.
+        // Restoring a saved balance is not a reward and must not touch Bukkit.
+        if (!loaded || gained <= 0) return;
+        Runnable notify = () -> {
+            final Player player = Bukkit.getPlayer(this.getPlayerUuid());
+            if (player != null && player.isOnline()) {
+                new PitGainRenownEvent(player, gained).callEvent();
+            }
+        };
+        if (Bukkit.isPrimaryThread()) notify.run();
+        else Bukkit.getScheduler().runTask(ThePit.getInstance(), notify);
     }
 
     public int getBounty() {

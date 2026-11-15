@@ -39,7 +39,10 @@ public class HologramListeners implements Listener {
     public void onChunkLoad(ChunkLoadEvent e) {
         for (Hologram h : HologramAPI.getHolograms()) {
             if (h.isSpawned()) {
-                if (h.getLocation().getChunk().equals(e.getChunk())) {
+                org.bukkit.Location location = h.getLocation();
+                if (location != null && e.getWorld().equals(location.getWorld())
+                        && (location.getBlockX() >> 4) == e.getChunk().getX()
+                        && (location.getBlockZ() >> 4) == e.getChunk().getZ()) {
                     try {
                         HologramAPI.spawn(h, new ArrayList<>(h.getLocation().getWorld().getPlayers()));
                     } catch (Exception e1) {

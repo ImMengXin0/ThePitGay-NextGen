@@ -296,7 +296,10 @@ tasks.register<Test>("fancyNpcCompatibilityTest") {
         classpath = classpath.filter { !it.name.startsWith("fancynpcs-", ignoreCase = true) } + files(artifact)
     }
     useJUnitPlatform()
-    filter { includeTestsMatching("net.mizukilab.pit.platform.paper.FancyNpcServiceTest") }
+    filter {
+        includeTestsMatching("net.mizukilab.pit.platform.paper.FancyNpcServiceTest")
+        includeTestsMatching("cn.mythicland.npclib.listeners.PacketInteractionTest")
+    }
 }
 
 tasks.register<JavaExec>("paperLibrarySmoke") {

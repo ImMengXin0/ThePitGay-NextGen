@@ -49,3 +49,4 @@ confusion
 /test-fixtures/
 .env
 .env.*
+__pycache__/

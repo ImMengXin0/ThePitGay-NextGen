@@ -13,6 +13,38 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 public class ProfileRegressionTest extends net.mizukilab.pit.BukkitDataTestSupport {
+    @Test public void unloadedProfileNeverBlocksTheServerThreadAndFailedAsyncWaitExits() {
+        try (var bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
+            PackedOperator operator = new PackedOperator(null);
+            bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
+            assertThrows(IllegalStateException.class, operator::waitForLoad);
+            bukkit.when(Bukkit::isPrimaryThread).thenReturn(false);
+            operator.throwable = new IllegalArgumentException("decode failed");
+            assertSame(operator.throwable, assertThrows(IllegalStateException.class, operator::waitForLoad).getCause());
+        }
+    }
+
+    @Test public void failedLoadCancelsPendingCallbackPollingWithoutCreatingANewProfile() {
+        try (var bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
+            ThePit plugin = mock(ThePit.class);
+            var scheduler = mock(org.bukkit.scheduler.BukkitScheduler.class);
+            var task = mock(org.bukkit.scheduler.BukkitTask.class);
+            when(task.getTaskId()).thenReturn(42);
+            bukkit.when(Bukkit::getScheduler).thenReturn(scheduler);
+            var callback = mock(java.util.function.Consumer.class);
+            var poll = org.mockito.ArgumentCaptor.forClass(Runnable.class);
+            when(scheduler.runTaskTimerAsynchronously(eq(plugin), poll.capture(), eq(0L), eq(5L))).thenReturn(task);
+            PackedOperator operator = new PackedOperator(plugin);
+            operator.pendingUntilLoaded(callback);
+            operator.throwable = new IllegalArgumentException("decode failed");
+            poll.getValue().run();
+            verify(scheduler).cancelTask(42);
+            verifyNoInteractions(callback);
+            assertSame(PlayerProfile.NONE_PROFILE, operator.profile());
+            assertFalse(operator.hasAnyOperation());
+        }
+    }
+
     @Test
     public void newProfileCanLockUnlockAndRejectDuplicateLock() {
         PlayerProfile profile = new PlayerProfile(UUID.randomUUID(), "Tester");

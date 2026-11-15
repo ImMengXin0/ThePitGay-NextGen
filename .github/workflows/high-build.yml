@@ -25,6 +25,11 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify read-only entity UUID scanner
+        run: python -m unittest discover -s scripts -p 'test_scan_entity_uuids.py' -v
       - name: Build and run all automated checks
         run: bash gradlew build :core:paperLibrarySmoke --continue --console=plain "-Dorg.gradle.java.installations.paths=$JAVA_HOME_21_X64,$JAVA_HOME_25_X64"
       - name: Save test reports
