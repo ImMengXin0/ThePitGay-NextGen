@@ -7,9 +7,7 @@ import it.unimi.dsi.fastutil.objects.ObjectSet;
 import kotlin.jvm.functions.Function2;
 import net.mizukilab.pit.util.Einstein;
 import net.mizukilab.pit.util.exception.IllegalEnchantInputException;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -334,9 +332,7 @@ public class RandomUtil {
 
 
     public static Location generateRandomLocation() {
-        int x = RandomUtil.random().nextInt(180) - 90;
-        int z = RandomUtil.random().nextInt(180) - 90;
-        World world = Bukkit.getWorlds().get(0);
-        return world.getHighestBlockAt(x, z).getLocation().clone().add(0, 1, 0);
+        return net.mizukilab.pit.handlers.GoldDropLocationSelector.find(
+                cn.charlotte.pit.ThePit.getInstance().getPitConfig(), random());
     }
 }

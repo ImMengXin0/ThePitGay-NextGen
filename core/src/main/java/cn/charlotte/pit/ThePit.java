@@ -37,6 +37,7 @@ import net.mizukilab.pit.hologram.HologramMarco;
 import net.mizukilab.pit.item.IItemFactory;
 import net.mizukilab.pit.item.ItemFactor;
 import net.mizukilab.pit.listener.SafetyJoinListener;
+import net.mizukilab.pit.listener.PitWorldRules;
 import net.mizukilab.pit.map.MapSelector;
 import net.mizukilab.pit.medal.MedalFactory;
 import net.mizukilab.pit.minigame.MiniGameController;
@@ -103,6 +104,9 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
     @Getter
     @Setter
     private AnimationHandler animator;
+    @Getter
+    @Setter
+    private GoldDropRunnable goldDropRunnable;
     @Getter
     private NpcFactory npcFactory;
     @Getter
@@ -300,6 +304,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
     private static void bootstrapWorld() {
         for (World world : Bukkit.getWorlds()) {
+            if (!PitWorldRules.isPitWorld(world)) continue;
             world.getEntities().forEach(e -> {
                 if (e instanceof ArmorStand) {
                     e.remove();
@@ -311,9 +316,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
                     }
                 }
             });
-            world.setGameRuleValue("keepInventory", "true");
-            world.setGameRuleValue("mobGriefing", "false");
-            world.setGameRuleValue("doDaylightCycle", "false");
+            PitWorldRules.apply(world);
         }
     }
 
@@ -332,6 +335,7 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
         resourcesClosed = true;
         try {
             shutdownStep("scheduled tasks", () -> Bukkit.getScheduler().cancelTasks(this));
+            shutdownStep("gold drops", () -> { if (goldDropRunnable != null) goldDropRunnable.clear(); });
             shutdownStep("sign inputs", () -> { if (signGui != null) signGui.close(); });
             shutdownStep("chunk tickets", () -> {
                 for (World world : Bukkit.getWorlds()) world.removePluginChunkTickets(this);

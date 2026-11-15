@@ -250,7 +250,9 @@ object PitHook {
         var asyncTickHandler = AsyncTickHandler()
         ThePit.getInstance().singleAsyncScheduler = asyncTickHandler
         asyncTickHandler.runTaskTimerAsynchronously(ThePit.getInstance(), 0, 1)
-        GoldDropRunnable().runTaskTimer(ThePit.getInstance(), 20, 20)
+        val goldDrops = GoldDropRunnable()
+        ThePit.getInstance().goldDropRunnable = goldDrops
+        goldDrops.runTaskTimer(ThePit.getInstance(), 20, 20)
 
         FreeExpRunnable().runTaskTimer(ThePit.getInstance(), 20 * 60 * 15, 20 * 60 * 15)
         NightVisionRunnable().runTaskTimer(ThePit.getInstance(), 20, 20)
@@ -778,6 +780,8 @@ private fun registerListeners() {
         ChatListener::class.java,
         PlayerMarco::class.java,
         ProtectListener::class.java,
+        PitWorldRules::class.java,
+        TaskFailureListener::class.java,
         PantsBundleShopButton::class.java,
         SwordBundleShopButton::class.java,
         BowBundleShopButton::class.java,

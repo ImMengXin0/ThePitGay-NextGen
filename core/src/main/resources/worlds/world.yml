@@ -4,6 +4,10 @@ id: 1
 worldName: "world"
 #建筑高度限制
 arenaHighestY: 102
+# 金锭范围属于本地图；默认以 pitA/pitB 安全区中心为中心，X/Z 各延伸 90 格。
+# 可按地图设置 center-x、center-z 和 min-y；仅选择已加载区块中低于 arenaHighestY 的安全地面。
+gold-drop:
+  radius: 90
 loc:
   spawn:
     - world|1.1394877433776855|114.0|9.438972473144531|-180.74582|1.1056237

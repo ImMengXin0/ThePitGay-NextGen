@@ -29,7 +29,8 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.scheduler.BukkitScheduler;
-import org.spigotmc.event.player.PlayerSpawnLocationEvent;
+import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
+import io.papermc.paper.connection.PlayerConfigurationConnection;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,6 +59,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
     private MockedStatic<PitInternalImpl> startup;
     private MockedStatic<PlayerUtil> playerUtil;
     private ConfigManager configs;
+    private MapSelector selector;
     private PitWorldConfig worldConfig;
     private ProfileOperator profiles;
     private PackedOperator operator;
@@ -91,7 +93,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         when(global.getStartDate()).thenReturn(-1L);
         worldConfig = mock(PitWorldConfig.class);
         when(configs.getSelectedWorldConfig()).thenReturn(worldConfig);
-        MapSelector selector = new MapSelector(plugin);
+        selector = new MapSelector(plugin);
         when(plugin.getMapSelector()).thenReturn(selector);
         profiles = mock(ProfileOperator.class);
         when(plugin.getProfileOperator()).thenReturn(profiles);
@@ -160,8 +162,11 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         while (!mainThreadTasks.isEmpty()) mainThreadTasks.remove().run();
     }
 
-    private PlayerSpawnLocationEvent initialSpawn(Player player) {
-        PlayerSpawnLocationEvent event = new PlayerSpawnLocationEvent(player, position.get().clone());
+    private AsyncPlayerSpawnLocationEvent initialSpawn(Player player) {
+        // Simulate the main-thread publication performed on map selection/reload.
+        selector.refreshLoginSpawns();
+        AsyncPlayerSpawnLocationEvent event = new AsyncPlayerSpawnLocationEvent(
+                mock(PlayerConfigurationConnection.class), position.get().clone(), false);
         listener.onPlayerSpawnLocation(event);
         // The server applies the event location directly, before firing PlayerJoinEvent.
         position.set(event.getSpawnLocation().clone());
@@ -173,6 +178,23 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         return List.of("world|9.5|114.0|0.5|90.0|0.0", "world|0.5|114.0|-8.5|0.0|0.0",
                         "world|-8.5|114.0|0.5|-90.0|0.0", "world|0.5|114.0|9.5|180.0|0.0")
                 .stream().map(serializer::fromString).toList();
+    }
+
+    @Test
+    public void asyncSpawnSelectionUsesDetachedPublishedLocationsWithoutReadingConfig() throws Exception {
+        Location configured = new Location(pitWorld, 10.5, 114, -9.5);
+        when(worldConfig.getSpawnLocations()).thenReturn(List.of(configured));
+        selector.refreshLoginSpawns();
+        clearInvocations(configs, worldConfig, pitWorld);
+        configured.setX(999);
+        Location first = java.util.concurrent.CompletableFuture.supplyAsync(selector::getLoginSpawnLocation).get();
+        assertEquals(10.5, first.getX(), 0);
+        first.setX(500);
+        Location second = java.util.concurrent.CompletableFuture.supplyAsync(selector::getLoginSpawnLocation).get();
+        assertEquals(10.5, second.getX(), 0);
+        verifyNoInteractions(configs, worldConfig, pitWorld);
+        selector.refreshLoginSpawns();
+        assertEquals(999, selector.getLoginSpawnLocation().getX(), 0);
     }
 
     @Test
@@ -208,7 +230,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         Location spawn = new Location(pitWorld, 12.25, 114, -9.75, 137.5F, -14.25F);
         when(worldConfig.getSpawnLocations()).thenReturn(List.of(spawn));
         Player player = reconnectAt(new Location(logoutWorld, 500, 32, 600));
-        PlayerSpawnLocationEvent spawnEvent = initialSpawn(player);
+        AsyncPlayerSpawnLocationEvent spawnEvent = initialSpawn(player);
         assertEquals(spawn, position.get());
         assertNotSame("An event listener must not be able to mutate the configured spawn", spawn, spawnEvent.getSpawnLocation());
         listener.onPlayerJoin(new PlayerJoinEvent(player, (String) null));
@@ -282,7 +304,11 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         startup.when(PitInternalImpl::getLoaded).thenReturn(false);
         Player player = reconnectAt(new Location(logoutWorld, 25, 70, 25));
         Location saved = position.get().clone();
-        initialSpawn(player);
+        clearInvocations(configs);
+        AsyncPlayerSpawnLocationEvent spawn = new AsyncPlayerSpawnLocationEvent(
+                mock(PlayerConfigurationConnection.class), saved.clone(), false);
+        listener.onPlayerSpawnLocation(spawn);
+        assertEquals(saved, spawn.getSpawnLocation());
         assertEquals(saved, position.get());
         verify(configs, never()).getSelectedWorldConfig();
         listener.onPlayerJoin(new PlayerJoinEvent(player, (String) null));

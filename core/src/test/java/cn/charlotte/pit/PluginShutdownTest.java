@@ -36,6 +36,8 @@ public class PluginShutdownTest extends net.mizukilab.pit.BukkitDataTestSupport 
             NametagHandler nametags = mock(NametagHandler.class);
             doThrow(new IllegalStateException("nametag cleanup failed")).when(nametags).cleanup();
             plugin.setNametagHandler(nametags);
+            var goldDrops = mock(net.mizukilab.pit.handlers.GoldDropRunnable.class);
+            plugin.setGoldDropRunnable(goldDrops);
             IProfilerOperator operator = mock(IProfilerOperator.class);
             doAnswer(call -> {
                 profiles.verify(() -> PlayerProfile.saveAllSync(false));
@@ -50,8 +52,9 @@ public class PluginShutdownTest extends net.mizukilab.pit.BukkitDataTestSupport 
             plugin.onDisable();
             plugin.onDisable();
 
-            var order = inOrder(scheduler, nametags, operator, db);
+            var order = inOrder(scheduler, goldDrops, nametags, operator, db);
             order.verify(scheduler).cancelTasks(plugin);
+            order.verify(goldDrops).clear();
             order.verify(nametags).cleanup();
             profiles.verify(() -> PlayerProfile.saveAllSync(false), times(1));
             order.verify(operator).close();

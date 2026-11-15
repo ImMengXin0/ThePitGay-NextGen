@@ -120,11 +120,12 @@ class PitAdminCommands {
     }
 
     @Execute(name = "addSpawn")
-    @Async
     fun addSpawn(@Context player: Player): String {
         ThePit.getInstance().pitConfig.spawnLocations.add(player.location)
 
         ThePit.getInstance().pitConfig.save()
+
+        ThePit.getInstance().mapSelector.refreshLoginSpawns()
 
         val num = ThePit.getInstance().pitConfig.spawnLocations.size
 

@@ -64,6 +64,7 @@ public class ConfigManager {
         Validate.notNull(selectedWorldConfig);
         this.instance.setPitConfig(selectedWorldConfig);
         this.instance.setGlobalConfig(global);
+        Bukkit.getWorlds().forEach(net.mizukilab.pit.listener.PitWorldRules::apply);
     }
 
     public PitWorldConfig getSelectedWorldConfig() {
@@ -191,6 +192,7 @@ public class ConfigManager {
         PitWorldConfig selectedWorldConfig = this.getSelectedWorldConfig();
         if (selectedWorldConfig != null) {
             instance.setPitConfig(selectedWorldConfig);
+            Bukkit.getWorlds().forEach(net.mizukilab.pit.listener.PitWorldRules::apply);
         } else {
             System.out.println("Can't find a suitable config for world map");
         }

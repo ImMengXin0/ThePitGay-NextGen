@@ -65,7 +65,7 @@ import org.bukkit.metadata.MetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.BlockIterator;
-import org.spigotmc.event.player.PlayerSpawnLocationEvent;
+import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
 
 import java.lang.reflect.Field;
 import java.text.DecimalFormat;
@@ -179,20 +179,15 @@ public class PlayerMarco implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
-    public void onPlayerSpawnLocation(PlayerSpawnLocationEvent event) {
+    public void onPlayerSpawnLocation(AsyncPlayerSpawnLocationEvent event) {
         if (!PitInternalImpl.getLoaded()) {
             return;
         }
-        Location spawn = ThePit.getInstance().getMapSelector().getRandomLocation();
+        Location spawn = ThePit.getInstance().getMapSelector().getLoginSpawnLocation();
         if (spawn == null) {
             return;
         }
-        if (spawn.getWorld() == null) {
-            ThePit.getInstance().getLogger().warning("地图出生点的世界未加载，无法设置玩家初始出生位置。");
-            return;
-        }
-        // Spigot applies this location before login packets; the player has no connection yet.
-        event.setSpawnLocation(spawn.clone());
+        event.setSpawnLocation(spawn);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)

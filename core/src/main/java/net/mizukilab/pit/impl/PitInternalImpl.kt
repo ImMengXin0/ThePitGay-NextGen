@@ -50,6 +50,7 @@ import java.util.*
 
 object PitInternalImpl : PitInternalHook {
     @JvmStatic
+    @Volatile
     var loaded = false
     override fun openMythicWellMenu(player: Player?) {
         if (player == null) return

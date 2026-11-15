@@ -39,6 +39,22 @@ public class PitWorldConfig extends Configuration {
     private int arenaHighestY;
     @Setter
     @Getter
+    @ConfigData(path = "gold-drop.center-x")
+    private double goldDropCenterX = Double.NaN;
+    @Setter
+    @Getter
+    @ConfigData(path = "gold-drop.center-z")
+    private double goldDropCenterZ = Double.NaN;
+    @Setter
+    @Getter
+    @ConfigData(path = "gold-drop.radius")
+    private int goldDropRadius = 90;
+    @Setter
+    @Getter
+    @ConfigData(path = "gold-drop.min-y")
+    private int goldDropMinY = Integer.MIN_VALUE;
+    @Setter
+    @Getter
     @ConfigData(
             path = "loc.spawn"
     )

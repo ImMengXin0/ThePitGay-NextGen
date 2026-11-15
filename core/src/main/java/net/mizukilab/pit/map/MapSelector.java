@@ -26,6 +26,8 @@ public class MapSelector {
     Cooldown switchCooldown;
     ThePit thePit;
     ConfigManager config;
+    // Published on the server thread; login configuration threads only read these copies.
+    private volatile List<Location> loginSpawns = List.of();
     public MapSelector(ThePit thePit){
         ConfigManager configManager = thePit.getConfigManager();
         Validate.notNull(configManager);
@@ -43,6 +45,7 @@ public class MapSelector {
         long duration = config.getGlobal().getDuration();
         if(duration == -1 || start == -1){
             switchCooldown = null;
+            refreshLoginSpawns();
             return;
         }
         long curTime = System.currentTimeMillis();
@@ -59,9 +62,11 @@ public class MapSelector {
         long id = config.getGlobal().getCurrentMapId() + maps;
         config.setCursor((int) id);
         config.synchronizeLegacy();
+        refreshLoginSpawns();
         switchCooldown = new Cooldown(currentCooldown);
     }
     public void reset(){
+        refreshLoginSpawns();
         reInitNpc();
         reTeleportEntities();
         resetPlayerStatus();
@@ -79,6 +84,26 @@ public class MapSelector {
             return null;
         }
         return RandomUtil.helpMeToChooseOne(spawnLocations);
+    }
+
+    public void refreshLoginSpawns() {
+        PitWorldConfig selected = config.getSelectedWorldConfig();
+        if (selected == null) {
+            loginSpawns = List.of();
+            return;
+        }
+        List<Location> configured = selected.getSpawnLocations();
+        if (configured.stream().anyMatch(location -> location == null || location.getWorld() == null)) {
+            thePit.getLogger().warning("地图出生点的世界未加载，无法设置玩家初始出生位置。");
+        }
+        loginSpawns = configured.stream().filter(location -> location != null && location.getWorld() != null)
+                .map(Location::clone).toList();
+    }
+
+    /** Safe for AsyncPlayerSpawnLocationEvent: no config mutation or Bukkit world access. */
+    public Location getLoginSpawnLocation() {
+        List<Location> snapshot = loginSpawns;
+        return snapshot.isEmpty() ? null : snapshot.get(ThreadLocalRandom.current().nextInt(snapshot.size())).clone();
     }
     public void teleportIntoSpawn(Entity entity) {
         Location randomLocation = getRandomLocation();
