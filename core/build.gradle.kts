@@ -299,6 +299,7 @@ tasks.register<Test>("fancyNpcCompatibilityTest") {
     filter {
         includeTestsMatching("net.mizukilab.pit.platform.paper.FancyNpcServiceTest")
         includeTestsMatching("cn.mythicland.npclib.listeners.PacketInteractionTest")
+        includeTestsMatching("net.mizukilab.pit.npc.NpcInteractionDebugTest")
     }
 }
 

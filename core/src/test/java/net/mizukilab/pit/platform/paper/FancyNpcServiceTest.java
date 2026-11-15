@@ -30,11 +30,13 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 /** Real Fancy update() and attribute handling, with mocked entities and packet transport. */
-public class FancyNpcServiceTest {
+public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport {
     private MockedStatic<Bukkit> bukkit;
     private MockedStatic<FancyNpcsPlugin> fancyApi;
     private MockedStatic<?> colors;
     private FancyNpcsPlugin fancy;
+    private ThePit owner;
+    private PluginManager plugins;
     private FancyNpcService service;
     private FancyTextService texts;
     private FancyTextService.TextHandle text;
@@ -54,7 +56,7 @@ public class FancyNpcServiceTest {
     @Before public void setup() {
         bukkit = PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
-        PluginManager plugins = mock(PluginManager.class);
+        plugins = mock(PluginManager.class);
         bukkit.when(Bukkit::getPluginManager).thenReturn(plugins);
         org.bukkit.Server server = mock(org.bukkit.Server.class);
         when(server.getPluginManager()).thenReturn(plugins);
@@ -70,10 +72,12 @@ public class FancyNpcServiceTest {
             return npc;
         });
         mockColorTranslation();
-        ThePit owner = mock(ThePit.class);
+        owner = mock(ThePit.class);
         when(owner.isEnabled()).thenReturn(true);
+        when(owner.getServer()).thenReturn(server);
         BukkitScheduler scheduler = mock(BukkitScheduler.class);
         bukkit.when(Bukkit::getScheduler).thenReturn(scheduler);
+        when(scheduler.runTaskTimer(eq(owner), any(Runnable.class), anyLong(), anyLong())).thenReturn(mock(BukkitTask.class));
         when(scheduler.runTaskTimer(eq(owner), any(Runnable.class), eq(5L), eq(5L))).thenAnswer(call -> {
             refresh = call.getArgument(1);
             return mock(BukkitTask.class);
@@ -126,6 +130,109 @@ public class FancyNpcServiceTest {
     @Test public void playerRendersWithoutOptionalAttributeProviders() { assertRenders(EntityType.PLAYER); }
     @Test public void villagerRendersWithoutOptionalAttributeProviders() { assertRenders(EntityType.VILLAGER); }
     @Test public void silverfishRendersWithoutOptionalAttributeProviders() { assertRenders(EntityType.SILVERFISH); }
+
+    @Test public void positionalClickReachesTheActualPerkMenuThroughRegisteredListeners() throws Exception {
+        assertPerkMenuOpens(true, false);
+    }
+
+    @Test public void ordinaryFancyClickReachesTheActualPerkMenuThroughRegisteredListeners() throws Exception {
+        assertPerkMenuOpens(false, false);
+    }
+
+    @Test public void cancelledFancyClickCannotReachTheActualPerkMenu() throws Exception {
+        assertPerkMenuOpens(false, true);
+    }
+
+    private void assertPerkMenuOpens(boolean positional, boolean cancelled) throws Exception {
+        var listeners = new ArrayList<org.bukkit.event.Listener>();
+        doAnswer(call -> {
+            org.bukkit.event.Listener listener = call.getArgument(0);
+            listeners.add(listener);
+            for (var method : listener.getClass().getMethods()) {
+                var annotation = method.getAnnotation(org.bukkit.event.EventHandler.class);
+                if (annotation == null) continue;
+                Class<?> eventType = method.getParameterTypes()[0];
+                var handlers = (org.bukkit.event.HandlerList) eventType.getMethod("getHandlerList").invoke(null);
+                handlers.register(new org.bukkit.plugin.RegisteredListener(listener, (target, event) -> {
+                    if (eventType.isInstance(event)) {
+                        try { method.invoke(target, event); }
+                        catch (ReflectiveOperationException failure) { throw new org.bukkit.event.EventException(failure); }
+                    }
+                }, annotation.priority(), owner, annotation.ignoreCancelled()));
+            }
+            return null;
+        }).when(plugins).registerEvents(any(), eq(owner));
+        doAnswer(call -> {
+            org.bukkit.event.Event event = call.getArgument(0);
+            for (var listener : event.getHandlers().getRegisteredListeners()) listener.callEvent(event);
+            return null;
+        }).when(plugins).callEvent(any());
+        try (var pit = mockStatic(ThePit.class);
+             var profiles = mockStatic(cn.charlotte.pit.data.PlayerProfile.class);
+             var nativeApi = mockStatic(de.oliver.fancynpcs.FancyNpcs.class);
+             var actions = mockStatic(de.oliver.fancynpcs.api.actions.executor.ActionExecutor.class)) {
+            var nativePlugin = mock(de.oliver.fancynpcs.FancyNpcs.class);
+            var nativeManager = mock(de.oliver.fancynpcs.NpcManagerImpl.class);
+            nativeApi.when(de.oliver.fancynpcs.FancyNpcs::getInstance).thenReturn(nativePlugin);
+            when(nativePlugin.getNpcManagerImpl()).thenReturn(nativeManager);
+            plugins.registerEvents(new de.oliver.fancynpcs.listeners.PlayerUseUnknownEntityListener(), owner);
+            if (cancelled) plugins.registerEvents(new CancellingListener(), owner);
+            pit.when(ThePit::getInstance).thenReturn(owner);
+            when(owner.getFancyNpcs()).thenReturn(service);
+            var config = mock(net.mizukilab.pit.config.PitWorldConfig.class);
+            when(owner.getPitConfig()).thenReturn(config);
+            when(config.getPerkNpcLocation()).thenReturn(new Location(world, 0, 64, 0));
+            var perks = new cn.charlotte.pit.perk.PerkFactory();
+            when(owner.getPerkFactory()).thenReturn(perks);
+            for (String name : List.of("XPBoost", "CoinBoost", "MeleeBoost", "ArrowBoost", "DmgReduceBoost", "BuilderBattleBoost", "ElGatoBoost")) {
+                var perk = mock(cn.charlotte.pit.perk.AbstractPerk.class);
+                when(perk.getInternalPerkName()).thenReturn(name);
+                when(perk.getDescription(player)).thenReturn(List.of());
+                perks.getPerkMap().put(name, perk);
+            }
+            var profile = mock(cn.charlotte.pit.data.PlayerProfile.class);
+            when(profile.getLevel()).thenReturn(120);
+            when(profile.getUnlockedPerkMap()).thenReturn(new java.util.HashMap<>());
+            when(profile.getChosePerk()).thenReturn(new java.util.HashMap<>());
+            profiles.when(() -> cn.charlotte.pit.data.PlayerProfile.getPlayerProfileByUuid(player.getUniqueId())).thenReturn(profile);
+            bukkit.when(() -> Bukkit.createInventory(any(org.bukkit.inventory.InventoryHolder.class), anyInt(), anyString()))
+                    .thenAnswer(call -> new org.bukkit.craftbukkit.inventory.CraftInventoryCustom(call.getArgument(0), (int) call.getArgument(1), (String) call.getArgument(2)));
+            when(player.openInventory(any(org.bukkit.inventory.Inventory.class))).thenReturn(mock(org.bukkit.inventory.InventoryView.class));
+            var factory = new net.mizukilab.pit.npc.NpcFactory();
+            when(owner.getNpcFactory()).thenReturn(factory);
+            plugins.registerEvents(factory, owner);
+            try {
+                factory.init(List.of(MenuPerkNpc.class));
+                assertEquals(1, factory.getPitNpc().size());
+                var npc = npcs.getLast();
+                when(fancy.getNpcManager().getNpc(npc.getEntityId())).thenReturn(npc);
+                when(nativeManager.getNpc(npc.getEntityId())).thenReturn(npc);
+                plugins.callEvent(new com.destroystokyo.paper.event.player.PlayerUseUnknownEntityEvent(player,
+                        npc.getEntityId(), false, org.bukkit.inventory.EquipmentSlot.HAND,
+                        positional ? new org.bukkit.util.Vector(0, 1, 0) : null));
+                if (cancelled) {
+                    assertNull(net.mizukilab.pit.util.menu.Menu.find(player));
+                    verify(player, never()).openInventory(any(org.bukkit.inventory.Inventory.class));
+                } else {
+                    assertTrue("Click must reach the real perk menu", net.mizukilab.pit.util.menu.Menu.find(player)
+                            instanceof net.mizukilab.pit.menu.perk.normal.choose.PerkChooseMenu);
+                    verify(player).openInventory(any(org.bukkit.inventory.Inventory.class));
+                }
+            } finally { factory.shutdown(); }
+        } finally {
+            listeners.forEach(org.bukkit.event.HandlerList::unregisterAll);
+            net.mizukilab.pit.util.menu.Menu.currentlyOpenedMenus.remove(player.getUniqueId());
+        }
+    }
+
+    public static final class MenuPerkNpc extends net.mizukilab.pit.npc.type.PerkNPC {
+        @Override public void initSkin(cn.mythicland.npclib.api.NPC npc) { }
+    }
+
+    public static final class CancellingListener implements org.bukkit.event.Listener {
+        @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)
+        public void cancel(de.oliver.fancynpcs.api.events.NpcInteractEvent event) { event.setCancelled(true); }
+    }
 
     private void assertRenders(EntityType type) {
         FancyNpcService.NpcHandle handle = service.create("test", new Location(world, 0, 64, 0), type, ignored -> {});

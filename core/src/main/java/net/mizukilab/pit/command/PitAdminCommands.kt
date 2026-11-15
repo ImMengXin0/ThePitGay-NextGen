@@ -49,6 +49,11 @@ import kotlin.math.min
 @Command(name = "pit")
 @Permission("pit.admin")
 class PitAdminCommands {
+    @Execute(name = "npcdebug")
+    fun npcDebug(@Context player: Player) {
+        net.mizukilab.pit.npc.NpcInteractionDebug.start(player)
+    }
+
     @Execute(name = "switchMap")
     @Shortcut("swm")
     fun switchMap(@Context player: Player, @OptionalArg("cursor") @Key("pit.map-id") cursor: Int?) {

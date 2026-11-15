@@ -96,6 +96,7 @@ public class NpcFactory implements Listener {
     }
 
     public void shutdown() {
+        NpcInteractionDebug.close();
         if (refreshTask != null) refreshTask.cancel();
         refreshTask = null;
         npcLib.shutdown();
@@ -111,9 +112,11 @@ public class NpcFactory implements Listener {
     @EventHandler public void onInteract(NPCInteractEvent event) {
         for (AbstractPitNPC model : pitNpc) {
             if (model.getNpc() != null && model.getNpc().getUniqueId().equals(event.getNPC().getUniqueId())) {
+                NpcInteractionDebug.trace(event.getWhoClicked(), "model", () -> "npc=" + model.getNpcInternalName());
                 model.handlePlayerInteract(event.getWhoClicked());
                 return;
             }
         }
+        NpcInteractionDebug.trace(event.getWhoClicked(), "model-missing", () -> "uuid=" + event.getNPC().getUniqueId());
     }
 }

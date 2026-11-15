@@ -60,6 +60,7 @@ public abstract class Menu {
 
 
         try {
+            net.mizukilab.pit.npc.NpcInteractionDebug.trace(player, "menu", () -> "type=" + getClass().getName());
             this.buttons = this.getButtons(player);
 
             Menu previousMenu = Menu.currentlyOpenedMenus.get(player.getUniqueId());
@@ -114,6 +115,7 @@ public abstract class Menu {
                 player.updateInventory();
             } else {
                 if (player.openInventory(inventory) == null) {
+                    net.mizukilab.pit.npc.NpcInteractionDebug.trace(player, "menu-cancelled", () -> "type=" + getClass().getName());
                     forget(player, this);
                     this.setClosedByMenu(true);
                     this.onClose(player);
@@ -122,8 +124,10 @@ public abstract class Menu {
             }
 
             this.onOpen(player);
+            net.mizukilab.pit.npc.NpcInteractionDebug.trace(player, "menu-open", () -> "type=" + getClass().getName());
             this.setClosedByMenu(false);
         } catch (Exception e) {
+            net.mizukilab.pit.npc.NpcInteractionDebug.trace(player, "menu-error", () -> e.toString());
             CC.printError(player, e);
         }
     }
