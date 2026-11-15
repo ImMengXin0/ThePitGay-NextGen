@@ -18,8 +18,8 @@ service:
     # 认证库；留空时使用上面的 database，与旧配置兼容。使用 admin 认证时填 admin。
     certDatabase: ""
     #不需要直接删除即可
-    user: admin
-    password: admin
+    user: ""
+    password: ""
 #debug选项
 debug:
   debugServer: false

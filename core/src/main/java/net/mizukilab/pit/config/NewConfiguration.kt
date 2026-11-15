@@ -68,7 +68,7 @@ object NewConfiguration {
 
     fun loadFile() {
         val file = File(ThePit.getInstance().dataFolder, "custom.yml")
-        config = YamlConfiguration.loadConfiguration(file)
+        config = net.mizukilab.pit.util.configuration.ConfigFiles.load(ThePit.getInstance(), file, "custom.yml")
         if (net.mizukilab.pit.npc.BuiltinNpcSkins.migrateDefaults(config)) {
             config.save(file)
         }
@@ -211,11 +211,7 @@ object NewConfiguration {
 
     fun load() {
         refreshAndSave()
-        val validationResult = validateConfig()
-        if (!validationResult.isValid) {
-            validationResult.printReport()
-            cleanupConfig()
-        }
+        // Unknown keys may belong to extensions or custom rate/MM groups. Preserve them.
 
         serverId = config.getString("server-id", null)
         rapidEnchanting = config.getBoolean("rapid-enchanting", false)

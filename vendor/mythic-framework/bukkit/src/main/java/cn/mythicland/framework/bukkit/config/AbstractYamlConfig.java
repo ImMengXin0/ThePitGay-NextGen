@@ -53,11 +53,7 @@ public abstract class AbstractYamlConfig {
         if (this.synchronizeDefaults()) this.backfillMissingDefaults();
         new ConfigBinder(this.fileName, this.configuration).bind(this);
         this.checkConfig();
-        if (!this.defaultPaths.isEmpty()) {
-            Set<String> paths = new HashSet<>(this.defaultPaths);
-            paths.addAll(this.additionalConfigPaths());
-            this.changed |= YamlConfigSynchronizer.removeUnknown(this.configuration, paths);
-        }
+        // Upgrades add defaults without deleting extension-defined sections.
         this.saveIfChanged();
     }
 

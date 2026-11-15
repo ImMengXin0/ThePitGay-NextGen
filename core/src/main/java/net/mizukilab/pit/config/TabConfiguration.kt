@@ -72,7 +72,7 @@ object TabConfiguration {
 
     fun loadFile() {
         val file = File(ThePit.getInstance().dataFolder, "tab.yml")
-        config = YamlConfiguration.loadConfiguration(file)
+        config = net.mizukilab.pit.util.configuration.ConfigFiles.load(ThePit.getInstance(), file, "tab.yml")
     }
 
     fun load() {
