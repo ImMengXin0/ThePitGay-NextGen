@@ -7,7 +7,7 @@
 ## 已完成的迁移
 
 - 全部四个模块改用 JDK 21 编译工具链、Gradle 8.14.3、Kotlin 2.1.20 和 Paper 1.21.11 开发包；运行和自动化测试使用 Java 25。不再依赖 1.8.8 服务端 JAR。旧实现归档在 `core/src/legacy/java/`，不参与编译和打包。
-- 新增 `paper-platform` 模块，以类型化 API 接入 FancyNpcs 和 FancyHolograms。内置菜单 NPC 已迁移，包括保留村民模型的仓库 NPC 和蠹虫模型的下水道 NPC；支持个人文字、可见范围、世界和区块检查、交互、重载及关闭清理。
+- 新增 `paper-platform` 模块，以类型化 API 接入 FancyNpcs 和 FancyHolograms。内置菜单 NPC 已迁移，包括昔涟玩家模型的寄存所 NPC 和蠹虫模型的下水道 NPC；支持个人文字、可见范围、世界和区块检查、交互、重载及关闭清理。
 - 全息图改用 FancyHolograms，支持公开或私人可见、多行、个人渲染、触摸、附件、临时寿命及父子行清理。渲染工作转至主线程，关闭时统一回收对象。
 - 原生战斗机器人迁移为现代 `ServerPlayer`，保留真实战斗实体及其独立连接、可见性和名牌处理。实际移动、碰撞和战斗效果仍需实服确认。
 - 内嵌 MythicFramework Bukkit 层、物品 API、材料、声音、药水、粒子、BossBar、聊天、标题及数据包调用已迁移到现代 API。WorldEdit 7 活动地图操作改为主线程有序队列，包含撤销、任务代次检查和关闭清理。

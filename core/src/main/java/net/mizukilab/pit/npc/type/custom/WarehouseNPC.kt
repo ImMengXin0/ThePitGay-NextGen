@@ -3,25 +3,21 @@ package net.mizukilab.pit.npc.type.custom
 import cn.charlotte.pit.ThePit
 import it.unimi.dsi.fastutil.objects.ObjectArrayList
 import net.mizukilab.pit.menu.warehouse.WarehouseMainMenu
-import net.mizukilab.pit.npc.AbstractPitNPC
+import net.mizukilab.pit.npc.BuiltinNpcSkins
+import net.mizukilab.pit.npc.type.SkinNPC
 import net.mizukilab.pit.util.PlayerUtil
 import net.mizukilab.pit.util.chat.CC
 import org.bukkit.Location
-import org.bukkit.entity.Entity
-import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
-import org.bukkit.entity.Villager
 
 /**
  * @Author: Araykal
  * @Date: 2025/6/21
  */
-class WarehouseNPC : AbstractPitNPC() {
+class WarehouseNPC : SkinNPC() {
     override fun getAnimation(): cn.mythicland.npclib.api.state.NPCAnimation? = null
-    override fun getNpcSkin(): cn.mythicland.npclib.api.skin.Skin? = null
+    override fun getNpcSkin(): cn.mythicland.npclib.api.skin.Skin = BuiltinNpcSkins.get(npcInternalName)
     override fun getNpcHeldItem(): org.bukkit.inventory.ItemStack? = null
-    override fun initSkin(npc: cn.mythicland.npclib.api.NPC) { }
-    override fun getNpcProfession(): Villager.Profession = Villager.Profession.LIBRARIAN
     override fun getNpcInternalName(): String {
         return "warehouse_npc"
     }
@@ -39,10 +35,6 @@ class WarehouseNPC : AbstractPitNPC() {
 
     override fun getNpcSpawnLocation(): Location {
         return ThePit.getInstance().pitConfig.warehouseNpcLocation
-    }
-
-    override fun getNpcEntityType(): EntityType {
-        return EntityType.VILLAGER
     }
 
     override fun handlePlayerInteract(player: Player) {

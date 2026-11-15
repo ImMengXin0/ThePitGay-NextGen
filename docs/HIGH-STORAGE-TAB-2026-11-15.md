@@ -10,6 +10,8 @@
 
 7 项真实 Paper 库存回归覆盖旧占位迁移、存档往返、左右容器转移、满箱/满包余量、归属与标题校验、受限物品和取消事件，以及快照恢复。未连接实际玩家数据库。
 
+寄存所 NPC 使用玩家模型，默认皮肤为《崩坏：星穹铁道》昔涟（Cyrene）的 Minecraft 同人皮肤，来源为 [MineSkin](https://mineskin.org/0961f7062f76400ba776649c38b37d40)。完整 Mojang 签名纹理内置于 JAR，启动无需访问皮肤查询接口。`custom.yml` 自动补齐 `warehouse_npc-npc-skin` 和 `not-netease-skins.warehouse_npc-signature`；管理员可成对替换这两个值。内置皮肤回归覆盖全部 11 组签名、升级补全和自定义覆盖。
+
 ## TAB 与 nametag 配置
 
 编辑 `plugins/ThePitUltimate/tab.yml`，这是截图中玩家列表条目的格式设置。原有 `head`、`part`、`animation` 继续控制页眉页脚。

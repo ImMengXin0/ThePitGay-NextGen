@@ -490,6 +490,8 @@ object NewConfiguration {
         "shop-npc-skin" to net.mizukilab.pit.npc.BuiltinNpcSkins.get("shop").value,
         "not-netease-skins.status-signature" to "",
         "status-npc-skin" to net.mizukilab.pit.npc.BuiltinNpcSkins.get("status").value,
+        "not-netease-skins.warehouse_npc-signature" to "",
+        "warehouse_npc-npc-skin" to net.mizukilab.pit.npc.BuiltinNpcSkins.get("warehouse_npc").value,
         "sewers-npc-skin" to "ewogICJ0aW1lc3RhbXAiIDogMTY0ODY3MjI4MTczMiwKICAicHJvZmlsZUlkIiA6ICI1MjhlYzVmMmEzZmM0MDA0YjYwY2IwOTA5Y2JiMjdjYiIsCiAgInByb2ZpbGVOYW1lIiA6ICJQdWxpenppIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlL2MxNTIxYTAyNTY2ODgxYjIwNTA4Mzg5YjM4MmEzMDIzMWE4NDViYTc0OWEyN2QxNDQ5NTUyNzQ3NDgxY2Y4YjkiLAogICAgICAibWV0YWRhdGEiIDogewogICAgICAgICJtb2RlbCIgOiAic2xpbSIKICAgICAgfQogICAgfQogIH0KfQ==",
         //新手保护
         "noob-protect.enable" to true,

@@ -5,6 +5,7 @@ import cn.mythicland.npclib.api.NPC;
 import cn.mythicland.npclib.api.skin.Skin;
 import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.npc.type.*;
+import net.mizukilab.pit.npc.type.custom.WarehouseNPC;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
@@ -53,8 +54,8 @@ public class BuiltinNpcSkinsTest {
         assertEquals(id, BuiltinNpcSkins.get(id).getSignature(), config.getString(signatureKey(id)));
     }
 
-    @Test public void allTenDistinctBundledSkinsHaveValidMojangSignatures() throws Exception {
-        assertEquals(10, ids().size());
+    @Test public void allElevenDistinctBundledSkinsHaveValidMojangSignatures() throws Exception {
+        assertEquals(11, ids().size());
         Set<String> unique = new HashSet<>();
         PublicKey key;
         try (InputStream stream = getClass().getResourceAsStream("/yggdrasil_session_pubkey.der")) {
@@ -143,7 +144,7 @@ public class BuiltinNpcSkinsTest {
         NewConfiguration.INSTANCE.setConfig(config);
         List<SkinNPC> npcs = List.of(new GenesisAngelNpc(), new GenesisDemonNpc(), new KeeperNPC(),
                 new MailNpc(), new PerkNPC(), new PrestigeNPC(), new QuestNpc(), new ShopNPC(),
-                new StatusNPC(), new InfinityItemNPC());
+                new StatusNPC(), new InfinityItemNPC(), new WarehouseNPC());
         Set<String> actualIds = new HashSet<>();
         for (SkinNPC npc : npcs) {
             String id = npc.getNpcInternalName();
