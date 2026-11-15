@@ -3,7 +3,7 @@ package net.mizukilab.pit.enchantment.type.normal;
 import cn.charlotte.pit.data.PlayerProfile;
 import com.google.common.util.concurrent.AtomicDouble;
 import lombok.SneakyThrows;
-import net.minecraft.server.v1_8_R3.PacketPlayInFlying;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.param.item.ArmorOnly;
 import net.mizukilab.pit.enchantment.rarity.EnchantmentRarity;
@@ -67,7 +67,7 @@ public class TrotEnchant extends AbstractEnchantment implements MovementHandler,
     }
 
     @Override
-    public void handleUpdateLocation(Player player, Location location, Location location1, PacketPlayInFlying packetPlayInFlying) {
+    public void handleUpdateLocation(Player player, Location location, Location location1, ServerboundMovePlayerPacket packetPlayInFlying) {
     }
 
     @Override
@@ -99,7 +99,7 @@ public class TrotEnchant extends AbstractEnchantment implements MovementHandler,
     }
 
     @Override
-    public void handleUpdateRotation(Player player, Location location, Location location1, PacketPlayInFlying packetPlayInFlying) {
+    public void handleUpdateRotation(Player player, Location location, Location location1, ServerboundMovePlayerPacket packetPlayInFlying) {
     }
 
 }

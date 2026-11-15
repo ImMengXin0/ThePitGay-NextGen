@@ -126,14 +126,14 @@ class PitAdminSimpleCommand {
     @Execute(name = "ench")
     @Permission("pit.admin")
     fun ench(@Context player: Player) {
-        player.playSound(player.location, Sound.CHEST_OPEN, 1f, 1f)
+        player.playSound(player.location, Sound.BLOCK_CHEST_OPEN, 1f, 1f)
         ThePit.api.openMenu(player, "admin_enchant")
     }
 
     @Execute(name = "pi")
     @Permission("pit.admin")
     fun pitItem(@Context player: Player) {
-        player.playSound(player.location, Sound.CHEST_OPEN, 1f, 1f)
+        player.playSound(player.location, Sound.BLOCK_CHEST_OPEN, 1f, 1f)
         ThePit.api.openMenu(player, "admin_item")
     }
 
@@ -446,14 +446,14 @@ class PitAdminSimpleCommand {
     @Execute(name = "debugItem")
     @Permission("pit.admin")
     fun debugItem(@Context player: Player) {
-        println((InventoryUtil.itemsToString(arrayOf(player.itemInHand))))
+        println((InventoryUtil.itemsToString(arrayOf(player.inventory.itemInMainHand))))
     }
 
     @Execute(name = "enchantrecords")
     @Permission("pit.admin")
     @HandHasItem(mythic = true)
     fun enchantRecords(@Context player: Player) {
-        val item = player.itemInHand
+        val item = player.inventory.itemInMainHand
 
         val mythicItem = Utils.getMythicItem(item) ?: return
 
@@ -491,11 +491,11 @@ class PitAdminSimpleCommand {
     @Permission("pit.admin")
     @HandHasItem(mythic = true)
     fun clearRecords(@Context player: Player): String {
-        val item = player.itemInHand
+        val item = player.inventory.itemInMainHand
         val mythicItem = Utils.getMythicItem(item)
 
         mythicItem.enchantmentRecords.clear()
-        player.itemInHand = mythicItem.toItemStack()
+        player.inventory.setItemInMainHand(mythicItem.toItemStack())
 
         return "§a已清空该物品的附魔记录"
     }
@@ -521,7 +521,7 @@ class PitAdminSimpleCommand {
     @Permission("pit.admin")
     @HandHasItem
     fun startCustomAuction(@Context player: Player, @Arg("price") price: Long) {
-        val itemStack = player.itemInHand
+        val itemStack = player.inventory.itemInMainHand
         AuctionEvent().also {
             it.lots = AuctionEvent.LotsData(arrayOf(itemStack.clone()), price, 0)
             it.setStartByAdmin(true)

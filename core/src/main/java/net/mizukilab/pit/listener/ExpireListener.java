@@ -1,9 +1,9 @@
 package net.mizukilab.pit.listener;
 
-import net.minecraft.server.v1_8_R3.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.mizukilab.pit.util.Utils;
 import org.bukkit.ChatColor;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -52,19 +52,19 @@ public class ExpireListener implements Listener {
 
         // 转换为NMS物品
         // 草泥马的是不是脑残?
-        net.minecraft.server.v1_8_R3.ItemStack nmsItem = Utils.toNMStackQuick(item);
-        if (nmsItem == null || !nmsItem.hasTag()) {
+        net.minecraft.world.item.ItemStack nmsItem = Utils.toNMStackQuick(item);
+        if (nmsItem == null || cn.mythicland.framework.bukkit.item.PaperItemData.custom(nmsItem).isEmpty()) {
             return 0;
         }
 
 
-        NBTTagCompound rootTag = nmsItem.getTag();
-        NBTTagCompound extraTag = rootTag.getCompound(EXTRA_TAG);
+        CompoundTag rootTag = cn.mythicland.framework.bukkit.item.PaperItemData.custom(nmsItem);
+        CompoundTag extraTag = rootTag.getCompoundOrEmpty(EXTRA_TAG);
         if (extraTag == null) {
             return 0;
         }
 
-        return extraTag.hasKey(NBT_KEY) ? extraTag.getLong(NBT_KEY) : 0;
+        return extraTag.contains(NBT_KEY) ? extraTag.getLongOr(NBT_KEY, 0L) : 0;
     }
 
     private void checkInventory(Inventory inv) {

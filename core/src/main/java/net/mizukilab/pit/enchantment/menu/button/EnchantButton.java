@@ -8,7 +8,7 @@ import cn.hutool.core.lang.func.Consumer3;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
-import net.minecraft.server.v1_8_R3.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.mizukilab.pit.data.operator.SuPromise;
 import net.mizukilab.pit.data.operator.ProfileOperator;
 import net.mizukilab.pit.enchantment.info.EnchantRequest;
@@ -142,7 +142,7 @@ public class EnchantButton extends Button {
                     lines.add("&c天赋 &6邪术 &c等级 &eIII &c后解锁此功能!");
                 }
             }
-            return new ItemBuilder(Material.ENCHANTMENT_TABLE)
+            return new ItemBuilder(Material.ENCHANTING_TABLE)
                     .name("&d神话之井")
                     .lore(lines)
                     .build();
@@ -223,7 +223,7 @@ public class EnchantButton extends Button {
                 return;
             }
             if (!removeMythicLegWithColor(player, color)) {
-                player.playSound(player.getLocation(), Sound.ENDERMAN_TELEPORT, 1, 1);
+                player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
                 player.sendMessage(CC.translate("&c请放入一条额外的 " + color.getChatColor() + color.getDisplayName() + "色神话之甲 &c才能附魔!"));
                 return;
             }
@@ -301,15 +301,6 @@ public class EnchantButton extends Button {
             menu.getAnimationData().setEnd(true);
         }
     }
-    private static BaseComponent[] toEmptyHover(IMythicItem mythicItem) {
-        net.minecraft.server.v1_8_R3.ItemStack nms = Utils.toNMStackQuick(mythicItem.toItemStack());
-        NBTTagCompound nbtTagCompound = new NBTTagCompound();
-        nms.save(nbtTagCompound);
-        return new BaseComponent[]{
-                new TextComponent(nbtTagCompound.toString())
-        };
-    }
-
     private void beginAnnounceAsync(Player player, IMythicItem mythicItem, PlayerProfile profile) {
         new BukkitRunnable() {
             final Cooldown cooldown = new Cooldown(10, TimeUnit.SECONDS);
@@ -317,13 +308,13 @@ public class EnchantButton extends Button {
             public void run() {
                 if (menu.getAnimationData().isFinished()) {
                     this.cancel();
-                    BaseComponent[] hoverEventComponents = toEmptyHover(mythicItem);
+                    HoverEvent hover = cn.mythicland.framework.bukkit.item.v1_8_R3.ItemHoverUtil.hover(mythicItem.toItemStack());
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         if (!FuncsKt.isSpecial(p)) {
                             if (!PlusPlayer.getPlusPlayer().contains(player.getName())) {
                                 p.spigot().sendMessage(new ChatComponentBuilder(CC.translate("&d&l稀有附魔! &7" + profile.getFormattedNameWithRoman() + " &7在神话之井中获得了稀有物品: " + mythicItem.toItemStack().getItemMeta().getDisplayName() + " &e[查看]"))
-                                        .setCurrentHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_ITEM, hoverEventComponents)).create());
-                                p.playSound(p.getLocation(), Sound.ENDERDRAGON_GROWL, 1, 1);
+                                        .setCurrentHoverEvent(hover).create());
+                                p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1, 1);
                             }
                         }
 

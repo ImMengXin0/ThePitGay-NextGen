@@ -6,7 +6,11 @@ import cn.charlotte.pit.data.sub.PlayerEnderChest;
 import cn.charlotte.pit.data.sub.PlayerWarehouse;
 import cn.charlotte.pit.data.sub.PlayerInv;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import net.minecraft.server.v1_8_R3.*;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.server.Bootstrap;
 import net.mizukilab.pit.command.PitCommands;
 import net.mizukilab.pit.config.PitWorldConfig;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
@@ -22,9 +26,9 @@ import net.mizukilab.pit.util.item.ItemUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Server;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftInventoryCustom;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.inventory.CraftInventoryCustom;
+import org.bukkit.craftbukkit.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.*;
@@ -63,7 +67,7 @@ public class ItemRepairRenameIntegrationTest {
     @BeforeClass
     public static void registerVanillaItems() {
         PrintStream out = System.out, err = System.err;
-        try (var attributes = mockConstruction(AttributeModifier.class)) { DispenserRegistry.c(); }
+        try (var attributes = mockConstruction(AttributeModifier.class)) { net.mizukilab.pit.PaperTestBootstrap.initialize(); }
         finally { System.setOut(out); System.setErr(err); }
     }
 
@@ -71,7 +75,7 @@ public class ItemRepairRenameIntegrationTest {
     public void setUp() {
         warehouses = mockConstruction(PlayerWarehouse.class);
         enderChests = mockConstruction(PlayerEnderChest.class);
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getItemFactory).thenReturn(CraftItemFactory.instance());
         bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
         bukkit.when(Bukkit::getServer).thenReturn(mock(Server.class, RETURNS_DEEP_STUBS));
@@ -97,6 +101,9 @@ public class ItemRepairRenameIntegrationTest {
         doAnswer(call -> { contents[(int) call.getArgument(0)] = call.getArgument(1); return null; })
                 .when(inventory).setItem(anyInt(), nullable(ItemStack.class));
         when(player.getItemInHand()).thenAnswer(call -> contents[2]);
+        when(inventory.getItemInMainHand()).thenAnswer(call -> contents[2]);
+        doAnswer(call -> { contents[2] = call.getArgument(0); return null; })
+                .when(inventory).setItemInMainHand(nullable(ItemStack.class));
         doAnswer(call -> { contents[2] = call.getArgument(0); return null; })
                 .when(player).setItemInHand(nullable(ItemStack.class));
         when(player.getItemOnCursor()).thenAnswer(call -> cursor);
@@ -121,7 +128,11 @@ public class ItemRepairRenameIntegrationTest {
     }
 
     private InventoryView viewOf(Inventory top) {
-        return new InventoryView() {
+        return new org.bukkit.craftbukkit.inventory.CraftAbstractInventoryView() {
+            @Override public org.bukkit.inventory.MenuType getMenuType() { return null; }
+            @Override public String getTitle() { return "Test"; }
+            @Override public String getOriginalTitle() { return getTitle(); }
+            @Override public void setTitle(String title) { }
             @Override public Inventory getTopInventory() { return top; }
             @Override public Inventory getBottomInventory() { return inventory; }
             @Override public HumanEntity getPlayer() { return player; }
@@ -136,7 +147,7 @@ public class ItemRepairRenameIntegrationTest {
         type.setMaxLive(30);
         type.setColor(MythicColor.RED);
         // Include a real identity so these tests also exercise the UUID cache.
-        return edit(type.toItemStack(), tag -> ItemUtil.setUUIDObj(tag.getCompound("extra"), type.getUuid()));
+        return edit(type.toItemStack(), tag -> ItemUtil.setUUIDObj(tag.getCompoundOrEmpty("extra"), type.getUuid()));
     }
 
     private ItemStack kits(int count) {
@@ -154,15 +165,16 @@ public class ItemRepairRenameIntegrationTest {
         return event;
     }
 
-    private static ItemStack edit(ItemStack original, Consumer<NBTTagCompound> action) {
+    private static ItemStack edit(ItemStack original, Consumer<CompoundTag> action) {
         var nms = CraftItemStack.asNMSCopy(original);
-        nms.setTag((NBTTagCompound) nms.getTag().clone());
-        action.accept(nms.getTag());
+        var custom = cn.mythicland.framework.bukkit.item.PaperItemData.custom(nms);
+        action.accept(custom);
+        cn.mythicland.framework.bukkit.item.PaperItemData.custom(nms, custom);
         return CraftItemStack.asBukkitCopy(nms);
     }
 
     private static void assertLife(ItemStack stack, int life) {
-        assertEquals(life, ItemUtil.getExtra(stack).getInt("live"));
+        assertEquals(life, ItemUtil.getExtra(stack).getIntOr("live", 0));
     }
 
     @Test
@@ -211,27 +223,26 @@ public class ItemRepairRenameIntegrationTest {
     @Test
     public void repairPreservesAllExtraAndRootTagsAndOtherLore() {
         ItemStack original = edit(weapon(new MythicSwordItem()), tag -> {
-            tag.setString("extension-root", "preserve");
-            NBTTagCompound extra = tag.getCompound("extra");
-            extra.setString("extension-data", "preserve");
-            extra.setString("customName", "§b测试武器");
-            extra.setBoolean("forceCanTrade", false);
-            NBTTagList ench = new NBTTagList();
-            ench.add(new NBTTagString("extension_enchant_not_registered:3"));
-            extra.set("ench", ench);
-            tag.getCompound("display").setString("Name", "§b测试武器");
-            NBTTagList lore = new NBTTagList();
-            lore.add(new NBTTagString("§7生命: §c7§7/30§a ♦§6 ᥀"));
-            lore.add(new NBTTagString("§d扩展插件的描述"));
-            tag.getCompound("display").set("Lore", lore);
+            tag.putString("extension-root", "preserve");
+            CompoundTag extra = tag.getCompoundOrEmpty("extra");
+            extra.putString("extension-data", "preserve");
+            extra.putString("customName", "§b测试武器");
+            extra.putBoolean("forceCanTrade", false);
+            ListTag ench = new ListTag();
+            ench.add(StringTag.valueOf("extension_enchant_not_registered:3"));
+            extra.put("ench", ench);
         });
+        var meta = original.getItemMeta();
+        meta.setDisplayName("§b测试武器");
+        meta.setLore(List.of("§7生命: §c7§7/30§a ♦§6 ᥀", "§d扩展插件的描述"));
+        original.setItemMeta(meta);
         contents[2] = original;
         contents[12] = kits(1);
         kit.onInventoryClick(click(12, ClickType.RIGHT));
-        NBTTagCompound expected = (NBTTagCompound) Utils.toNMStackQuick(original).getTag().clone();
-        NBTTagCompound actual = (NBTTagCompound) Utils.toNMStackQuick(contents[2]).getTag().clone();
-        actual.getCompound("extra").setInt("live", 7);
-        actual.getCompound("display").set("Lore", expected.getCompound("display").get("Lore"));
+        CompoundTag expected = (CompoundTag) cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(original)).copy();
+        CompoundTag actual = (CompoundTag) cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(contents[2])).copy();
+        actual.getCompoundOrEmpty("extra").putInt("live", 7);
+        assertEquals(original.getItemMeta().getDisplayName(), contents[2].getItemMeta().getDisplayName());
         assertEquals(expected, actual);
         assertEquals(List.of("§7生命: §a30§7/30§a ♦§6 ᥀", "§d扩展插件的描述"),
                 contents[2].getItemMeta().getLore());
@@ -241,8 +252,8 @@ public class ItemRepairRenameIntegrationTest {
     @Test
     public void numericLegacyLifeTagsAreAccepted() {
         contents[2] = edit(weapon(new MythicSwordItem()), tag -> {
-            tag.getCompound("extra").setShort("maxLive", (short) 30);
-            tag.getCompound("extra").setByte("live", (byte) 7);
+            tag.getCompoundOrEmpty("extra").putShort("maxLive", (short) 30);
+            tag.getCompoundOrEmpty("extra").putByte("live", (byte) 7);
         });
         contents[12] = kits(1);
         kit.onInventoryClick(click(12, ClickType.RIGHT));
@@ -281,7 +292,7 @@ public class ItemRepairRenameIntegrationTest {
         ItemStack base = weapon(new MythicSwordItem());
         ItemStack stacked = base.clone();
         stacked.setAmount(2);
-        for (ItemStack invalid : List.of(new ItemStack(Material.GOLD_SWORD), weapon(new LuckyChestplate()),
+        for (ItemStack invalid : List.of(new ItemStack(Material.GOLDEN_SWORD), weapon(new LuckyChestplate()),
                 new ItemBuilder(base.clone()).maxLive(0).build(),
                 new ItemBuilder(base.clone()).live(30).build(), stacked)) {
             freshFactory();
@@ -332,10 +343,10 @@ public class ItemRepairRenameIntegrationTest {
     public void renameAndUnrenamePreserveExtensionDataAndClearStaleCache() {
         contents[2] = new ItemBuilder(weapon(new MythicSwordItem())).changeNbt("extension-data", "keep").build();
         ItemStack original = contents[2];
-        String originalNbt = Utils.toNMStackQuick(original).getTag().toString();
+        String originalNbt = cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(original)).toString();
         PitCommands commands = new PitCommands();
         assertEquals("§a已重命名", commands.rename(player, "&b新名字"));
-        assertEquals(originalNbt, Utils.toNMStackQuick(original).getTag().toString());
+        assertEquals(originalNbt, cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(original)).toString());
         assertEquals("keep", ItemUtil.getItemStringData(contents[2], "extension-data"));
         ItemStack renamed = contents[2];
         assertEquals("§a成功取消重命名!", commands.unRename(player));

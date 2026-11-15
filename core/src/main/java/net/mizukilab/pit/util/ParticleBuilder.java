@@ -1,23 +1,20 @@
 package net.mizukilab.pit.util;
 
-import net.minecraft.server.v1_8_R3.EnumParticle;
-import net.minecraft.server.v1_8_R3.Packet;
-import net.minecraft.server.v1_8_R3.PacketPlayOutWorldParticles;
+import org.bukkit.Particle;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
 
 public class ParticleBuilder {
     Location location;
-    EnumParticle particle;
+    Particle particle;
     float offsetX;
     float offsetY;
     float offsetZ;
     float velocity;
     int count;
 
-    public ParticleBuilder(Location location, EnumParticle particle) {
+    public ParticleBuilder(Location location, Particle particle) {
         this.location = location;
         this.particle = particle;
         this.offsetX = 0.0f;
@@ -28,8 +25,8 @@ public class ParticleBuilder {
     }
 
     public void play() {
-        PacketPlayOutWorldParticles pwp = new PacketPlayOutWorldParticles(this.particle, true, (float)this.location.getX(), (float)this.location.getY(), (float)this.location.getZ(), this.offsetX, this.offsetY, this.offsetZ, this.velocity, this.count, new int[0]);
-        Bukkit.getOnlinePlayers().forEach(p -> ((CraftPlayer)p).getHandle().playerConnection.sendPacket(pwp));
+        Object data = particle == Particle.DUST ? new Particle.DustOptions(Color.RED, 1) : null;
+        location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, velocity, data);
     }
 
     public ParticleBuilder setOffsetX(float offsetX) {
@@ -57,17 +54,17 @@ public class ParticleBuilder {
         return this;
     }
 
-    public static void playColored(Location loc, Color color, EnumParticle ep) {
-        PacketPlayOutWorldParticles p1 = new PacketPlayOutWorldParticles(ep, true, (float)loc.getX(), (float)loc.getY(), (float)loc.getZ(), (float)color.getRed() / 255.0f, (float)color.getGreen() / 255.0f, (float)color.getBlue() / 255.0f, 1.0f, 0, new int[0]);
-        Bukkit.getOnlinePlayers().forEach(p -> ((CraftPlayer)p).getHandle().playerConnection.sendPacket((Packet)p1));
+    public static void playColored(Location loc, Color color, Particle ep) {
+        Object data = ep == Particle.DUST ? new Particle.DustOptions(color, 1) : color;
+        loc.getWorld().spawnParticle(ep, loc, 1, 0, 0, 0, 0, data);
     }
 
     public static void playColoredDust(Location loc, Color color) {
-        ParticleBuilder.playColored(loc, color, EnumParticle.REDSTONE);
+        ParticleBuilder.playColored(loc, color, Particle.DUST);
     }
 
     public static void playColoredSpell(Location loc, Color color) {
-        ParticleBuilder.playColored(loc, color, EnumParticle.SPELL_MOB);
+        ParticleBuilder.playColored(loc, color, Particle.ENTITY_EFFECT);
     }
 }
 

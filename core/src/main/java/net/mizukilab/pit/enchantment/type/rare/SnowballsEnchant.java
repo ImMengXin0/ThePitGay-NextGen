@@ -56,7 +56,7 @@ public class SnowballsEnchant extends AbstractEnchantment implements IPlayerKill
     @PlayerOnly
     public void handlePlayerKilled(int enchantLevel, Player myself, Entity target, AtomicDouble coins, AtomicDouble experience) {
         int amount = enchantLevel >= 3 ? 16 : 8;
-        ItemBuilder snowBallBuilder = new ItemBuilder(Material.SNOW_BALL).canDrop(false).canSaveToEnderChest(false).deathDrop(true).canTrade(false).removeOnJoin(true).internalName("snoballs_enchantment_item");
+        ItemBuilder snowBallBuilder = new ItemBuilder(Material.SNOWBALL).canDrop(false).canSaveToEnderChest(false).deathDrop(true).canTrade(false).removeOnJoin(true).internalName("snoballs_enchantment_item");
         if (InventoryUtil.getAmountOfItem(myself, snowBallBuilder.build()) + amount > (enchantLevel * 8 + 8)) {
             amount = (enchantLevel * 8 + 8) - InventoryUtil.getAmountOfItem(myself, snowBallBuilder.build());
         }

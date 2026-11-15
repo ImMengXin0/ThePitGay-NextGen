@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-public class PacketListener {
+public class PacketListener implements org.bukkit.event.Listener {
     private final Set<UUID> pending = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Long> lastClick = new HashMap<>();
     private NPCLib instance;
@@ -26,18 +26,14 @@ public class PacketListener {
 
     public void start(NPCLib instance) {
         this.instance = instance;
-        this.protocol = ProtocolLibrary.getProtocolManager();
         active = true;
-        adapter = new PacketAdapter(instance.getPlugin(), PacketType.Play.Client.USE_ENTITY) {
-            @Override public void onPacketReceiving(PacketEvent event) {
-                if (event.isCancelled() || !active) return;
-                Integer id = event.getPacket().getIntegers().readSafely(0);
-                EnumWrappers.EntityUseAction action = event.getPacket().getEntityUseActions().readSafely(0);
-                if (id == null || action == null) return;
-                handleInteract(event.getPlayer(), id, action == EnumWrappers.EntityUseAction.ATTACK);
-            }
-        };
-        protocol.addPacketListener(adapter);
+        Bukkit.getPluginManager().registerEvents(this, instance.getPlugin());
+    }
+
+    @org.bukkit.event.EventHandler(ignoreCancelled = true)
+    public void onFancyInteract(de.oliver.fancynpcs.api.events.NpcInteractEvent event) {
+        handleInteract(event.getPlayer(), event.getNpc().getEntityId(),
+                event.getInteractionType() == de.oliver.fancynpcs.api.actions.ActionTrigger.LEFT_CLICK);
     }
 
     void handleInteract(Player player, int entityId, boolean attack) {
@@ -77,7 +73,7 @@ public class PacketListener {
 
     public void stop() {
         active = false;
-        if (adapter != null) protocol.removePacketListener(adapter);
+        org.bukkit.event.HandlerList.unregisterAll(this);
         adapter = null;
         pending.clear();
         lastClick.clear();

@@ -32,7 +32,7 @@ public class SelfConfirmButton extends Button {
         }
 
         if ((tradeManager.getPlayerA().equals(player) && tradeManager.isAConfirm()) || (!tradeManager.getPlayerA().equals(player) && tradeManager.isBConfirm())) {
-            return new ItemBuilder(Material.STAINED_CLAY)
+            return new ItemBuilder(Material.WHITE_TERRACOTTA)
                     .durability(5)
                     .name("&a已同意交易!")
                     .lore("&7你已同意了交易.", "&7现在请等待对方同意交易.", "", "&e点击以取消同意交易,再思考一会...")
@@ -41,7 +41,7 @@ public class SelfConfirmButton extends Button {
         if (cooldown.hasExpired() && cooldown.getRemaining() / 1000L < 1) {
             if (tradeManager.getACoins() == 0 && tradeManager.getAItems().size() == 0 && tradeManager.getBCoins() == 0 && tradeManager.getBItems().size() == 0) {
                 //如果交易界面上什么也没有
-                return new ItemBuilder(Material.STAINED_CLAY)
+                return new ItemBuilder(Material.WHITE_TERRACOTTA)
                         .durability(5)
                         .name("&e交易!")
                         .lore("&7交易现在开始!,", "&7放上你想要交换的金钱,或是物品.")
@@ -49,7 +49,7 @@ public class SelfConfirmButton extends Button {
             } else {
                 //如果对方没有放上任何硬币或物品
                 if ((tradeManager.getPlayerA().equals(player) && tradeManager.getBItems().size() == 0 && tradeManager.getBCoins() == 0) || (tradeManager.getPlayerB().equals(player) && tradeManager.getAItems().size() == 0 && tradeManager.getACoins() == 0)) {
-                    return new ItemBuilder(Material.STAINED_CLAY)
+                    return new ItemBuilder(Material.WHITE_TERRACOTTA)
                             .durability(14)
                             .name("&e警告!")
                             .lore("&7你正在对方没有提供任何物品", "&7的情况下进行交易.", " ", "&c这真的是一份礼物?", " ", "&e点击同意此次交易!")
@@ -57,20 +57,20 @@ public class SelfConfirmButton extends Button {
                 }
                 //如果玩家没有放上任何物品或物品
                 if ((tradeManager.getPlayerA().equals(player) && tradeManager.getAItems().size() == 0 && tradeManager.getACoins() == 0) || (tradeManager.getPlayerB().equals(player) && tradeManager.getBItems().size() == 0 && tradeManager.getBCoins() == 0)) {
-                    return new ItemBuilder(Material.STAINED_CLAY)
+                    return new ItemBuilder(Material.WHITE_TERRACOTTA)
                             .durability(3)
                             .name("&e是的,这是一份礼物!")
                             .lore("&7你正在没有提供任何物品,", "&7的情况下进行交易.", " ", "&3你赚了!他亏了!", " ", "&e点击同意此次交易!")
                             .build();
                 }
             }
-            return new ItemBuilder(Material.STAINED_CLAY)
+            return new ItemBuilder(Material.WHITE_TERRACOTTA)
                     .durability(5)
                     .name("&e交易!")
                     .lore("&7交易成交后便无法修改,", "&7且无法被撤销.", " ", "&a请确保在确认交易前", "&a仔细核对了所有交易物品.", " ", "&e点击同意此次交易!")
                     .build();
         } else {
-            return new ItemBuilder(Material.STAINED_CLAY)
+            return new ItemBuilder(Material.WHITE_TERRACOTTA)
                     .durability(4)
                     .amount((int) Math.max(1, (cooldown.getRemaining() + 999L) / 1000L))
                     .name("&e请三思! &7(&e" + (cooldown.getRemaining() / 1000L) + "&7)")
@@ -110,11 +110,11 @@ public class SelfConfirmButton extends Button {
                 accept = tradeManager.isBConfirm();
             }
             if (accept) {
-                tradeManager.getPlayerB().playSound(tradeManager.getPlayerB().getLocation(), Sound.VILLAGER_YES, 1, 1);
-                tradeManager.getPlayerA().playSound(tradeManager.getPlayerA().getLocation(), Sound.VILLAGER_YES, 1, 1);
+                tradeManager.getPlayerB().playSound(tradeManager.getPlayerB().getLocation(), Sound.ENTITY_VILLAGER_YES, 1, 1);
+                tradeManager.getPlayerA().playSound(tradeManager.getPlayerA().getLocation(), Sound.ENTITY_VILLAGER_YES, 1, 1);
             } else {
-                tradeManager.getPlayerA().playSound(tradeManager.getPlayerA().getLocation(), Sound.VILLAGER_HAGGLE, 1, 1);
-                tradeManager.getPlayerB().playSound(tradeManager.getPlayerB().getLocation(), Sound.VILLAGER_HAGGLE, 1, 1);
+                tradeManager.getPlayerA().playSound(tradeManager.getPlayerA().getLocation(), Sound.ENTITY_VILLAGER_TRADE, 1, 1);
+                tradeManager.getPlayerB().playSound(tradeManager.getPlayerB().getLocation(), Sound.ENTITY_VILLAGER_TRADE, 1, 1);
             }
         }
     }

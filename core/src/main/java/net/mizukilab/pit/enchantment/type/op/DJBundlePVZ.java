@@ -2,7 +2,7 @@ package net.mizukilab.pit.enchantment.type.op;
 
 import cn.charlotte.pit.ThePit;
 import lombok.SneakyThrows;
-import net.minecraft.server.v1_8_R3.PacketPlayInFlying;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.param.item.ArmorOnly;
 import net.mizukilab.pit.enchantment.rarity.EnchantmentRarity;
@@ -117,7 +117,7 @@ public class DJBundlePVZ extends AbstractEnchantment implements ITickTask, Movem
 
             this.playerMap.put(target.getUniqueId(), player);
         } else {
-            target.getWorld().playEffect(target.getLocation().clone().add(0, 3, 0), Effect.NOTE, 1);
+            target.getWorld().spawnParticle(org.bukkit.Particle.NOTE, target.getLocation().clone().add(0, 3, 0), 1);
         }
     }
 
@@ -127,7 +127,7 @@ public class DJBundlePVZ extends AbstractEnchantment implements ITickTask, Movem
     }
 
     @Override
-    public void handleUpdateLocation(Player player, Location location, Location location1, PacketPlayInFlying packetPlayInFlying) {
+    public void handleUpdateLocation(Player player, Location location, Location location1, ServerboundMovePlayerPacket packetPlayInFlying) {
         PositionSongPlayer songPlayer = this.playerMap.get(player.getPlayer().getUniqueId());
         if (songPlayer != null) {
             songPlayer.setTargetLocation(player.getPlayer().getLocation());
@@ -135,7 +135,7 @@ public class DJBundlePVZ extends AbstractEnchantment implements ITickTask, Movem
     }
 
     @Override
-    public void handleUpdateRotation(Player player, Location location, Location location1, PacketPlayInFlying packetPlayInFlying) {
+    public void handleUpdateRotation(Player player, Location location, Location location1, ServerboundMovePlayerPacket packetPlayInFlying) {
 
     }
 }

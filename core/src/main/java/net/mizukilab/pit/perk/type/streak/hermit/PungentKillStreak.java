@@ -136,8 +136,8 @@ public class PungentKillStreak extends AbstractPerk implements Listener {
             //effect goes here
             PlayerUtil.getNearbyPlayers(player.getLocation(), 3).forEach(p -> {
                 if (!p.getName().equals(player.getName())) {
-                    p.removePotionEffect(PotionEffectType.SLOW);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 3 * 20, 0));
+                    p.removePotionEffect(PotionEffectType.SLOWNESS);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 3 * 20, 0));
                 }
             });
         }

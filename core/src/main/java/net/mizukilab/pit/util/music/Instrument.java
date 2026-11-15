@@ -172,14 +172,7 @@ public class Instrument {
         }
 
         public Sound getSound() {
-            try {
-                if (this.legacyName == "") {
-                    return Sound.valueOf("NOTE_PIANO");
-                }
-                return Sound.valueOf(this.legacyName);
-            } catch (IllegalArgumentException ex3) {
-                return Sound.valueOf("BLOCK_NOTE_BLOCK_HARP");
-            }
+            return Sound.valueOf(latestName);
         }
     }
 }

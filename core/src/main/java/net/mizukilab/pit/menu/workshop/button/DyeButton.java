@@ -46,7 +46,7 @@ public class DyeButton extends Button {
         if (profile.getCoins() < 200) {
             return;
         }
-        player.playSound(player.getLocation(), Sound.LAVA_POP, 1.0F, 1.0F);
+        player.playSound(player.getLocation(), Sound.BLOCK_LAVA_POP, 1.0F, 1.0F);
         profile.setCoins(profile.getCoins() - 200);
         ItemStack itemStack = new ItemBuilder(InventoryUtil.deserializeItemStack(profile.getEnchantingItem())).changeNbt("dyeColor", dyeColor.name()).build();
 

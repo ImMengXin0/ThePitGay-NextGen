@@ -86,7 +86,7 @@ public class EventPreviewButton extends Button {
                         .build();
             }
         }
-        ItemBuilder itemBuilder = new ItemBuilder(Material.SIGN)
+        ItemBuilder itemBuilder = new ItemBuilder(Material.OAK_SIGN)
                 .amount(page + 1)
                 .name("&7即将到来的" + (major ? "大" : "小") + "型事件")
                 .lore(lines);

@@ -100,7 +100,7 @@ class EnchantChoseButtonGlobalGem(
 
             indexedMythicItem.boostedByGlobalGem = true
             player.sendMessage(CC.translate("&b&l宝石！ &7成功为你的神话之裤升级了${enchantment.enchantName}附魔"))
-            player.playSound(player.location, Sound.ANVIL_USE, 1f, 99f)
+            player.playSound(player.location, Sound.BLOCK_ANVIL_USE, 1f, 99f)
             player.inventory.setItem(index, indexedMythicItem.toItemStack())
         } else {
             return
@@ -121,7 +121,7 @@ class EnchantChoseButtonGlobalGem(
             }
         }
 
-        player.playSound(player.location, Sound.ANVIL_USE, 1.5f, 1.5f)
+        player.playSound(player.location, Sound.BLOCK_ANVIL_USE, 1.5f, 1.5f)
     }
 
     private fun isSameEnchant(

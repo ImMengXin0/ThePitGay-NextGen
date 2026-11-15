@@ -18,7 +18,7 @@ public class EnchantingViewerButton extends Button {
     @Override
     public ItemStack getButtonItem(Player player) {
         String unavailable = menu.getUnavailableReason(player);
-        return new ItemBuilder(Material.ENCHANTMENT_TABLE).name("&d查询玩家附魔台内物品")
+        return new ItemBuilder(Material.ENCHANTING_TABLE).name("&d查询玩家附魔台内物品")
                 .lore("&7查看这名玩家的附魔物品、附魔书和材料。",
                         "&7在线时实时更新，离线时查看保存的物品。",
                         "&7只能查看，无法取出物品。", " ",

@@ -25,7 +25,7 @@ public class CloakRoomPerk extends AbstractPerk {
 
     @Override
     public Material getIcon() {
-        return Material.ENDER_PORTAL_FRAME;
+        return Material.END_PORTAL_FRAME;
     }
 
     @Override

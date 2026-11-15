@@ -31,7 +31,7 @@ public class SoundFactory extends BukkitRunnable {
             }
         }
 
-        this.runTaskTimerAsynchronously(ThePit.getInstance(), 1, 1);
+        this.runTaskTimer(ThePit.getInstance(), 1, 1);
     }
 
     public void registerSound(AbstractPitSound sound) {

@@ -43,7 +43,7 @@ class BlockEditSessionsTest {
     void interactionAndBreakShareOneSelectionAndUndoClearsOwnedMarkers() {
         TemporaryItemMarkers markers = mock(TemporaryItemMarkers.class);
         Item marker = mock(Item.class);
-        when(markers.add(any(), eq(Material.BED))).thenReturn(marker);
+        when(markers.add(any(), eq(Material.RED_BED))).thenReturn(marker);
         BlockEditSessions sessions = new BlockEditSessions(markers);
         BlockEditSessions.Points<Location> points = sessions.points();
         Player player = mock(Player.class);
@@ -58,7 +58,7 @@ class BlockEditSessionsTest {
         assertTrue(sessions.claim(id, this));
         sessions.route(id, this, sender -> true, (sender, point) -> {
             selected.incrementAndGet();
-            points.put(point, point, point, Material.BED);
+            points.put(point, point, point, Material.RED_BED);
         }, sender -> points.undo(), true, points::close);
         PlayerInteractEvent selection = new PlayerInteractEvent(player, Action.LEFT_CLICK_BLOCK, null, block, BlockFace.UP);
         selection.setCancelled(true);

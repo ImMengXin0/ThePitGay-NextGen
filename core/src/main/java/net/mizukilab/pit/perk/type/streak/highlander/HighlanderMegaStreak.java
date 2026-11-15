@@ -49,7 +49,7 @@ public class HighlanderMegaStreak extends AbstractPerk implements Listener, IAtt
 
     @Override
     public Material getIcon() {
-        return Material.GOLD_BOOTS;
+        return Material.GOLDEN_BOOTS;
     }
 
     @Override
@@ -123,7 +123,7 @@ public class HighlanderMegaStreak extends AbstractPerk implements Listener, IAtt
         //trigger check (get X streak)
         if (event.getFrom() < trigger && event.getTo() >= trigger) {
             CC.boardCast(MessageType.COMBAT, "&c&l超级连杀! " + event.getPlayerProfile().getFormattedNameWithRoman() + " &7激活了 &6&l尊贵血统 &7!");
-            Bukkit.getOnlinePlayers().forEach(player -> player.playSound(player.getLocation(), Sound.WITHER_SPAWN, 0.8F, 1.5F));
+            Bukkit.getOnlinePlayers().forEach(player -> player.playSound(player.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.8F, 1.5F));
         }
     }
 

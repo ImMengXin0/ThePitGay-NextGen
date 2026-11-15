@@ -36,7 +36,7 @@ public class MeleeBoostPerk extends AbstractPerk implements IAttackEntity {
 
     @Override
     public Material getIcon() {
-        return Material.getMaterial(351);
+        return Material.INK_SAC;
     }
 
     @Override

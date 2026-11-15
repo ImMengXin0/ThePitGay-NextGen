@@ -20,14 +20,14 @@ import java.util.Arrays;
 public class CloverPixelShopButton extends Button {
     @Override
     public ItemStack getButtonItem(Player player) {
-        return new ItemBuilder(Material.STORAGE_MINECART).name("&a杂物").lore(Arrays.asList("&8", "&7&o购买你想购买的任何东西", "&7", "&e点击跳转!")).shiny().build();
+        return new ItemBuilder(Material.CHEST_MINECART).name("&a杂物").lore(Arrays.asList("&8", "&7&o购买你想购买的任何东西", "&7", "&e点击跳转!")).shiny().build();
     }
 
     @Override
     public void clicked(Player player, int slot, ClickType clickType, int hotbarButton, ItemStack currentItem) {
         player.closeInventory();
         player.sendMessage(CC.translate("§c§l正在跳转至杂物商店!"));
-        player.playSound(player.getLocation(), Sound.CHICKEN_EGG_POP, 1, 0.9F);
+        player.playSound(player.getLocation(), Sound.ENTITY_CHICKEN_EGG, 1, 0.9F);
         Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), () -> {
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "dm open 商店 " + player.getName());
         }, 1L);

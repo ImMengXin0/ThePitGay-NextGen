@@ -6,8 +6,8 @@ import cn.charlotte.pit.data.TradeData;
 import cn.charlotte.pit.data.sub.OfferData;
 import cn.charlotte.pit.data.temp.TradeRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.DispenserRegistry;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.Bootstrap;
 import net.mizukilab.pit.BukkitDataTestSupport;
 import net.mizukilab.pit.command.PitCommands;
 import net.mizukilab.pit.menu.offer.OfferMenu;
@@ -20,7 +20,7 @@ import net.mizukilab.pit.trade.TradeMonitorRunnable;
 import net.mizukilab.pit.util.item.ItemUtil;
 import net.mizukilab.pit.util.menu.*;
 import org.bukkit.*;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.*;
+import org.bukkit.craftbukkit.inventory.*;
 import org.bukkit.entity.*;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -50,11 +50,11 @@ public class TradeSafetyIntegrationTest extends BukkitDataTestSupport {
 
     @BeforeClass public static void registerItems() {
         PrintStream out = System.out, err = System.err;
-        try (var attributes = mockConstruction(AttributeModifier.class)) { DispenserRegistry.c(); }
+        try (var attributes = mockConstruction(AttributeModifier.class)) { net.mizukilab.pit.PaperTestBootstrap.initialize(); }
         finally { System.setOut(out); System.setErr(err); }
     }
     @Before public void setup() {
-        bukkit = mockStatic(Bukkit.class); pit = mockStatic(ThePit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit(); pit = mockStatic(ThePit.class);
         profiles = mockStatic(PlayerProfile.class); items = mockStatic(ItemUtil.class);
         labels = mockConstruction(TargetConfirmButton.class);
         logs = mockConstruction(TradeData.class); medals = mockConstruction(FirstTradeMedal.class);
@@ -62,7 +62,7 @@ public class TradeSafetyIntegrationTest extends BukkitDataTestSupport {
         bukkit.when(Bukkit::getItemFactory).thenReturn(CraftItemFactory.instance());
         bukkit.when(Bukkit::getScheduler).thenReturn(mock(BukkitScheduler.class));
         bukkit.when(() -> Bukkit.createInventory(any(InventoryHolder.class), anyInt(), anyString()))
-                .thenAnswer(call -> new CraftInventoryCustom(call.getArgument(0), (int) call.getArgument(1), call.getArgument(2)));
+                .thenAnswer(call -> new CraftInventoryCustom(call.getArgument(0), (int) call.getArgument(1), (String) call.getArgument(2)));
         bukkit.when(() -> Bukkit.getPlayer(any(UUID.class))).thenAnswer(call -> {
             Surface surface = players.get(call.getArgument(0)); return surface == null ? null : surface.player;
         });
@@ -122,7 +122,12 @@ public class TradeSafetyIntegrationTest extends BukkitDataTestSupport {
             players.put(uuid, this);
         }
         InventoryView viewOf(Inventory top) {
-            return new InventoryView() {
+            return new org.bukkit.craftbukkit.inventory.CraftAbstractInventoryView() {
+            @Override public org.bukkit.inventory.MenuType getMenuType() { return null; }
+            @Override public String getTitle() { return top instanceof CraftInventory craft
+                    ? net.mizukilab.pit.InventoryTestTitles.title(craft) : "Crafting"; }
+            @Override public String getOriginalTitle() { return getTitle(); }
+            @Override public void setTitle(String title) { }
                 @Override public Inventory getTopInventory() { return top; }
                 @Override public Inventory getBottomInventory() { return inventory; }
                 @Override public HumanEntity getPlayer() { return player; }
@@ -277,7 +282,7 @@ public class TradeSafetyIntegrationTest extends BukkitDataTestSupport {
     @Test public void disconnectAndShutdownRefundOnceBeforeProfilesAreSaved() {
         TradeManager trade = start(); a.contents[9] = new ItemStack(Material.DIAMOND, 2);
         trade.addItem(a.player, 9); trade.setCoins(b.player, 150);
-        new TradeListener().onLogout(new PlayerQuitEvent(a.player, null));
+        new TradeListener().onLogout(new PlayerQuitEvent(a.player, (String) null));
         TradeManager.cancelAll();
         assertEquals(2, a.count(Material.DIAMOND)); assertEquals(1000, b.profile.getCoins(), 0);
         assertTrue(TradeManager.trades.isEmpty());

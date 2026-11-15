@@ -6,7 +6,7 @@ import cn.charlotte.pit.event.PitKillEvent
 import cn.charlotte.pit.events.AbstractEvent
 import cn.charlotte.pit.events.trigger.type.INormalEvent
 import cn.charlotte.pit.events.trigger.type.addon.IScoreBoardInsert
-import net.minecraft.server.v1_8_R3.EnumParticle
+import org.bukkit.Particle
 import net.mizukilab.pit.config.NewConfiguration.eventOnlineRequired
 import net.mizukilab.pit.util.ParticleBuilder
 import net.mizukilab.pit.util.PlayerUtil
@@ -53,7 +53,7 @@ class HuntEvent : AbstractEvent(), INormalEvent, Listener,
                 if (isActive) {
                     Bukkit.getOnlinePlayers().forEach {
                         playerEffect(it)
-                        ParticleBuilder(it.location.clone().add(0.0, 2.0, 0.0), EnumParticle.REDSTONE)
+                        ParticleBuilder(it.location.clone().add(0.0, 2.0, 0.0), Particle.DUST)
                             .setCount(3).play()
                     }
                 } else {
@@ -72,7 +72,7 @@ class HuntEvent : AbstractEvent(), INormalEvent, Listener,
 
     private fun playerEffect(player: Player) {
         PlayerUtil.addPotionEffect(player, PotionEffect(PotionEffectType.SPEED, 40, 1, true))
-        PlayerUtil.addPotionEffect(player, PotionEffect(PotionEffectType.JUMP, 40, 2, true))
+        PlayerUtil.addPotionEffect(player, PotionEffect(PotionEffectType.JUMP_BOOST, 40, 2, true))
     }
 
     @EventHandler
@@ -99,7 +99,7 @@ class HuntEvent : AbstractEvent(), INormalEvent, Listener,
                     profile?.renown = profile?.renown?.plus(1) ?: 0
                     eventData.kill = 0
                     event.killer.sendMessage(CC.translate("&c&l猎杀! &6声望 +1"))
-                    event.killer.playSound(event.killer.location, Sound.NOTE_PLING, 0.5f, 0.5f)
+                    event.killer.playSound(event.killer.location, Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 0.5f)
                 }
             }
         }

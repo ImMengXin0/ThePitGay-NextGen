@@ -19,11 +19,11 @@ object Sugar : AbstractPitItem(), Listener {
         val block = event.block
         val player = event.player
 
-        if (block.type != Material.MELON_BLOCK) {
+        if (block.type != Material.MELON) {
             return
         }
 
-        val item = player.itemInHand ?: return
+        val item = player.inventory.itemInMainHand ?: return
         if (!item.type.name.contains("_AXE")) {
             return
         }
@@ -33,8 +33,8 @@ object Sugar : AbstractPitItem(), Listener {
         player.inventory.addItem(toItemStack())
 
         submit(delay = 20 * 60 * 3) {
-            block.type = Material.MELON_BLOCK
-            block.world.playSound(block.location, Sound.ORB_PICKUP, 1f, 1f)
+            block.type = Material.MELON
+            block.world.playSound(block.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
         }
     }
 

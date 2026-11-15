@@ -29,7 +29,7 @@ class EnchantBookButton(
     }
 
     private val noneItem: ItemStack
-        get() = ItemBuilder(Material.STAINED_GLASS_PANE)
+        get() = ItemBuilder(Material.WHITE_STAINED_GLASS_PANE)
             .durability(15)
             .name("&d放入附魔卷轴")
             .lore(
@@ -52,7 +52,7 @@ class EnchantBookButton(
         }
         player.inventory.setItem(emptySlot, item)
         profile.enchantingBook = null
-        player.playSound(player.location, Sound.CHICKEN_EGG_POP, 1f, 0.65f)
+        player.playSound(player.location, Sound.ENTITY_CHICKEN_EGG, 1f, 0.65f)
         menu!!.openMenu(player)
     }
 }

@@ -19,7 +19,7 @@ public class BlockUtil {
 
     static {
         blockType.add(Material.CACTUS);
-        blockType.add(Material.ENDER_PORTAL_FRAME);
+        blockType.add(Material.END_PORTAL_FRAME);
     }
 
     public static boolean isBlockNearby(Location location, int range) {

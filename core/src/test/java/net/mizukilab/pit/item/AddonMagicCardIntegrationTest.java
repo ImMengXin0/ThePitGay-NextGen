@@ -2,8 +2,8 @@ package net.mizukilab.pit.item;
 
 import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.api.PitInternalHook;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.DispenserRegistry;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.Bootstrap;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
 import net.mizukilab.pit.enchantment.type.rage.NewDealEnchant;
@@ -17,7 +17,7 @@ import net.mizukilab.pit.util.item.ItemUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.inventory.CraftItemFactory;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -55,7 +55,7 @@ public class AddonMagicCardIntegrationTest {
     @BeforeClass
     public static void registerVanillaItems() {
         PrintStream out = System.out, err = System.err;
-        try (var attributes = mockConstruction(AttributeModifier.class)) { DispenserRegistry.c(); }
+        try (var attributes = mockConstruction(AttributeModifier.class)) { net.mizukilab.pit.PaperTestBootstrap.initialize(); }
         finally { System.setOut(out); System.setErr(err); }
     }
 
@@ -63,11 +63,11 @@ public class AddonMagicCardIntegrationTest {
     public void setUp() throws Exception {
         Path server = Path.of(System.getProperty("pitAddonJar"));
         Path addonLoader = Path.of(System.getProperty("pitAddonLoaderJar"));
-        assertTrue("Addon server fixture missing", Files.isRegularFile(server));
-        assertTrue("Addon loader fixture missing", Files.isRegularFile(addonLoader));
+        org.junit.Assume.assumeTrue("Addon server fixture missing: " + server, Files.isRegularFile(server));
+        org.junit.Assume.assumeTrue("Addon loader fixture missing: " + addonLoader, Files.isRegularFile(addonLoader));
         loader = new URLClassLoader(new URL[]{server.toUri().toURL(), addonLoader.toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
-        bukkit = mockStatic(Bukkit.class);
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getItemFactory).thenReturn(CraftItemFactory.instance());
         bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
         pit = mockStatic(ThePit.class);
@@ -96,11 +96,11 @@ public class AddonMagicCardIntegrationTest {
                 .when(inventory).setItem(anyInt(), nullable(ItemStack.class));
         // Addon's flush calls remove(int), Bukkit's legacy material-id overload.
         doAnswer(call -> {
-            int materialId = call.getArgument(0);
+            org.bukkit.Material materialId = call.getArgument(0);
             for (int i = 0; i < contents.length; i++)
-                if (contents[i] != null && contents[i].getTypeId() == materialId) contents[i] = null;
+                if (contents[i] != null && contents[i].getType() == materialId) contents[i] = null;
             return null;
-        }).when(inventory).remove(anyInt());
+        }).when(inventory).remove(any(org.bukkit.Material.class));
         doAnswer(call -> {
             ItemStack added = call.getArgument(0);
             for (int i = 0; i < contents.length; i++) {

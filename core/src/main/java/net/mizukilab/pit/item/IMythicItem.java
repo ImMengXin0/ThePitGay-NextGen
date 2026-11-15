@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.objects.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import net.minecraft.server.v1_8_R3.*;
+import net.minecraft.nbt.*;
 import net.mizukilab.pit.Util;
 import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
@@ -85,15 +85,15 @@ public abstract class IMythicItem extends AbstractPitItem {
     }
 
     /** Compare the small NBT list without rebuilding items or allocating split strings. */
-    public boolean hasSameEnchantments(NBTTagCompound extra) {
+    public boolean hasSameEnchantments(CompoundTag extra) {
         if (extra == null) return false;
-        NBTTagList stored = extra.getList("ench", 8);
+        ListTag stored = extra.getListOrEmpty("ench");
         if (stored.size() != enchantments.size()) return false;
         for (var entry : enchantments.object2IntEntrySet()) {
             String name = entry.getKey().getNbtName();
             boolean found = false;
             for (int i = 0; i < stored.size(); i++) {
-                String value = stored.getString(i);
+                String value = stored.getStringOr(i, "");
                 int split = name.length();
                 if (value.length() <= split + 1 || value.charAt(split) != ':' || !value.startsWith(name)) continue;
                 try {
@@ -111,7 +111,7 @@ public abstract class IMythicItem extends AbstractPitItem {
     }
 
     public boolean matchesEnchantmentSource(ItemStack stack) {
-        NBTTagCompound extra = ItemUtil.getExtra(stack);
+        CompoundTag extra = ItemUtil.getExtra(stack);
         return extra != null && uuid != null && uuid.toString().equals(ItemUtil.getUUID(extra))
                 && getInternalName().equals(ItemUtil.getInternalName0(extra)) && hasSameEnchantments(extra);
     }
@@ -370,10 +370,10 @@ public abstract class IMythicItem extends AbstractPitItem {
     }
 
     /** Restore persistent rename state even when a cached instance is reused. */
-    protected void loadNameData(ItemStack item, NBTTagCompound extra) {
-        this.forceCanTrade = extra.hasKey("forceCanTrade") ? (extra.getBoolean("forceCanTrade") ? 1 : 0) : -1;
-        NBTBase storedName = extra.get("customName");
-        this.customName = storedName instanceof NBTTagString name ? name.a_() : null;
+    protected void loadNameData(ItemStack item, CompoundTag extra) {
+        this.forceCanTrade = extra.contains("forceCanTrade") ? (extra.getBooleanOr("forceCanTrade", false) ? 1 : 0) : -1;
+        Tag storedName = extra.get("customName");
+        this.customName = storedName instanceof StringTag name ? name.value() : null;
     }
 
     @Override
@@ -384,57 +384,57 @@ public abstract class IMythicItem extends AbstractPitItem {
         if (item == null || item.getType() == Material.AIR) {
             return;
         }
-        net.minecraft.server.v1_8_R3.ItemStack nmsItem = Utils.toNMStackQuick(item);
-        NBTTagCompound tag = nmsItem.getTag();
+        net.minecraft.world.item.ItemStack nmsItem = Utils.toNMStackQuick(item);
+        CompoundTag tag = cn.mythicland.framework.bukkit.item.PaperItemData.custom(nmsItem);
         if (tag == null) {
             return;
         }
-        NBTTagCompound extra = tag.getCompound("extra");
+        CompoundTag extra = tag.getCompoundOrEmpty("extra");
         if (extra == null) {
             return;
         }
 
         //natives
-        this.boostedByGem = extra.getBoolean("boostedByGem");
+        this.boostedByGem = extra.getBooleanOr("boostedByGem", false);
 
-        this.boostedByGlobalGem = extra.getBoolean("boostedByGlobalGem");
+        this.boostedByGlobalGem = extra.getBooleanOr("boostedByGlobalGem", false);
 
-        this.boostedByBook = extra.getBoolean("boostedByBook");
+        this.boostedByBook = extra.getBooleanOr("boostedByBook", false);
 
         //for raw type opti
-        NBTBase prefix1 = extra.get("prefix");
-        if (prefix1 instanceof NBTTagString) {
-            this.prefix = ((NBTTagString) prefix1).a_();
+        Tag prefix1 = extra.get("prefix");
+        if (prefix1 instanceof StringTag) {
+            this.prefix = ((StringTag) prefix1).value();
         }
         //0.12% -> 0.06%
 
         loadNameData(item, extra);
-        this.saved = extra.getBoolean("saved");
+        this.saved = extra.getBooleanOr("saved", false);
 
-        NBTBase version = extra.get("version");
-        if (version instanceof NBTTagString verStr) {
-            this.version = verStr.a_();
+        Tag version = extra.get("version");
+        if (version instanceof StringTag verStr) {
+            this.version = verStr.value();
         }
 
 
-        NBTBase dyeColor1 = extra.get("dyeColor");
-        if (dyeColor1 instanceof NBTTagString) {
-            this.dyeColor = DyeColor.valueOf(((NBTTagString) dyeColor1).a_());
+        Tag dyeColor1 = extra.get("dyeColor");
+        if (dyeColor1 instanceof StringTag) {
+            this.dyeColor = DyeColor.valueOf(((StringTag) dyeColor1).value());
 
         }
 
-        NBTBase uuid1 = extra.get("uuid");
-        if (uuid1 instanceof NBTTagString gg) {
-            this.uuid = UUID.fromString(gg.a_());
+        Tag uuid1 = extra.get("uuid");
+        if (uuid1 instanceof StringTag gg) {
+            this.uuid = UUID.fromString(gg.value());
         }
 
-        NBTBase mythicColor = extra.get("mythic_color");
+        Tag mythicColor = extra.get("mythic_color");
         if (mythicColor == null) {
             this.color = (MythicColor) RandomUtil.helpMeToChooseOne(
                     MythicColor.RED, MythicColor.ORANGE, MythicColor.BLUE, MythicColor.GREEN, MythicColor.YELLOW);
         } else {
-            if (mythicColor instanceof NBTTagString) {
-                String internalColor = ((NBTTagString) mythicColor).a_();
+            if (mythicColor instanceof StringTag) {
+                String internalColor = ((StringTag) mythicColor).value();
                 this.color = MythicColor.valueOfInternalName(internalColor);
                 if (color == null) {
                     this.color = (MythicColor) RandomUtil.helpMeToChooseOne(
@@ -443,28 +443,28 @@ public abstract class IMythicItem extends AbstractPitItem {
             }
         }
 
-        this.maxLive = extra.getInt("maxLive");
-        this.live = extra.getInt("live");
-        if (!extra.hasKey("ench")) { //TODO
+        this.maxLive = extra.getIntOr("maxLive", 0);
+        this.live = extra.getIntOr("live", 0);
+        if (!extra.contains("ench")) { //TODO
             return;
         }
 
         readRecords(extra);
         //nano
-        NBTTagList ench = extra.getList("ench", 8);
+        ListTag ench = extra.getListOrEmpty("ench");
         Utils.readEnchantments(enchantments, ench);
-        if (!extra.hasKey("tier") && isEnchanted()) {
+        if (!extra.contains("tier") && isEnchanted()) {
             if (color == MythicColor.DARK) {
                 this.tier = 2;
             } else {
                 this.tier = 3;
             }
         } else {
-            if (extra.hasKey("tier")) {
+            if (extra.contains("tier")) {
                 if (!isEnchanted()) {
                     this.tier = 0;
                 } else {
-                    this.tier = extra.getInt("tier");
+                    this.tier = extra.getIntOr("tier", 0);
                 }
             }
         }
@@ -503,16 +503,16 @@ public abstract class IMythicItem extends AbstractPitItem {
         }
         if (changed) {
             ItemStack itemStack = toItemStack();
-            NBTTagCompound tag = Utils.toNMStackQuick(itemStack).getTag();
-            Utils.toNMStackQuick(stack).setTag((NBTTagCompound) tag.clone());
+            CompoundTag tag = cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(itemStack));
+            cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(stack), tag.copy());
         }
     }
 
-    private void readRecords(NBTTagCompound extra) {
+    private void readRecords(CompoundTag extra) {
         enchantmentRecords.clear();
-        final NBTBase recordsStringRaw = extra.get("records");
-        if (recordsStringRaw instanceof NBTTagString) {
-            String recordsString = ((NBTTagString) recordsStringRaw).a_();
+        final Tag recordsStringRaw = extra.get("records");
+        if (recordsStringRaw instanceof StringTag) {
+            String recordsString = ((StringTag) recordsStringRaw).value();
             for (String recordString : Utils.splitByCharAt(recordsString, ';')) {
                 final String[] split = Utils.splitByCharAt(recordString, '|');
                 if (split.length >= 3) {
@@ -532,16 +532,16 @@ public abstract class IMythicItem extends AbstractPitItem {
                 }
             }
             // Leave the source NBT intact until toItemStack writes all parsed records.
-        } else if (recordsStringRaw instanceof NBTTagList k) {
+        } else if (recordsStringRaw instanceof ListTag k) {
             for (int i = 0; i < k.size(); i++) {
-                NBTTagCompound nbtTagCompound = k.get(i);
-                NBTBase name = nbtTagCompound.get("name");
-                NBTBase reason = nbtTagCompound.get("reason");
-                NBTBase timeStamp = nbtTagCompound.get("timeStamp");
-                if (name instanceof NBTTagString nm && reason instanceof NBTTagString ra && timeStamp instanceof NBTTagLong ts) {
+                CompoundTag nbtTagCompound = k.getCompoundOrEmpty(i);
+                Tag name = nbtTagCompound.get("name");
+                Tag reason = nbtTagCompound.get("reason");
+                Tag timeStamp = nbtTagCompound.get("timeStamp");
+                if (name instanceof StringTag nm && reason instanceof StringTag ra && timeStamp instanceof LongTag ts) {
                     enchantmentRecords.add(
                             new EnchantmentRecord(
-                                    nm.a_(), ra.a_(), ts.c())
+                                    nm.value(), ra.value(), ts.longValue())
                     );
                 }
             }

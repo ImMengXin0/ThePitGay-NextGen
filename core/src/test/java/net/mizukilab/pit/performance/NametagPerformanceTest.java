@@ -27,7 +27,7 @@ public class NametagPerformanceTest {
     }
 
     private void runBatch(boolean shared) throws Exception {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
              MockedStatic<ThePit> pit = mockStatic(ThePit.class)) {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);
@@ -72,7 +72,7 @@ public class NametagPerformanceTest {
 
     @Test
     public void unchangedTeamsSendNoPropertyUpdatesButChangesAndRemovalAreApplied() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             Player player = mock(Player.class);
             UUID uuid = UUID.randomUUID();

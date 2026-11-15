@@ -6,16 +6,15 @@ import cn.charlotte.pit.data.operator.IOperator;
 import cn.hutool.core.collection.ConcurrentHashSet;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import net.minecraft.server.v1_8_R3.EnumParticle;
-import net.minecraft.server.v1_8_R3.PacketPlayInFlying;
-import net.minecraft.server.v1_8_R3.PacketPlayOutWorldParticles;
+import org.bukkit.Particle;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.mizukilab.pit.config.PitWorldConfig;
 import net.mizukilab.pit.util.aabb.AABB;
 import net.mizukilab.pit.util.chat.ActionBarUtil;
 import net.mizukilab.pit.util.chat.CC;
 import net.mizukilab.pit.util.exception.CancelOp;
 import org.bukkit.*;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -26,7 +25,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
-import org.spigotmc.event.entity.EntityDismountEvent;
+import org.bukkit.event.entity.EntityDismountEvent;
 import spg.lgdev.handler.MovementHandler;
 import xyz.upperlevel.spigot.book.BookUtil;
 
@@ -155,14 +154,10 @@ public class PlayerMoveHandler implements MovementHandler, Listener {
                 direction.normalize().multiply(2.2);
             }
             armorStand.setVelocity(direction);
-            player.playSound(player.getLocation(), Sound.EXPLODE, 1.5f, 0.8f);
-            player.playSound(player.getLocation(), Sound.FIREWORK_LAUNCH, 1.0f, 1.2f);
-            PacketPlayOutWorldParticles explosionPacket = new PacketPlayOutWorldParticles(
-                    EnumParticle.EXPLOSION_LARGE, true,
-                    (float) to.getX(), (float) to.getY(), (float) to.getZ(),
-                    0.3F, 0.3F, 0.3F, 0, 8
-            );
-            ((CraftPlayer) player).getHandle().playerConnection.sendPacket(explosionPacket);
+            player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.5f, 0.8f);
+            player.playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.0f, 1.2f);
+
+            player.spawnParticle(Particle.EXPLOSION, to, 8, .3, .3, .3, 0);
 
             BukkitTask flightTask = new BukkitRunnable() {
                 private int ticks = 0;
@@ -231,14 +226,10 @@ public class PlayerMoveHandler implements MovementHandler, Listener {
                     try {
                         if (ticks % 3 == 0) {
                             Location loc = armorStand.getLocation();
-                            EnumParticle particleType = isDescending ? EnumParticle.DRIP_WATER : EnumParticle.CLOUD;
+                            Particle particleType = isDescending ? Particle.DRIPPING_WATER : Particle.CLOUD;
 
-                            PacketPlayOutWorldParticles trailPacket = new PacketPlayOutWorldParticles(
-                                    particleType, true,
-                                    (float) loc.getX(), (float) loc.getY(), (float) loc.getZ(),
-                                    0.2F, 0.2F, 0.2F, 0, isDescending ? 1 : 2
-                            );
-                            ((CraftPlayer) player).getHandle().playerConnection.sendPacket(trailPacket);
+
+                            player.spawnParticle(particleType, loc, isDescending ? 1 : 2, .2, .2, .2, 0);
                         }
                     } catch (Exception e) {
                     }
@@ -268,17 +259,13 @@ public class PlayerMoveHandler implements MovementHandler, Listener {
                     if (player.isOnline()) {
                         player.setPassenger(null);
                         try {
-                            player.playSound(player.getLocation(), Sound.FALL_BIG, 0.8f, 1.0f);
+                            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BIG_FALL, 0.8f, 1.0f);
                         } catch (Exception e) {
                         }
 
                         try {
-                            PacketPlayOutWorldParticles landingPacket = new PacketPlayOutWorldParticles(
-                                    EnumParticle.CLOUD, true,
-                                    (float) safeLandingLoc.getX(), (float) safeLandingLoc.getY(), (float) safeLandingLoc.getZ(),
-                                    0.5F, 0.1F, 0.5F, 0, 8
-                            );
-                            ((CraftPlayer) player).getHandle().playerConnection.sendPacket(landingPacket);
+
+                            player.spawnParticle(Particle.CLOUD, safeLandingLoc, 8, .5, .1, .5, 0);
                         } catch (Exception e) {
                         }
                     }
@@ -340,12 +327,12 @@ public class PlayerMoveHandler implements MovementHandler, Listener {
 
 
     @Override
-    public void handleUpdateLocation(Player player, Location location, Location location1, PacketPlayInFlying packetPlayInFlying) {
+    public void handleUpdateLocation(Player player, Location location, Location location1, ServerboundMovePlayerPacket packetPlayInFlying) {
         checkMove(location, location1, player.getPlayer());
     }
 
     @Override
-    public void handleUpdateRotation(Player player, Location location, Location location1, PacketPlayInFlying packetPlayInFlying) {
+    public void handleUpdateRotation(Player player, Location location, Location location1, ServerboundMovePlayerPacket packetPlayInFlying) {
         IOperator iOperator = ThePit.getInstance().getProfileOperator().getIOperator(player.getUniqueId());
         if(iOperator != null) {
             PlayerProfile profile = iOperator.profile();

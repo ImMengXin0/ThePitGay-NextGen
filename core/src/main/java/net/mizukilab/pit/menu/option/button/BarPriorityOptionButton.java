@@ -40,11 +40,11 @@ public class BarPriorityOptionButton extends Button {
             lines.add(" ");
             lines.add("&7当前: &e" + profile.getPlayerOption().getBarPriority().getDescription());
             lines.add("&e点击切换此选项!");
-            return new ItemBuilder(Material.EMPTY_MAP).name("&a信息选项: 提示栏").lore(lines).build();
+            return new ItemBuilder(Material.MAP).name("&a信息选项: 提示栏").lore(lines).build();
         } catch (Exception e) {
             CC.printError(player, e);
         }
-        return new ItemBuilder(Material.EMPTY_MAP).name("&a画面选项: 提示栏").lore(lines).build();
+        return new ItemBuilder(Material.MAP).name("&a画面选项: 提示栏").lore(lines).build();
     }
 
     @Override

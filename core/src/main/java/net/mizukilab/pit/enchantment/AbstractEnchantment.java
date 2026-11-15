@@ -1,10 +1,11 @@
 package net.mizukilab.pit.enchantment;
 
+import net.mizukilab.pit.util.item.ItemKinds;
+
 import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.data.PlayerProfile;
 import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
 import lombok.Getter;
-import net.minecraft.server.v1_8_R3.*;
 import net.mizukilab.pit.enchantment.param.item.ArmorOnly;
 import net.mizukilab.pit.enchantment.param.item.BowOnly;
 import net.mizukilab.pit.enchantment.param.item.RodOnly;
@@ -72,17 +73,17 @@ public abstract class AbstractEnchantment {
     }
 
     public boolean canApply(ItemStack item) {
-        net.minecraft.server.v1_8_R3.ItemStack nmsItem = PublicUtil.toNMStackQuick(item);
-        if (nmsItem.getItem() instanceof ItemSword) {
+        net.minecraft.world.item.ItemStack nmsItem = PublicUtil.toNMStackQuick(item);
+        if (ItemKinds.isSword(nmsItem)) {
             return this.getClass().isAnnotationPresent(WeaponOnly.class);
         }
-        if (nmsItem.getItem() instanceof ItemBow) {
+        if (ItemKinds.isBow(nmsItem)) {
             return this.getClass().isAnnotationPresent(BowOnly.class);
         }
-        if (nmsItem.getItem() instanceof ItemArmor) {
+        if (ItemKinds.isArmor(nmsItem)) {
             return this.getClass().isAnnotationPresent(ArmorOnly.class);
         }
-        if (nmsItem.getItem() instanceof ItemFishingRod) {
+        if (ItemKinds.isRod(nmsItem)) {
             return this.getClass().isAnnotationPresent(RodOnly.class);
         }
         return false;

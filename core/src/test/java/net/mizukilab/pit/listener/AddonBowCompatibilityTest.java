@@ -6,9 +6,9 @@ import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.perk.PerkFactory;
 import com.google.common.util.concurrent.AtomicDouble;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
-import net.minecraft.server.v1_8_R3.ItemBow;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.BowItem;
 import net.mizukilab.pit.BukkitDataTestSupport;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
@@ -23,7 +23,7 @@ import net.mizukilab.pit.util.RangedStreamLineList;
 import net.mizukilab.pit.util.Utils;
 import net.mizukilab.pit.util.cooldown.Cooldown;
 import org.bukkit.*;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.*;
 import org.bukkit.event.*;
 import org.bukkit.event.entity.*;
@@ -81,8 +81,8 @@ public class AddonBowCompatibilityTest extends BukkitDataTestSupport {
     @Before public void setup() throws Exception {
         addon = new URLClassLoader(new URL[]{Path.of(System.getProperty("pitAddonJar")).toUri().toURL(),
                 Path.of(System.getProperty("pitAddonLoaderJar")).toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
-        bukkit = mockStatic(Bukkit.class);
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getServer).thenReturn(mock(Server.class, RETURNS_DEEP_STUBS));
         bukkit.when(Bukkit::getPluginManager).thenReturn(mock(org.bukkit.plugin.PluginManager.class));
         bukkit.when(Bukkit::getScheduler).thenReturn(mock(BukkitScheduler.class));
@@ -124,6 +124,7 @@ public class AddonBowCompatibilityTest extends BukkitDataTestSupport {
     }
 
     private AbstractEnchantment enchant(String name) throws Exception {
+        net.mizukilab.pit.OptionalTestFixtures.require("pitAddonJar", "pitAddonLoaderJar");
         return (AbstractEnchantment) addon.loadClass("cn.apnf.mistral.enchantments." + name).getConstructor().newInstance();
     }
     private CombatPlayer player() {
@@ -136,9 +137,9 @@ public class AddonBowCompatibilityTest extends BukkitDataTestSupport {
         World world = mock(World.class); when(player.getWorld()).thenReturn(world);
         when(player.getLocation()).thenReturn(new Location(world, 1, 64, 1));
         try (var attributes = mockConstruction(AttributeModifier.class)) {
-            EntityPlayer handle = mock(EntityPlayer.class);
+            ServerPlayer handle = mock(ServerPlayer.class);
             UUID playerId = player.getUniqueId();
-            when(handle.getUniqueID()).thenReturn(playerId);
+            when(handle.getUUID()).thenReturn(playerId);
             when(player.getHandle()).thenReturn(handle);
         }
         return player;
@@ -190,15 +191,15 @@ public class AddonBowCompatibilityTest extends BukkitDataTestSupport {
         register(ender, "onBowHit", ProjectileHitEvent.class);
     }
     private void stubNmsReplacementShot() {
-        net.minecraft.server.v1_8_R3.ItemStack nmsStack = mock(net.minecraft.server.v1_8_R3.ItemStack.class);
-        ItemBow nmsBow = mock(ItemBow.class); when(nmsStack.getItem()).thenReturn(nmsBow);
+        net.minecraft.world.item.ItemStack nmsStack = mock(net.minecraft.world.item.ItemStack.class);
+        BowItem nmsBow = mock(BowItem.class); when(nmsStack.getItem()).thenReturn(nmsBow);
         utils.when(() -> Utils.toNMStackQuick(bowStack)).thenReturn(nmsStack);
-        EntityPlayer handle = attacker.getHandle();
+        ServerPlayer handle = attacker.getHandle();
         doAnswer(call -> {
             Arrow replacement = arrow(); replacements.add(replacement);
             fire(new EntityShootBowEvent(attacker, bowStack, replacement, 1F));
             return null;
-        }).when(nmsBow).a(same(nmsStack), isNull(), same(handle), eq(0));
+        }).when(nmsBow).releaseUsing(same(nmsStack), isNull(), same(handle), eq(0));
     }
     @SuppressWarnings("unchecked") private Object2IntOpenHashMap<AbstractEnchantment> snapshot(Arrow arrow) {
         assertTrue("The actual fired arrow needs enchantment data", arrow.hasMetadata("enchant"));
@@ -259,7 +260,7 @@ public class AddonBowCompatibilityTest extends BukkitDataTestSupport {
     }
     @Test public void enderReadsFiredBowIfTheHandChangesDuringShootEvent() throws Exception {
         registerBowListeners(false); bow.getEnchantments().put(ender, 3); when(attacker.isSneaking()).thenReturn(true);
-        when(attacker.getItemInHand()).thenReturn(new ItemStack(Material.GOLD_SWORD));
+        when(attacker.getItemInHand()).thenReturn(new ItemStack(Material.GOLDEN_SWORD));
         Arrow arrow = arrow(); fire(new EntityShootBowEvent(attacker, bowStack, arrow, 1F));
         assertTrue(arrow.hasMetadata("ender_bow"));
     }
@@ -308,7 +309,7 @@ public class AddonBowCompatibilityTest extends BukkitDataTestSupport {
                     new AtomicDouble(4), new AtomicDouble(1), new AtomicBoolean());
             verify(victim).setHealth(20D - damage[level - 1]);
             final int ticks = seconds[level - 1] * 20;
-            verify(victim).addPotionEffect(argThat((PotionEffect effect) -> effect.getType().equals(PotionEffectType.SLOW)
+            verify(victim).addPotionEffect(argThat((PotionEffect effect) -> effect.getType().equals(PotionEffectType.SLOWNESS)
                     && effect.getDuration() == ticks && effect.getAmplifier() == 0));
             verify(victim.getWorld()).strikeLightningEffect(victim.getLocation());
             verify(victim).sendMessage("§e§l雷击! §7你被雷电击中了!");

@@ -22,7 +22,7 @@ public class PageButton extends Button {
 
     @Override
     public ItemStack getButtonItem(Player player) {
-        ItemStack itemStack = new ItemStack(Material.CARPET);
+        ItemStack itemStack = new ItemStack(Material.WHITE_CARPET);
         ItemMeta itemMeta = itemStack.getItemMeta();
 
         if (this.hasNext(player)) {

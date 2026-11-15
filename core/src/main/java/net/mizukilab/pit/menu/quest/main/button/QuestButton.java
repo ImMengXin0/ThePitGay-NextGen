@@ -214,7 +214,7 @@ public class QuestButton extends Button {
                     quest.onInactive(player, level);
                 }
             } else {
-                player.playSound(player.getLocation(), Sound.ENDERMAN_TELEPORT, 1, 1);
+                player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
             }
         } else {
             if (lastQuest != null) {
@@ -225,14 +225,14 @@ public class QuestButton extends Button {
                 long now = System.currentTimeMillis();
 
                 if (now < cooldown) {
-                    player.playSound(player.getLocation(), Sound.ENDERMAN_TELEPORT, 1, 1);
+                    player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
                 } else {
                     quest.onActive(player, level);
-                    player.playSound(player.getLocation(), Sound.NOTE_PLING, 1, 1.5F);
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1.5F);
                 }
             } else {
                 quest.onActive(player, level);
-                player.playSound(player.getLocation(), Sound.NOTE_PLING, 1, 1.5F);
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1.5F);
             }
         }
 

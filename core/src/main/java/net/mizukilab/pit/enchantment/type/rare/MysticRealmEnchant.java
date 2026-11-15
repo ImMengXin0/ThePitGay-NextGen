@@ -53,13 +53,13 @@ public class MysticRealmEnchant extends AbstractEnchantment implements IAttackEn
 
     @Override
     public void handleAttackEntity(int enchantLevel, Player attacker, Entity target, double damage, AtomicDouble finalDamage, AtomicDouble boostDamage, AtomicBoolean cancel) {
-        if (((Player)target).hasPotionEffect(PotionEffectType.SLOW))
+        if (((Player)target).hasPotionEffect(PotionEffectType.SLOWNESS))
             boostDamage.getAndAdd(enchantLevel * 0.04D);
     }
 
     @Override
     public void handleShootEntity(int enchantLevel, Player attacker, Entity target, double damage, AtomicDouble finalDamage, AtomicDouble boostDamage, AtomicBoolean cancel) {
-        if (((Player)target).hasPotionEffect(PotionEffectType.SLOW))
+        if (((Player)target).hasPotionEffect(PotionEffectType.SLOWNESS))
             boostDamage.getAndAdd(enchantLevel * 0.04D);
     }
 
@@ -68,8 +68,8 @@ public class MysticRealmEnchant extends AbstractEnchantment implements IAttackEn
             for (Entity r : player.getWorld().getNearbyEntities(player.getLocation(), enchantLevel * 3, enchantLevel * 3, enchantLevel * 3)) {
                 if (!(r instanceof Player)) continue;
                 Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> {
-                    ((Player)r).removePotionEffect(PotionEffectType.SLOW);
-                    ((Player)r).addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 80, 0));
+                    ((Player)r).removePotionEffect(PotionEffectType.SLOWNESS);
+                    ((Player)r).addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 0));
                 });
             }
         }

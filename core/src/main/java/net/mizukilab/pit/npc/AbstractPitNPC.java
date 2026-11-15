@@ -19,6 +19,9 @@ public abstract class AbstractPitNPC {
 
     private NPC npc;
 
+    public org.bukkit.entity.EntityType getNpcEntityType() { return org.bukkit.entity.EntityType.PLAYER; }
+    public org.bukkit.entity.Villager.Profession getNpcProfession() { return null; }
+
     //NPC 内部名称
     public abstract String getNpcInternalName();
 

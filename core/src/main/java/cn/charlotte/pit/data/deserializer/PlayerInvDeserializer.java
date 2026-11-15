@@ -22,16 +22,18 @@ public class PlayerInvDeserializer extends JsonDeserializer<PlayerInv> {
     public PlayerInv deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         try {
             JsonNode node = p.getCodec().readTree(p);
+            if (!node.has("inv") || !node.get("inv").isTextual())
+                throw new IllegalArgumentException("Stored player inventory requires an inv string");
             String inv = node.get("inv").asText();
 
             return this.refreshInv(InventoryUtil.playerInventoryFromString(inv));
         } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+            throw com.fasterxml.jackson.databind.JsonMappingException.from(p, "Invalid stored player inventory", e);
         }
     }
 
     private PlayerInv refreshInv(PlayerInv inv) {
+        if (inv == null) return null;
         ItemStack[] clone = inv.getContents().clone();
         for (int i = 0; i < clone.length; i++) {
             ItemStack itemStack = clone[i];

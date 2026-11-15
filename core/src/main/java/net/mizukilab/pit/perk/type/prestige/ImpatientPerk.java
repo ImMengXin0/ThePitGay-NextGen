@@ -34,7 +34,7 @@ public class ImpatientPerk extends AbstractPerk implements ITickTask {
 
     @Override
     public Material getIcon() {
-        return Material.CARROT_ITEM;
+        return Material.CARROT;
     }
 
     @Override

@@ -39,7 +39,7 @@ public class MusicRuneMenuTest {
     private MythicLeggingsItem parsed;
 
     @Before public void setup() {
-        pit = mockStatic(ThePit.class); bukkit = mockStatic(Bukkit.class);
+        pit = mockStatic(ThePit.class); bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         utils = mockStatic(Utils.class); itemUtil = mockStatic(ItemUtil.class);
         org.bukkit.inventory.ItemFactory factory = mock(org.bukkit.inventory.ItemFactory.class);
         bukkit.when(Bukkit::getItemFactory).thenReturn(factory);
@@ -49,7 +49,7 @@ public class MusicRuneMenuTest {
         player = mock(Player.class); inventory = mock(PlayerInventory.class); when(player.getInventory()).thenReturn(inventory);
         when(player.getName()).thenReturn("RuneTest"); when(player.getLocation()).thenReturn(new Location(mock(World.class), 0, 64, 0));
         when(inventory.getSize()).thenReturn(36); when(inventory.getHeldItemSlot()).thenReturn(0);
-        when(inventory.getItem(10)).thenReturn(pants); when(inventory.getItemInHand()).thenReturn(rune);
+        when(inventory.getItem(10)).thenReturn(pants); when(inventory.getItemInMainHand()).thenReturn(rune);
         parsed = new MythicLeggingsItem(); utils.when(() -> Utils.getMythicItem(pants)).thenReturn(parsed);
         itemUtil.when(() -> ItemUtil.getInternalName(any())).thenAnswer(call -> {
             ItemStack item = call.getArgument(0);
@@ -149,9 +149,9 @@ public class MusicRuneMenuTest {
 
     @Test public void switchingRuneOrTargetBeforeClickCannotConsumeOrOverwriteItems() {
         DJEnchantButton button = new DJEnchantButton(dj(1), pants, 10);
-        when(inventory.getItemInHand()).thenReturn(new ItemStack(Material.DIAMOND));
+        when(inventory.getItemInMainHand()).thenReturn(new ItemStack(Material.DIAMOND));
         click(button); verify(inventory, never()).setItem(anyInt(), any());
-        when(inventory.getItemInHand()).thenReturn(rune);
+        when(inventory.getItemInMainHand()).thenReturn(rune);
         when(inventory.getItem(10)).thenReturn(new ItemStack(Material.DIAMOND_LEGGINGS));
         click(button); verify(inventory, never()).setItem(anyInt(), any());
         verify(player, never()).closeInventory();

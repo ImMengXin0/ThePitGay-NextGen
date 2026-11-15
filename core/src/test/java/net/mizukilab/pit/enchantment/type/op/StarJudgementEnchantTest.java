@@ -23,7 +23,7 @@ import net.mizukilab.pit.util.random.RandomUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -82,7 +82,7 @@ public class StarJudgementEnchantTest extends BukkitDataTestSupport {
 
     @Before
     public void setup() {
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         pit = mockStatic(ThePit.class);
         profiles = mockStatic(PlayerProfile.class);
         random = mockStatic(RandomUtil.class);
@@ -417,15 +417,15 @@ public class StarJudgementEnchantTest extends BukkitDataTestSupport {
 
     @Test
     public void realDamageEventDispatchesEnchantmentFromLoadedWeaponNbt() throws Exception {
-        try (var attributes = mockConstruction(net.minecraft.server.v1_8_R3.AttributeModifier.class)) {
+        try (var attributes = mockConstruction(net.minecraft.world.entity.ai.attributes.AttributeModifier.class)) {
             World world = attacker.getWorld();
             attacker = player(world, mock(CombatPlayer.class));
             victim = player(world, mock(CombatPlayer.class));
             Class<?> allocatorType = Class.forName("org.objenesis.ObjenesisStd");
             Object allocator = allocatorType.getConstructor().newInstance();
             Method allocate = allocatorType.getMethod("newInstance", Class.class);
-            var attackerHandle = (net.minecraft.server.v1_8_R3.EntityPlayer) allocate.invoke(allocator, net.minecraft.server.v1_8_R3.EntityPlayer.class);
-            var victimHandle = (net.minecraft.server.v1_8_R3.EntityPlayer) allocate.invoke(allocator, net.minecraft.server.v1_8_R3.EntityPlayer.class);
+            var attackerHandle = (net.minecraft.server.level.ServerPlayer) allocate.invoke(allocator, net.minecraft.server.level.ServerPlayer.class);
+            var victimHandle = (net.minecraft.server.level.ServerPlayer) allocate.invoke(allocator, net.minecraft.server.level.ServerPlayer.class);
             when(((CraftPlayer) attacker).getHandle()).thenReturn(attackerHandle);
             when(((CraftPlayer) victim).getHandle()).thenReturn(victimHandle);
             attackerProfile = profile(attacker);
@@ -442,11 +442,11 @@ public class StarJudgementEnchantTest extends BukkitDataTestSupport {
             when(plugin.getEnchantmentFactor()).thenReturn(factor);
             when(plugin.getPerkFactory()).thenReturn(new PerkFactory());
             when(plugin.getDisabledPerks()).thenReturn(Set.of());
-            net.minecraft.server.v1_8_R3.NBTTagList nbt = new net.minecraft.server.v1_8_R3.NBTTagList();
-            nbt.add(new net.minecraft.server.v1_8_R3.NBTTagString("star_judgement_enchant:3"));
+            net.minecraft.nbt.ListTag nbt = new net.minecraft.nbt.ListTag();
+            nbt.add(new net.minecraft.nbt.StringTag("star_judgement_enchant:3"));
             IMythicItem sword = new net.mizukilab.pit.item.type.mythic.MythicSwordItem();
             net.mizukilab.pit.util.Utils.readEnchantments(sword.getEnchantments(), nbt);
-            org.bukkit.inventory.ItemStack held = new org.bukkit.inventory.ItemStack(org.bukkit.Material.GOLD_SWORD);
+            org.bukkit.inventory.ItemStack held = new org.bukkit.inventory.ItemStack(org.bukkit.Material.GOLDEN_SWORD);
             when(attacker.getInventory().getItemInHand()).thenReturn(held);
             when(attacker.getItemInHand()).thenReturn(held);
             net.mizukilab.pit.item.factory.ItemFactory items = mock(net.mizukilab.pit.item.factory.ItemFactory.class);

@@ -63,7 +63,7 @@ class PitAdminDupeFixCommands {
 
                         profile.inventory.contents.toList().forEachIndexed { index, itemStack ->
                             if (itemStack != null) {
-                                if (itemStack.type == Material.GOLD_SWORD || itemStack.type == Material.BOW || itemStack.type == Material.LEATHER_LEGGINGS) {
+                                if (itemStack.type == Material.GOLDEN_SWORD || itemStack.type == Material.BOW || itemStack.type == Material.LEATHER_LEGGINGS) {
                                     val uuid = ItemUtil.getUUID(itemStack) ?: return@forEachIndexed
                                     val success = visited.add(uuid)
                                     if (!success) {
@@ -87,7 +87,7 @@ class PitAdminDupeFixCommands {
 
                         profile.inventory.armorContents.toList().forEachIndexed { index, itemStack ->
                             if (itemStack != null) {
-                                if (itemStack.type == Material.GOLD_SWORD || itemStack.type == Material.BOW || itemStack.type == Material.LEATHER_LEGGINGS) {
+                                if (itemStack.type == Material.GOLDEN_SWORD || itemStack.type == Material.BOW || itemStack.type == Material.LEATHER_LEGGINGS) {
                                     val uuid = ItemUtil.getUUID(itemStack) ?: return@forEachIndexed
                                     val success = visited.add(uuid)
                                     if (!success) {
@@ -111,7 +111,7 @@ class PitAdminDupeFixCommands {
 
                         profile.enderChest.inventory.toList().forEachIndexed { index, itemStack ->
                             if (itemStack != null) {
-                                if (itemStack.type == Material.GOLD_SWORD || itemStack.type == Material.BOW || itemStack.type == Material.LEATHER_LEGGINGS) {
+                                if (itemStack.type == Material.GOLDEN_SWORD || itemStack.type == Material.BOW || itemStack.type == Material.LEATHER_LEGGINGS) {
                                     val uuid = ItemUtil.getUUID(itemStack) ?: return@forEachIndexed
                                     val success = visited.add(uuid)
                                     if (!success) {

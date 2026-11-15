@@ -60,11 +60,11 @@ public class EchoOfSnowlandWEnchant extends AbstractEnchantment implements IAtta
         Player targetPlayer = (Player) target;
         if (PlayerProfile.getPlayerProfileByUuid(attacker.getUniqueId()).getMeleeAttack() % 3 == 0) {
             targetPlayer.removePotionEffect(PotionEffectType.WEAKNESS);
-            targetPlayer.removePotionEffect(PotionEffectType.SLOW);
+            targetPlayer.removePotionEffect(PotionEffectType.SLOWNESS);
             targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 20 * 10, 1), true);
-            targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 20 * 10, 0), true);
+            targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20 * 10, 0), true);
         }
-        if (targetPlayer.getActivePotionEffects().contains(PotionEffectType.WEAKNESS) && targetPlayer.getActivePotionEffects().contains(PotionEffectType.SLOW)) {
+        if (targetPlayer.getActivePotionEffects().contains(PotionEffectType.WEAKNESS) && targetPlayer.getActivePotionEffects().contains(PotionEffectType.SLOWNESS)) {
             boostDamage.set(boostDamage.get() + 1.2);
             finalDamage.set(finalDamage.get() + 2);
         }

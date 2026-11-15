@@ -2,8 +2,8 @@ package net.mizukilab.pit.util.rank;
 
 import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.data.PlayerProfile;
-import io.lumine.xikage.mythicmobs.MythicMobs;
-import io.lumine.xikage.mythicmobs.mobs.ActiveMob;
+import io.lumine.mythic.bukkit.MythicBukkit;
+import io.lumine.mythic.core.mobs.ActiveMob;
 import lombok.extern.java.Log;
 import net.luckperms.api.model.user.User;
 import net.md_5.bungee.api.ChatColor;
@@ -75,9 +75,9 @@ public class RankUtil {
 
             if (mmEnable) {
                 try {
-                    Optional<ActiveMob> mob = MythicMobs.inst().getMobManager().getActiveMob(uuid);
+                    Optional<ActiveMob> mob = MythicBukkit.inst().getMobManager().getActiveMob(uuid);
                     if (mob.isPresent()) {
-                        return mob.get().getType().getDisplayName();
+                        return mob.get().getDisplayName();
                     }
                 } catch (Throwable t){
                     log.logp(Level.WARNING,"RankUtil","getPlayerName"

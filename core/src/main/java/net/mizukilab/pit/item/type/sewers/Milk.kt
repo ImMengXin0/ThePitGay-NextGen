@@ -55,10 +55,10 @@ class Milk : AbstractPitItem(), Listener {
             PlayerUtil.takeOneItemInHand(player)
             val negativeEffects = listOf(
                 PotionEffectType.BLINDNESS,
-                PotionEffectType.CONFUSION,
+                PotionEffectType.NAUSEA,
                 PotionEffectType.HUNGER,
                 PotionEffectType.POISON,
-                PotionEffectType.SLOW,
+                PotionEffectType.SLOWNESS,
                 PotionEffectType.WEAKNESS,
                 PotionEffectType.WITHER
             )
@@ -68,7 +68,7 @@ class Milk : AbstractPitItem(), Listener {
                     player.removePotionEffect(effect.type)
                 }
             }
-            player.playSound(player.location, Sound.DRINK, 1.0f, 1.0f)
+            player.playSound(player.location, Sound.ENTITY_GENERIC_DRINK, 1.0f, 1.0f)
             player.addPotionEffect(PotionEffect(PotionEffectType.REGENERATION, 2400, 1))
         }
     }

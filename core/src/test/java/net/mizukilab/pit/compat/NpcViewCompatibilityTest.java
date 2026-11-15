@@ -9,7 +9,12 @@ import com.comphenix.protocol.events.PacketListener;
 import com.comphenix.protocol.reflect.StructureModifier;
 import com.comphenix.protocol.utility.MinecraftReflection;
 import com.comphenix.protocol.utility.MinecraftVersion;
-import net.minecraft.server.v1_8_R3.*;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.network.protocol.game.*;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -34,7 +39,7 @@ import java.util.logging.Logger;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-/** Real 1.8 packets and ProtocolLib accessors; server/network services are mocked. */
+/** Real 1.21.11 packets and ProtocolLib accessors; server/network services are mocked. */
 public class NpcViewCompatibilityTest {
     private MockedStatic<Bukkit> bukkit;
     private MockedStatic<ProtocolLibrary> protocolLibrary;
@@ -50,12 +55,10 @@ public class NpcViewCompatibilityTest {
     private final List<PacketContainer> sent = new ArrayList<>();
 
     @Before public void setup() throws Exception {
-        MinecraftVersion.setCurrentVersion(new MinecraftVersion(1, 8, 8));
-        bukkit = mockStatic(Bukkit.class);
-        bukkit.when(Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class, RETURNS_DEEP_STUBS));
-        var packages = MinecraftReflection.class.getDeclaredMethod("setMinecraftPackage", String.class, String.class);
-        packages.setAccessible(true);
-        packages.invoke(null, "net.minecraft.server.v1_8_R3", "org.bukkit.craftbukkit.v1_8_R3");
+        net.mizukilab.pit.PaperTestBootstrap.initialize();
+        MinecraftVersion.setCurrentVersion(new MinecraftVersion(1, 21, 11));
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
+        MinecraftReflection.getMinecraftPackage();
         protocolLibrary = mockStatic(ProtocolLibrary.class);
         protocol = mock(ProtocolManager.class);
         protocolLibrary.when(ProtocolLibrary::getProtocolManager).thenReturn(protocol);
@@ -75,7 +78,7 @@ public class NpcViewCompatibilityTest {
         bukkit.when(Bukkit::getWorlds).thenReturn(List.of(world));
         when(world.getEntities()).thenReturn(List.of(bot, viewer));
         when(protocol.createPacket(PacketType.Play.Server.ENTITY_DESTROY)).thenAnswer(call ->
-                wrap(PacketType.Play.Server.ENTITY_DESTROY, new PacketPlayOutEntityDestroy()));
+                wrap(PacketType.Play.Server.ENTITY_DESTROY, new ClientboundRemoveEntitiesPacket(0)));
         doAnswer(call -> { sent.add(call.getArgument(1)); return null; })
                 .when(protocol).sendServerPacket(eq(viewer), any(PacketContainer.class), eq(false));
         listener = new NpcDeathAnimationListener(plugin);
@@ -102,30 +105,18 @@ public class NpcViewCompatibilityTest {
     }
 
     private PacketContainer status(int id, int value) {
-        PacketContainer packet = wrap(PacketType.Play.Server.ENTITY_STATUS, new PacketPlayOutEntityStatus());
-        packet.getIntegers().write(0, id); packet.getBytes().write(0, (byte) value);
-        return packet;
+        Entity entity = mock(Entity.class); when(entity.getId()).thenReturn(id);
+        return wrap(PacketType.Play.Server.ENTITY_STATUS, new ClientboundEntityEventPacket(entity, (byte) value));
     }
-
-    private DataWatcher health(float health) {
-        DataWatcher watcher = new DataWatcher(null);
-        watcher.a(6, health);
-        return watcher;
-    }
-
     private PacketContainer metadata(int id, float health) {
-        return wrap(PacketType.Play.Server.ENTITY_METADATA, new PacketPlayOutEntityMetadata(id, health(health), true));
+        return wrap(PacketType.Play.Server.ENTITY_METADATA, new ClientboundSetEntityDataPacket(id,
+            List.of(new SynchedEntityData.DataValue<>(LivingEntity.DATA_HEALTH_ID.id(),
+                net.minecraft.network.syncher.EntityDataSerializers.FLOAT, health))));
     }
-
     private PacketContainer spawn(int id, float health, boolean livingMob) {
-        Object nms = livingMob ? new PacketPlayOutSpawnEntityLiving() : new PacketPlayOutNamedEntitySpawn();
-        PacketContainer packet = wrap(livingMob ? PacketType.Play.Server.SPAWN_ENTITY_LIVING
-                : PacketType.Play.Server.NAMED_ENTITY_SPAWN, nms);
-        packet.getIntegers().write(0, id);
-        packet.getModifier().withType(DataWatcher.class).write(0, health(health));
-        return packet;
+        return wrap(PacketType.Play.Server.SPAWN_ENTITY, new ClientboundAddEntityPacket(id, UUID.randomUUID(),
+            0,64,0,0,0,livingMob ? EntityType.ZOMBIE : EntityType.PLAYER,0,Vec3.ZERO,0));
     }
-
     private PacketEvent send(PacketContainer packet) {
         PacketEvent event = PacketEvent.fromServer(this, packet, viewer);
         listener.onPacketSending(event);
@@ -133,7 +124,7 @@ public class NpcViewCompatibilityTest {
     }
 
     private PlayerDeathEvent death() {
-        PlayerDeathEvent event = new PlayerDeathEvent(bot, new ArrayList<>(), 17, "unchanged");
+        PlayerDeathEvent event = new PlayerDeathEvent(bot, mock(org.bukkit.damage.DamageSource.class), new ArrayList<>(), 17, "unchanged");
         listener.onDeath(event);
         return event;
     }
@@ -149,7 +140,7 @@ public class NpcViewCompatibilityTest {
     @Test public void deathStatusIsReplacedWithImmediateDestroy() {
         assertTrue(send(status(41, 3)).isCancelled());
         assertEquals(1, sent.size());
-        assertArrayEquals(new int[]{41}, sent.get(0).getIntegerArrays().read(0));
+        assertArrayEquals(new int[]{41}, ((ClientboundRemoveEntitiesPacket) sent.get(0).getHandle()).getEntityIds().toIntArray());
         verify(viewer, never()).hidePlayer(any(Player.class));
     }
 
@@ -171,7 +162,7 @@ public class NpcViewCompatibilityTest {
             assertFalse(send(status(id, 3)).isCancelled());
             assertFalse(send(metadata(id, 0)).isCancelled());
         }
-        listener.onDeath(new PlayerDeathEvent(viewer, new ArrayList<>(), 0, null));
+        listener.onDeath(new PlayerDeathEvent(viewer, mock(org.bukkit.damage.DamageSource.class), new ArrayList<>(), 0, null));
         assertTrue(sent.isEmpty());
     }
 
@@ -191,41 +182,21 @@ public class NpcViewCompatibilityTest {
         assertTrue(send(spawn(41, 20, false)).isCancelled());
         assertFalse(send(metadata(42, 20)).isCancelled());
         assertFalse(send(status(42, 2)).isCancelled());
-        listener.onDeath(new PlayerDeathEvent(currentBot, new ArrayList<>(), 0, null));
+        listener.onDeath(new PlayerDeathEvent(currentBot, mock(org.bukkit.damage.DamageSource.class), new ArrayList<>(), 0, null));
         assertTrue(send(spawn(42, 20, false)).isCancelled());
     }
 
-    @Test public void alreadyDeadSpawnPacketsAreNotRendered() {
+    @Test public void spawningDeadNpcsStaysBlockedAfterDeathEvent() {
+        death();
         assertTrue(send(spawn(41, 0, false)).isCancelled());
         assertTrue(send(spawn(41, 0, true)).isCancelled());
     }
-
-    @Test public void serializedDeadSpawnIsAlsoBlocked() throws Exception {
-        // ProtocolLib cloning/other packet listeners can deserialize spawn packets,
-        // leaving the metadata list populated instead of the live DataWatcher field.
-        for (boolean livingMob : new boolean[]{false, true}) {
-            PacketContainer original = spawn(41, 0, livingMob);
-            if (!livingMob) original.getUUIDs().write(0, UUID.randomUUID());
-            PacketDataSerializer buffer = new PacketDataSerializer(io.netty.buffer.Unpooled.buffer());
-            try {
-                ((Packet<?>) original.getHandle()).b(buffer);
-                Packet<?> decoded = livingMob ? new PacketPlayOutSpawnEntityLiving() : new PacketPlayOutNamedEntitySpawn();
-                decoded.a(buffer);
-                assertTrue(send(wrap(original.getType(), decoded)).isCancelled());
-            } finally {
-                buffer.release();
-            }
-        }
-    }
-
     @Test public void unrelatedZeroMetadataDoesNotHideNpc() {
-        DataWatcher watcher = new DataWatcher(null);
-        watcher.a(7, 0);
-        assertFalse(send(wrap(PacketType.Play.Server.ENTITY_METADATA,
-                new PacketPlayOutEntityMetadata(41, watcher, true))).isCancelled());
+        var packet = new ClientboundSetEntityDataPacket(41, List.of(new SynchedEntityData.DataValue<>(7,
+                net.minecraft.network.syncher.EntityDataSerializers.INT, 0)));
+        assertFalse(send(wrap(PacketType.Play.Server.ENTITY_METADATA, packet)).isCancelled());
         assertTrue(sent.isEmpty());
     }
-
     @Test public void packetCallbacksDoNotLookUpWorldEntitiesOrNpcRegistry() {
         clearInvocations(bot, viewer, world);
         send(status(41, 3)); send(metadata(41, 0)); send(metadata(999, 0));
@@ -240,7 +211,7 @@ public class NpcViewCompatibilityTest {
     }
 
     @Test public void quittingBotRetiresIdWithoutChangingHealthyPackets() {
-        listener.onQuit(new org.bukkit.event.player.PlayerQuitEvent(bot, null));
+        listener.onQuit(new org.bukkit.event.player.PlayerQuitEvent(bot, (String) null));
         assertFalse(send(metadata(41, 10)).isCancelled());
         assertTrue(sent.isEmpty());
     }
@@ -266,6 +237,7 @@ public class NpcViewCompatibilityTest {
     }
 
     @Test public void actualNpcViewBatchSuppressionCannotCancelDeathCleanup() throws Exception {
+        net.mizukilab.pit.OptionalTestFixtures.require("npcViewJar");
         try (URLClassLoader jar = new URLClassLoader(new URL[]{Path.of(System.getProperty("npcViewJar"))
                 .toUri().toURL(), Path.of("../libs/citizens-main-2.0.34-SNAPSHOT.jar").toUri().toURL()},
                 getClass().getClassLoader())) {

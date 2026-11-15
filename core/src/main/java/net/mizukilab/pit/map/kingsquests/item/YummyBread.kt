@@ -31,7 +31,7 @@ object YummyBread : AbstractPitItem(), Listener {
             return
         }
 
-        if (block.type == Material.FURNACE || block.type == Material.BURNING_FURNACE) {
+        if (block.type == Material.FURNACE || block.type == Material.FURNACE) {
             event.isCancelled = true
         }
 
@@ -53,7 +53,7 @@ object YummyBread : AbstractPitItem(), Listener {
         furnace.burnTime = 9999
         furnace.update()
 
-//        block.type = Material.BURNING_FURNACE
+//        block.type = Material.FURNACE
 
         val vector = player.location.direction.clone().multiply(-1).apply {
             this.setY(0)
@@ -84,7 +84,7 @@ object YummyBread : AbstractPitItem(), Listener {
             countdown--
             if (countdown <= 0) {
                 player.inventory.addItem(toItemStack())
-                player.playSound(block.location, Sound.ORB_PICKUP, 1f, 1f)
+                player.playSound(block.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
                 hologram.deSpawn()
                 block.type = Material.FURNACE
                 furnace.burnTime = 0
@@ -115,7 +115,7 @@ object YummyBread : AbstractPitItem(), Listener {
     fun onInteract(event: PlayerInteractEntityEvent) {
         val player = event.player
         val entity = event.rightClicked ?: return
-        val itemInHand = player.itemInHand
+        val itemInHand = player.inventory.itemInMainHand
 
         if (entity !is Chicken) return
 
@@ -135,7 +135,7 @@ object YummyBread : AbstractPitItem(), Listener {
             if (ItemUtil.getInternalName(item) == "yummy_bread") {
                 PlayerUtil.takeOneItemInHand(player)
                 PlayerUtil.heal(player, 1.0)
-                player.playSound(player.location, Sound.EAT, 1f, 1f)
+                player.playSound(player.location, Sound.ENTITY_GENERIC_EAT, 1f, 1f)
             }
         }
     }

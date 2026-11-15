@@ -43,6 +43,7 @@ confusion
 # Local verification, server dependencies and private configuration
 /audit/
 /core/logs/
+/vendor/mythic-framework/bukkit/logs/
 /core/libs/*.jar
 /libs/pandaspigot-*.jar
 /test-fixtures/

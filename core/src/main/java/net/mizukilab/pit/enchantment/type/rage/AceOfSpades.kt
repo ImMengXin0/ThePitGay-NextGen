@@ -55,7 +55,7 @@ class AceOfSpades : AbstractEnchantment() {
         val damager = event.damager
         val victim = event.entity
         if (damager is Player && victim is Player) {
-            val item = damager.itemInHand
+            val item = damager.inventory.itemInMainHand
             if ("combat_spade" == ItemUtil.getInternalName(item)) {
                 val leggings = victim.inventory.leggings
                 val enchantLevel = ThePit.api.getItemEnchantLevel(leggings, nbtName)

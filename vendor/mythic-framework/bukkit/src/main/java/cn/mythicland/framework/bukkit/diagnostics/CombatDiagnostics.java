@@ -91,9 +91,6 @@ public final class CombatDiagnostics implements AutoCloseable {
             throw new IllegalArgumentException("Select between 1 and 8 online players");
         if (observers.isEmpty() || observers.size() > 16)
             throw new IllegalArgumentException("Select between 1 and 16 online observers");
-        if (!Bukkit.getServer().getClass().getPackage().getName().endsWith("v1_8_R3")) {
-            throw new IllegalStateException("Combat diagnostics require a Minecraft 1.8.8 v1_8_R3 server");
-        }
         Set<UUID> watched = players.stream()
                 .map(Player::getUniqueId)
                 .collect(Collectors.toUnmodifiableSet());

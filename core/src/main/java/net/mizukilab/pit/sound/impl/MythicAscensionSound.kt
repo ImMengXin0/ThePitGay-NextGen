@@ -17,30 +17,30 @@ object MythicAscensionSound : AbstractPitSound() {
     override fun onSoundTick(player: Player, tick: Int) {
         when (tick) {
             0 -> {
-                player.playSound(player.location, Sound.LEVEL_UP, 1.0f, 0.5f)
-                player.playSound(player.location, Sound.NOTE_PIANO, 0.8f, 1.0f)
+                player.playSound(player.location, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.5f)
+                player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_HARP, 0.8f, 1.0f)
             }
-            3 -> player.playSound(player.location, Sound.NOTE_PIANO, 1.0f, 1.2f)
+            3 -> player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_HARP, 1.0f, 1.2f)
             6 -> {
-                player.playSound(player.location, Sound.LEVEL_UP, 1.2f, 0.8f)
-                player.playSound(player.location, Sound.NOTE_PIANO, 1.2f, 1.5f)
+                player.playSound(player.location, Sound.ENTITY_PLAYER_LEVELUP, 1.2f, 0.8f)
+                player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_HARP, 1.2f, 1.5f)
             }
-            9 -> player.playSound(player.location, Sound.NOTE_PIANO, 1.5f, 1.8f)
+            9 -> player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_HARP, 1.5f, 1.8f)
             12 -> {
-                player.playSound(player.location, Sound.LEVEL_UP, 1.5f, 1.0f)
-                player.playSound(player.location, Sound.ENDERDRAGON_WINGS, 0.8f, 2.0f)
+                player.playSound(player.location, Sound.ENTITY_PLAYER_LEVELUP, 1.5f, 1.0f)
+                player.playSound(player.location, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.8f, 2.0f)
             }
-            15 -> player.playSound(player.location, Sound.NOTE_PIANO, 1.8f, 2.0f)
+            15 -> player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_HARP, 1.8f, 2.0f)
             18 -> {
-                player.playSound(player.location, Sound.LEVEL_UP, 2.0f, 1.5f)
-                player.playSound(player.location, Sound.ORB_PICKUP, 1.0f, 2.0f)
+                player.playSound(player.location, Sound.ENTITY_PLAYER_LEVELUP, 2.0f, 1.5f)
+                player.playSound(player.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 2.0f)
             }
-            21 -> player.playSound(player.location, Sound.FIREWORK_BLAST, 1.5f, 1.8f)
-            24 -> player.playSound(player.location, Sound.FIREWORK_LARGE_BLAST, 1.0f, 2.0f)
+            21 -> player.playSound(player.location, Sound.ENTITY_FIREWORK_ROCKET_BLAST, 1.5f, 1.8f)
+            24 -> player.playSound(player.location, Sound.ENTITY_FIREWORK_ROCKET_LARGE_BLAST, 1.0f, 2.0f)
         }
 
         if (tick > 28) {
             end(player)
         }
     }
-} 
+}

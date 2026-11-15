@@ -30,7 +30,7 @@ public class ChessButton extends Button {
     public ItemStack getButtonItem(Player player) {
 
         if (posInfo.getMarkedInfo() == FourInARow.Marked.NULL) {
-            final ItemBuilder builder = new ItemBuilder(canPlay ? Material.WOOD_BUTTON : Material.STONE_BUTTON)
+            final ItemBuilder builder = new ItemBuilder(canPlay ? Material.OAK_BUTTON : Material.STONE_BUTTON)
                     .name(canPlay ? "&a点击落子" : "&c等待对手下棋...");
 
             if (canPlay) {
@@ -40,7 +40,7 @@ public class ChessButton extends Button {
             return builder.build();
         }
 
-        final ItemBuilder builder = new ItemBuilder(Material.SKULL_ITEM);
+        final ItemBuilder builder = new ItemBuilder(Material.PLAYER_HEAD);
 
         builder.durability(3)
                 .setSkullProperty(posInfo.getMarkedInfo() == FourInARow.Marked.WHITE ? "ewogICJ0aW1lc3RhbXAiIDogMTYwMjYxOTc3MTM1NCwKICAicHJvZmlsZUlkIiA6ICJkNjBmMzQ3MzZhMTI0N2EyOWI4MmNjNzE1YjAwNDhkYiIsCiAgInByb2ZpbGVOYW1lIiA6ICJCSl9EYW5pZWwiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWFiNjE2OTZjOTZiM2U3ODczMDk1OTc5MTkyNDYzNWQxMTM4ODM0YTJmMDFiNWQzMzNkNTNhY2JmYzUxYWExMSIKICAgIH0KICB9Cn0" :
@@ -61,15 +61,15 @@ public class ChessButton extends Button {
             return;
         }
         if (!canPlay) {
-            player.playSound(player.getLocation(), Sound.VILLAGER_NO, 1, 1);
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
             player.sendMessage(CC.translate("&c请等待对手落子"));
             return;
         }
         if (posInfo.getMarkedInfo() == FourInARow.Marked.NULL) {
             gameInstance.tryPlay(player, posInfo);
-            player.playSound(player.getLocation(), Sound.NOTE_STICKS, 1, 1);
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 1, 1);
         } else {
-            player.playSound(player.getLocation(), Sound.VILLAGER_NO, 1, 1);
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
             player.sendMessage(CC.translate("&c你不能下在那里"));
         }
     }

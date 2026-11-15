@@ -18,8 +18,6 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public final class ItemEditors {
-    private static final Method MODERN_UNBREAKABLE_SETTER = modernUnbreakableMethod("setUnbreakable", boolean.class);
-    private static final Method MODERN_UNBREAKABLE_GETTER = modernUnbreakableMethod("isUnbreakable");
 
     private ItemEditors() {
     }
@@ -95,7 +93,7 @@ public final class ItemEditors {
 
     public static ItemStack applyUnbreakable(ItemStack itemStack, boolean enabled) {
         applyUnbreakableMeta(itemStack, enabled);
-        return applyUnbreakableNbt(itemStack, enabled);
+        return itemStack;
     }
 
     public static boolean isUnbreakable(ItemStack itemStack) {
@@ -103,18 +101,9 @@ public final class ItemEditors {
         if (itemStack.getType() == Material.AIR) {
             throw new IllegalArgumentException("Cannot read unbreakable state from AIR item");
         }
-        Boolean nbtState = readUnbreakableNbt(itemStack);
-        if (nbtState != null) return nbtState;
         ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) {
-            throw new IllegalStateException(
-                    "Cannot read unbreakable state from item without meta: " + itemStack.getType());
-        }
-        Boolean modernState = readModernUnbreakable(meta);
-        if (modernState != null) return modernState;
-        Boolean spigotState = readSpigotUnbreakable(meta);
-        if (spigotState != null) return spigotState;
-        throw new IllegalStateException("Cannot read unbreakable state from item: " + itemStack.getType());
+        if (meta == null) throw new IllegalStateException("Item has no metadata: " + itemStack.getType());
+        return meta.isUnbreakable();
     }
 
     public static ItemEditor flags(ItemFlag... flags) {
@@ -199,141 +188,13 @@ public final class ItemEditors {
     }
 
     private static void applyUnbreakableMeta(ItemMeta meta, boolean enabled) {
-        if (meta == null) return;
-        if (tryModernUnbreakable(meta, enabled)) return;
-        trySpigotUnbreakable(meta, enabled);
+        if (meta != null) meta.setUnbreakable(enabled);
     }
-
-    private static ItemStack applyUnbreakableNbt(ItemStack itemStack, boolean enabled) {
-        if (itemStack == null || itemStack.getType() == Material.AIR) return itemStack;
-        try {
-            Class<?> craftItemStackClass = Class.forName("org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack");
-            Class<?> nbtTagCompoundClass = Class.forName("net.minecraft.server.v1_8_R3.NBTTagCompound");
-            Object nmsStack = craftItemStackClass.getMethod("asNMSCopy", ItemStack.class).invoke(null, itemStack);
-            Method hasTagMethod = nmsStack.getClass().getMethod("hasTag");
-            Method getTagMethod = nmsStack.getClass().getMethod("getTag");
-            Object rootTag = Boolean.TRUE.equals(hasTagMethod.invoke(nmsStack))
-                    ? getTagMethod.invoke(nmsStack)
-                    : nbtTagCompoundClass.getConstructor().newInstance();
-            nbtTagCompoundClass.getMethod(
-                    "setBoolean",
-                    String.class,
-                    boolean.class
-            ).invoke(rootTag, "Unbreakable", enabled);
-            nmsStack.getClass().getMethod("setTag", nbtTagCompoundClass).invoke(nmsStack, rootTag);
-            return (ItemStack) craftItemStackClass.getMethod("asBukkitCopy", nmsStack.getClass())
-                    .invoke(null, nmsStack);
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            return itemStack;
-        }
-    }
-
-    private static Boolean readUnbreakableNbt(ItemStack itemStack) {
-        try {
-            Class<?> craftItemStackClass = Class.forName("org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack");
-            Object nmsStack = craftItemStackClass.getMethod("asNMSCopy", ItemStack.class).invoke(null, itemStack);
-            Method hasTagMethod = nmsStack.getClass().getMethod("hasTag");
-            if (!Boolean.TRUE.equals(hasTagMethod.invoke(nmsStack))) return false;
-            Object rootTag = nmsStack.getClass().getMethod("getTag").invoke(nmsStack);
-            if (rootTag == null) return false;
-            Object value = rootTag.getClass().getMethod("getBoolean", String.class).invoke(rootTag, "Unbreakable");
-            return Boolean.TRUE.equals(value);
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            return null;
-        }
-    }
-
-    private static Method modernUnbreakableMethod(String name, Class<?>... parameters) {
-        try {
-            return ItemMeta.class.getMethod(name, parameters);
-        } catch (NoSuchMethodException ignored) {
-            return null;
-        }
-    }
-
-    private static boolean tryModernUnbreakable(ItemMeta meta, boolean enabled) {
-        try {
-            if (MODERN_UNBREAKABLE_SETTER == null) return false;
-            MODERN_UNBREAKABLE_SETTER.invoke(meta, enabled);
-            return true;
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            return false;
-        }
-    }
-
-    private static Boolean readModernUnbreakable(ItemMeta meta) {
-        try {
-            if (MODERN_UNBREAKABLE_GETTER == null) return null;
-            Object value = MODERN_UNBREAKABLE_GETTER.invoke(meta);
-            return Boolean.TRUE.equals(value);
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            return null;
-        }
-    }
-
-    private static Boolean readSpigotUnbreakable(ItemMeta meta) {
-        try {
-            Method spigotMethod = ItemMeta.class.getMethod("spigot");
-            Object spigot = spigotMethod.invoke(meta);
-            if (spigot == null) return null;
-            Method unbreakableMethod = ItemMeta.Spigot.class.getMethod("isUnbreakable");
-            Object value = unbreakableMethod.invoke(spigot);
-            return Boolean.TRUE.equals(value);
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            return null;
-        }
-    }
-
-    private static void trySpigotUnbreakable(ItemMeta meta, boolean enabled) {
-        try {
-            Method spigotMethod = ItemMeta.class.getMethod("spigot");
-            Object spigot = spigotMethod.invoke(meta);
-            if (spigot == null) return;
-            Method unbreakableMethod = ItemMeta.Spigot.class.getMethod("setUnbreakable", boolean.class);
-            unbreakableMethod.invoke(spigot, enabled);
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-        }
-    }
-
     private static void applySkullTexture(SkullMeta meta, String textureValue) {
         if (meta == null || textureValue.isBlank()) return;
-        try {
-            Object profile = createGameProfile(textureValue);
-            if (profile == null) return;
-            Field profileField = findProfileField(meta.getClass());
-            if (profileField == null) return;
-            profileField.setAccessible(true);
-            profileField.set(meta, profile);
-        } catch (ReflectiveOperationException ignored) {
-        }
+        var profile = org.bukkit.Bukkit.createProfile(UUID.nameUUIDFromBytes(textureValue.getBytes(StandardCharsets.UTF_8)));
+        profile.setProperty(new com.destroystokyo.paper.profile.ProfileProperty("textures", textureValue));
+        meta.setPlayerProfile(profile);
     }
 
-    private static Field findProfileField(Class<?> type) {
-        Class<?> current = type;
-        while (current != null && current != Object.class) {
-            try {
-                return current.getDeclaredField("profile");
-            } catch (NoSuchFieldException ignored) {
-                current = current.getSuperclass();
-            }
-        }
-        return null;
-    }
-
-    private static Object createGameProfile(String textureValue) throws ReflectiveOperationException {
-        Class<?> gameProfileClass = Class.forName("com.mojang.authlib.GameProfile");
-        Class<?> propertyClass = Class.forName("com.mojang.authlib.properties.Property");
-        Constructor<?> gameProfileConstructor = gameProfileClass.getConstructor(UUID.class, String.class);
-        Object profile = gameProfileConstructor.newInstance(
-                UUID.nameUUIDFromBytes(textureValue.getBytes(StandardCharsets.UTF_8)),
-                null
-        );
-        Method getPropertiesMethod = gameProfileClass.getMethod("getProperties");
-        Object properties = getPropertiesMethod.invoke(profile);
-        Constructor<?> propertyConstructor = propertyClass.getConstructor(String.class, String.class);
-        Object textureProperty = propertyConstructor.newInstance("textures", textureValue);
-        Method putMethod = properties.getClass().getMethod("put", Object.class, Object.class);
-        putMethod.invoke(properties, "textures", textureProperty);
-        return profile;
-    }
 }

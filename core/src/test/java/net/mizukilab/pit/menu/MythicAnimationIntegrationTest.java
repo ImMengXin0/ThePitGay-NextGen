@@ -5,8 +5,8 @@ import cn.charlotte.pit.api.PitInternalHook;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.PlayerEnderChest;
 import cn.charlotte.pit.data.sub.PlayerWarehouse;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.DispenserRegistry;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.Bootstrap;
 import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.config.PitWorldConfig;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
@@ -26,9 +26,9 @@ import net.mizukilab.pit.util.menu.ButtonListener;
 import net.mizukilab.pit.util.menu.Menu;
 import org.bukkit.*;
 import org.bukkit.block.Block;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftInventory;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftInventoryCustom;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.inventory.CraftInventory;
+import org.bukkit.craftbukkit.inventory.CraftInventoryCustom;
+import org.bukkit.craftbukkit.inventory.CraftItemFactory;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.*;
@@ -68,7 +68,7 @@ public class MythicAnimationIntegrationTest {
     @BeforeClass
     public static void registerItems() {
         PrintStream out = System.out, err = System.err;
-        try (var attributes = mockConstruction(AttributeModifier.class)) { DispenserRegistry.c(); }
+        try (var attributes = mockConstruction(AttributeModifier.class)) { net.mizukilab.pit.PaperTestBootstrap.initialize(); }
         finally { System.setOut(out); System.setErr(err); }
     }
 
@@ -76,7 +76,7 @@ public class MythicAnimationIntegrationTest {
     public void setUp() throws Exception {
         warehouses = mockConstruction(PlayerWarehouse.class);
         enderChests = mockConstruction(PlayerEnderChest.class);
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         pit = mockStatic(ThePit.class);
         // Packet delivery is server-owned; menu frames and block/sound calls remain observable.
         particles = mockStatic(ParticleUtil.class);
@@ -88,7 +88,7 @@ public class MythicAnimationIntegrationTest {
         bukkit.when(Bukkit::getPluginManager).thenReturn(mock(PluginManager.class));
         bukkit.when(Bukkit::getScheduler).thenReturn(mock(BukkitScheduler.class));
         bukkit.when(() -> Bukkit.createInventory(any(InventoryHolder.class), anyInt(), anyString()))
-                .thenAnswer(call -> new CraftInventoryCustom(call.getArgument(0), (int) call.getArgument(1), call.getArgument(2)));
+                .thenAnswer(call -> new CraftInventoryCustom(call.getArgument(0), (int) call.getArgument(1), (String) call.getArgument(2)));
         ThePit plugin = mock(ThePit.class);
         pit.when(ThePit::getInstance).thenReturn(plugin);
         when(plugin.getLogger()).thenReturn(mock(Logger.class));
@@ -162,7 +162,12 @@ public class MythicAnimationIntegrationTest {
     }
 
     private InventoryView viewOf(Inventory top) {
-        return new InventoryView() {
+        return new org.bukkit.craftbukkit.inventory.CraftAbstractInventoryView() {
+            @Override public org.bukkit.inventory.MenuType getMenuType() { return null; }
+            @Override public String getTitle() { return top instanceof CraftInventory craft
+                    ? net.mizukilab.pit.InventoryTestTitles.title(craft) : "Crafting"; }
+            @Override public String getOriginalTitle() { return getTitle(); }
+            @Override public void setTitle(String title) { }
             @Override public Inventory getTopInventory() { return top; }
             @Override public Inventory getBottomInventory() { return bottom; }
             @Override public HumanEntity getPlayer() { return player; }
@@ -182,22 +187,22 @@ public class MythicAnimationIntegrationTest {
         assertTrue(data.isEnd()); // Result committed; visual sequence still must play.
         assertFalse(data.isFinished());
         assertEquals(5, profile.getEnchantingBookItemStackFormed().getAmount());
-        assertEquals(Material.STAINED_GLASS_PANE, view.getTopInventory().getItem(20).getType());
+        assertEquals(Material.RED_STAINED_GLASS_PANE, view.getTopInventory().getItem(20).getType());
         assertFalse(menu.getButtons().containsKey(23));
         for (int tick = 0; tick < 60; tick++) {
             animator.run();
             assertFalse("Ended early at frame " + tick, data.isFinished());
             if (tick == 12 || tick == 36) {
-                assertEquals(Material.INK_SACK, view.getTopInventory().getItem(20).getType());
+                assertEquals(tick == 12 ? Material.INK_SAC : Material.GRAY_DYE, view.getTopInventory().getItem(20).getType());
             }
         }
         animator.run();
         assertTrue(data.isFinished());
-        assertEquals(Material.GOLD_SWORD, view.getTopInventory().getItem(20).getType());
+        assertEquals(Material.GOLDEN_SWORD, view.getTopInventory().getItem(20).getType());
         assertEquals(5, view.getTopInventory().getItem(23).getAmount());
         assertSame(data, animator.getAnimations().get(player.getUniqueId()));
-        verify(player, atLeastOnce()).sendBlockChange(any(Location.class), eq(Material.STAINED_GLASS), anyByte());
-        verify(player, atLeastOnce()).playSound(any(Location.class), eq(Sound.LEVEL_UP), anyFloat(), anyFloat());
+        verify(player, atLeastOnce()).sendBlockChange(any(Location.class), eq(Material.WHITE_STAINED_GLASS), anyByte());
+        verify(player, atLeastOnce()).playSound(any(Location.class), eq(Sound.ENTITY_PLAYER_LEVELUP), anyFloat(), anyFloat());
     }
 
     @Test
@@ -258,7 +263,7 @@ public class MythicAnimationIntegrationTest {
         assertNull(Menu.find(player));
         assertFalse(animator.getAnimations().containsKey(player.getUniqueId()));
         PitInternalImpl.INSTANCE.openMythicWellMenu(player);
-        assertEquals(Material.GOLD_SWORD, view.getTopInventory().getItem(20).getType());
+        assertEquals(Material.GOLDEN_SWORD, view.getTopInventory().getItem(20).getType());
         assertEquals(result, profile.getEnchantingItem());
         assertEquals(5, profile.getEnchantingBookItemStackFormed().getAmount());
         assertEquals(99000, profile.getCoins(), 0);
@@ -303,7 +308,7 @@ public class MythicAnimationIntegrationTest {
             profile.setEnchantingItem(encoded);
             for (int i = 0; i < 20; i++) animator.run();
             inventoryUtil.verify(() -> InventoryUtil.deserializeItemStack(encoded), times(1));
-            verify(player, times(8)).sendBlockChange(any(Location.class), eq(Material.STAINED_GLASS), eq(MythicColor.BLUE.getColorByte()));
+            verify(player, times(8)).sendBlockChange(any(Location.class), eq(Material.WHITE_STAINED_GLASS), eq(MythicColor.BLUE.getColorByte()));
         }
     }
 
@@ -319,7 +324,7 @@ public class MythicAnimationIntegrationTest {
         animator.run();
         assertTrue(menu.getAnimationData().isFinished());
         verify(player, times(29)).updateInventory();
-        assertEquals(Material.GOLD_SWORD, view.getTopInventory().getItem(20).getType());
+        assertEquals(Material.GOLDEN_SWORD, view.getTopInventory().getItem(20).getType());
         assertEquals(5, profile.getEnchantingBookItemStackFormed().getAmount());
     }
 

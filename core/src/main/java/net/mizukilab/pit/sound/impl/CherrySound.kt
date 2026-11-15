@@ -25,7 +25,7 @@ object CherrySound : AbstractPitSound() {
         }
 
         pitch?.let {
-            val sound = Sound.NOTE_STICKS
+            val sound = Sound.BLOCK_NOTE_BLOCK_HAT
             player.playSound(player.location, sound, 2.5f, it)
         }
 

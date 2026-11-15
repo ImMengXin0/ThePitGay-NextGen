@@ -6,7 +6,7 @@ import net.mizukilab.pit.enchantment.rarity.EnchantmentRarity;
 import net.mizukilab.pit.parm.listener.IPlayerRespawn;
 import net.mizukilab.pit.util.cooldown.Cooldown;
 import nya.Skip;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
 /**
@@ -49,6 +49,6 @@ public class RespawnAbsorptionEnchant extends AbstractEnchantment implements IPl
 
     @Override
     public void handleRespawn(int enchantLevel, Player myself) {
-        ((CraftPlayer) myself).getHandle().setAbsorptionHearts(enchantLevel * 10);
+        ((CraftPlayer) myself).getHandle().setAbsorptionAmount(enchantLevel * 10);
     }
 }

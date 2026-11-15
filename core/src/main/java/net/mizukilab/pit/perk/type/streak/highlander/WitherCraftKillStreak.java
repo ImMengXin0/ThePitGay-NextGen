@@ -1,12 +1,12 @@
 package net.mizukilab.pit.perk.type.streak.highlander;
 
+import net.mizukilab.pit.util.item.ItemKinds;
+
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.event.PitStreakKillChangeEvent;
 import cn.charlotte.pit.perk.AbstractPerk;
 import cn.charlotte.pit.perk.PerkType;
-import net.minecraft.server.v1_8_R3.ItemArmor;
-import net.minecraft.server.v1_8_R3.ItemBow;
-import net.minecraft.server.v1_8_R3.ItemSword;
+import net.minecraft.world.item.BowItem;
 import net.mizukilab.pit.item.IMythicItem;
 import net.mizukilab.pit.item.type.ChunkOfVileItem;
 import net.mizukilab.pit.item.type.mythic.MythicBowItem;
@@ -119,16 +119,16 @@ public class WitherCraftKillStreak extends AbstractPerk implements Listener {
             }
             ItemStack item = InventoryUtil.deserializeItemStack(profile.getEnchantingItem());
             IMythicItem mythicItem = null;
-            net.minecraft.server.v1_8_R3.ItemStack nmsStack = Utils.toNMStackQuick(item);
+            net.minecraft.world.item.ItemStack nmsStack = Utils.toNMStackQuick(item);
             if (item == null) {
                 return;
             }
 
-            if (nmsStack.getItem() instanceof ItemSword) {
+            if (ItemKinds.isSword(nmsStack)) {
                 mythicItem = new MythicSwordItem();
-            } else if (nmsStack.getItem() instanceof ItemBow) {
+            } else if (nmsStack.getItem() instanceof BowItem) {
                 mythicItem = new MythicBowItem();
-            } else if (nmsStack.getItem() instanceof ItemArmor && ItemUtil.getInternalName(item).equalsIgnoreCase("mythic_leggings")) {
+            } else if (ItemKinds.isArmor(nmsStack) && ItemUtil.getInternalName(item).equalsIgnoreCase("mythic_leggings")) {
                 mythicItem = new MythicLeggingsItem();
             }
 

@@ -59,7 +59,7 @@ public class PlayerUtilCompatibilityTest {
 
     @Test
     public void oldDescriptorPreservesImmunityEventAndReturnValue() throws Throwable {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             PluginManager manager = mock(PluginManager.class);
             bukkit.when(Bukkit::getPluginManager).thenReturn(manager);
             doAnswer(invocation -> {

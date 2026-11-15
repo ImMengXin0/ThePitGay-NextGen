@@ -1,418 +1,202 @@
-/*
- * Copyright (c) 2018 Jitse Boonstra
- */
-
+/* Copyright (c) 2018 Jitse Boonstra. High platform adaptation. */
 package cn.mythicland.npclib.internal;
 
-import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.Property;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import cn.charlotte.pit.ThePit;
 import cn.mythicland.npclib.NPCLib;
 import cn.mythicland.npclib.api.NPC;
 import cn.mythicland.npclib.api.PacketNpc;
 import cn.mythicland.npclib.api.events.NPCHideEvent;
 import cn.mythicland.npclib.api.events.NPCShowEvent;
 import cn.mythicland.npclib.api.skin.Skin;
-import cn.mythicland.npclib.api.state.NPCAnimation;
-import cn.mythicland.npclib.api.state.NPCSlot;
-import cn.mythicland.npclib.api.state.NPCState;
-import cn.mythicland.npclib.hologram.Hologram;
-import cn.mythicland.npclib.utilities.MathUtil;
-import org.apache.commons.lang.Validate;
+import cn.mythicland.npclib.api.state.*;
+import net.mizukilab.pit.platform.paper.FancyNpcService.NpcHandle;
+import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
+import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.util.Vector;
-
 import java.util.*;
 
-public abstract class NPCBase implements PacketNpc, NPCPacketHandler {
-
-    protected final int entityId = NPCManager.allocateEntityId();
-    protected final Set<UUID> hasTeamRegistered = new ObjectOpenHashSet<>();
-    protected final Set<NPCState> activeStates = EnumSet.noneOf(NPCState.class);
-    protected final Map<NPCSlot, ItemStack> items = new EnumMap<>(NPCSlot.class);
-    // Storage for per-player text;
-    protected final Map<UUID, List<String>> playerText = new Object2ObjectOpenHashMap<>();
-    protected final Map<UUID, Hologram> playerHologram = new Object2ObjectOpenHashMap<>();
-    private final Set<UUID> shown = new ObjectOpenHashSet<>();
-    private final Set<UUID> autoHidden = new ObjectOpenHashSet<>();
-    protected double cosFOV = Math.cos(Math.toRadians(60));
-    // 12/4/20, JMB: Changed the UUID in order to enable LabyMod Emotes:
-    // This gives a format similar to: 528086a2-4f5f-2ec2-0000-000000000000
-    protected UUID uuid = new UUID(new Random().nextLong(), 0);
+/** Stable game API with FancyNpcs responsible for all visual NPC entities. */
+public abstract class NPCBase implements PacketNpc {
+    protected final NPCLib instance;
+    protected UUID uuid = UUID.randomUUID();
     protected String name = uuid.toString().replace("-", "").substring(0, 10);
-    protected GameProfile gameProfile = new GameProfile(uuid, name);
-    protected boolean created = false;
-    private boolean destroyed;
+    protected int entityId = NPCManager.allocateEntityId();
     protected Skin skin;
-
-    // protected Hologram hologram;
-    protected NPCLib instance;
-    protected List<String> text;
     protected Location location;
-
+    protected List<String> text;
+    protected EntityType type = EntityType.PLAYER;
+    protected org.bukkit.entity.Villager.Profession profession;
+    protected final Map<NPCSlot, ItemStack> items = new EnumMap<>(NPCSlot.class);
+    protected final Set<NPCState> activeStates = EnumSet.noneOf(NPCState.class);
+    private final Map<UUID, List<String>> playerText = new HashMap<>();
+    private final Set<UUID> shown = new HashSet<>(), autoHidden = new HashSet<>();
+    private double cosFOV = -1;
+    private NpcHandle handle;
+    private boolean destroyed;
     public NPCBase(NPCLib instance, List<String> text) {
-        this.instance = instance;
-        this.text = text != null ? List.copyOf(text) : Collections.emptyList();
+        this.instance = Objects.requireNonNull(instance);
+        this.text = text == null ? List.of() : List.copyOf(text);
         instance.registerNPC(this);
         NPCManager.add(this);
     }
-
-    public NPCLib getInstance() {
-        return instance;
+    private void requireMain() {
+        if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("NPC changes require the main thread");
     }
-
-    // Unique per-player hologram by Gatt, modifications and refactoring done by
-    // Jitse (JMB - 23rd Jan. 2021).
-    protected Hologram getHologram(Player player) {
-        Validate.notNull(player, "Player cannot be null.");
-        return playerHologram.getOrDefault(player.getUniqueId(),
-                null); // If null, NMS version will return new hologram instance.
+    public NPCLib getInstance() { return instance; }
+    public void setEntityType(EntityType type) {
+        requireMain();
+        if (handle != null || destroyed) throw new IllegalStateException("NPC type must be set before creation");
+        this.type = Objects.requireNonNull(type);
     }
-
-    @Override
-    public NPC removeText(Player player) {
-        Validate.notNull(player, "Player cannot be null.");
-        setText(player, null);
+    public void setProfession(org.bukkit.entity.Villager.Profession profession) {
+        requireMain();
+        this.profession = profession;
+        if (handle != null && profession != null) handle.setAttribute("profession", profession.getKey().toString());
+    }
+    public int getEntityId() { return entityId; }
+    public Set<UUID> getShown() { return shown; }
+    public Set<UUID> getAutoHidden() { return autoHidden; }
+    @Override public UUID getUniqueId() { return uuid; }
+    @Override public String getId() { return name; }
+    @Override public Location getLocation() { return location == null ? null : location.clone(); }
+    @Override public World getWorld() { return location == null ? null : location.getWorld(); }
+    @Override public NPC setLocation(Location location) {
+        requireMain();
+        if (destroyed) throw new IllegalStateException("NPC destroyed");
+        Objects.requireNonNull(location.getWorld(), "NPC world");
+        this.location = location.clone();
+        if (handle != null) handle.teleport(this.location.clone());
         return this;
     }
-
-    @Override
-    public NPC setText(Player player, List<String> text) {
-        Validate.notNull(player, "Player cannot be null.");
-        if (destroyed) return this;
-        List<String> originalText = getText(player);
+    @Override public void teleport(Location location) { setLocation(location); }
+    @Override public NPC create() {
+        requireMain();
+        if (destroyed) throw new IllegalStateException("NPC destroyed");
+        if (handle != null) return this;
+        Objects.requireNonNull(location, "NPC location");
+        handle = ThePit.getInstance().getFancyNpcs().create(name, location, type, player -> {});
+        NPCManager.remove(this);
+        entityId = handle.entityId();
+        NPCManager.add(this);
+        if (profession != null) handle.setAttribute("profession", profession.getKey().toString());
+        if (skin != null) handle.setSkin(skin.value(), skin.signature());
+        items.forEach((slot, item) -> handle.setItem(slot.name(), item));
+        for (NPCState state : activeStates) applyState(state);
+        return this;
+    }
+    @Override public boolean isCreated() { return handle != null && !destroyed; }
+    @Override public boolean isShown(Player player) {
+        return isCreated() && shown.contains(player.getUniqueId()) && !autoHidden.contains(player.getUniqueId()) && handle.isShown(player);
+    }
+    @Override public NPC setSkin(Skin skin) {
+        requireMain(); this.skin = skin;
+        if (handle != null) handle.setSkin(skin == null ? null : skin.value(), skin == null ? null : skin.signature());
+        return this;
+    }
+    @Override public void updateSkin(Skin skin) { setSkin(skin); }
+    @Override public NPC setText(Player player, List<String> text) {
+        requireMain();
         if (text == null) playerText.remove(player.getUniqueId());
         else playerText.put(player.getUniqueId(), List.copyOf(text));
-        updateText(player, originalText, getText(player));
+        if (handle != null) handle.setText(player, getText(player));
         return this;
     }
-
-    private void updateText(Player player, List<String> before, List<String> after) {
-        if (before.equals(after)) return;
-        Hologram hologram = playerHologram.get(player.getUniqueId());
-        if (hologram == null) return; // Created with the latest text when first shown.
-        if (before.size() != after.size()) {
-            if (isShown(player)) hologram.hide(player);
-            playerHologram.remove(player.getUniqueId());
-            if (isShown(player)) getHologram(player).show(player);
-        } else {
-            List<Object> packets = hologram.getUpdatePackets(after);
-            if (isShown(player) && !packets.isEmpty()) hologram.update(player, packets);
-        }
-    }
-
-    @Override
-    public NPC setText(List<String> text) {
-        List<String> before = this.text;
-        this.text = text != null ? List.copyOf(text) : List.of();
-        for (UUID uuid : new ArrayList<>(playerHologram.keySet())) {
-            if (playerText.containsKey(uuid)) continue;
-            Player player = Bukkit.getPlayer(uuid);
-            if (player == null) continue;
-            updateText(player, before, this.text);
+    @Override public NPC removeText(Player player) { return setText(player, null); }
+    @Override public List<String> getText(Player player) { return playerText.getOrDefault(player.getUniqueId(), text); }
+    @Override public List<String> getText() { return text; }
+    @Override public NPC setText(List<String> text) {
+        requireMain(); this.text = text == null ? List.of() : List.copyOf(text);
+        if (handle != null) for (UUID id : shown) {
+            Player player = Bukkit.getPlayer(id);
+            if (player != null && !playerText.containsKey(id)) handle.setText(player, this.text);
         }
         return this;
     }
-
-    @Override
-    public List<String> getText(Player player) {
-        Validate.notNull(player, "Player cannot be null.");
-        return playerText.getOrDefault(player.getUniqueId(), text);
-    }
-
-    @Override
-    public UUID getUniqueId() {
-        return uuid;
-    }
-
-    @Override
-    public String getId() {
-        return name;
-    }
-
-    @Override
-    public NPC setSkin(Skin skin) {
-        this.skin = skin;
-        gameProfile.getProperties().removeAll("textures");
-        if (skin != null) {
-            gameProfile.getProperties().put(
-                    "textures",
-                    new Property("textures", skin.value(), skin.signature())
-            );
-        }
+    @Override public NPC setItem(NPCSlot slot, ItemStack item) {
+        requireMain();
+        if (item == null) items.remove(slot); else items.put(slot, item.clone());
+        if (handle != null) handle.setItem(slot.name(), item);
         return this;
     }
-
-    @Override
-    public void destroy() {
-        if (destroyed) return;
-        destroyed = true;
-        NPCManager.remove(this);
-        this.instance.forgetNPC(this);
-        // Shutdown must remove client entities even when a hide event is cancelled.
-        for (UUID uuid : new ArrayList<>(shown)) {
-            Player player = Bukkit.getPlayer(uuid);
-            if (player != null && player.isOnline() && !autoHidden.contains(uuid)) sendHidePackets(player, true);
-        }
-        created = false;
-        shown.clear();
-        autoHidden.clear();
-        hasTeamRegistered.clear();
-        playerText.clear();
-        playerHologram.clear();
-        items.clear();
-    }
-
-    @Override
-    public void disableFOV() {
-        this.cosFOV = -1.0D;
-    }
-
-    public void setFOV(double fov) {
-        this.cosFOV = Math.cos(Math.toRadians(fov));
-    }
-
-    public Set<UUID> getShown() {
-        return shown;
-    }
-
-    public Set<UUID> getAutoHidden() {
-        return autoHidden;
-    }
-
-    @Override
-    public Location getLocation() {
-        return location == null ? null : location.clone();
-    }
-
-    @Override
-    public World getWorld() {
-        return location != null ? location.getWorld() : null;
-    }
-
-    public int getEntityId() {
-        return entityId;
-    }
-
-    @Override
-    public boolean isShown(Player player) {
-        Objects.requireNonNull(player, "Player object cannot be null");
-        return shown.contains(player.getUniqueId()) && !autoHidden.contains(player.getUniqueId());
-    }
-
-    @Override
-    public NPC setLocation(Location location) {
-        Objects.requireNonNull(location, "location");
-        Objects.requireNonNull(location.getWorld(), "location world");
-        if (destroyed) throw new IllegalStateException("NPC is destroyed");
-        if (created) {
-            for (UUID id : new ArrayList<>(shown)) {
-                Player player = Bukkit.getPlayer(id);
-                if (player != null && isShown(player)) sendHidePackets(player, true);
-            }
-            playerHologram.clear();
-            autoHidden.addAll(shown);
-        }
-        this.location = location.clone();
-        if (created) {
-            createPackets();
-            for (UUID id : new ArrayList<>(shown)) {
-                Player player = Bukkit.getPlayer(id);
-                if (player != null && isLocationChunkLoaded() && inRangeOf(player) && inViewOf(player)) show(player, true);
-            }
-        }
-        return this;
-    }
-
-    @Override
-    public NPC create() {
-        if (destroyed) throw new IllegalStateException("NPC is destroyed");
-        Objects.requireNonNull(location, "NPC location");
-        createPackets();
-        this.created = true;
-        return this;
-    }
-
-    @Override
-    public boolean isCreated() {
-        return created;
-    }
-
-    public void onLogout(Player player) {
-        getAutoHidden().remove(player.getUniqueId());
-        getShown().remove(player.getUniqueId()); // Don't need to use NPC#hide since the entity is not registered in the
-        // NMS server.
-        hasTeamRegistered.remove(player.getUniqueId());
-        playerText.remove(player.getUniqueId());
-        playerHologram.remove(player.getUniqueId());
-    }
-
+    @Override public ItemStack getItem(NPCSlot slot) { ItemStack item = items.get(slot); return item == null ? null : item.clone(); }
+    @Override public void disableFOV() { cosFOV = -1; }
+    public void setFOV(double fov) { cosFOV = Math.cos(Math.toRadians(fov)); }
     public boolean inRangeOf(Player player) {
-        if (player == null || location == null) return false;
-        if (!player.getWorld().equals(location.getWorld())) {
-            // No need to continue our checks, they are in different worlds.
-            return false;
-        }
-
-        // If Bukkit doesn't track the NPC entity anymore, bypass the hiding distance
-        // variable.
-        double hideDistance = instance.getAutoHideDistance();
-        double distanceSquared = player.getLocation().distanceSquared(location);
-        double bukkitRange = Bukkit.getViewDistance() * 16.0;
-
-        return distanceSquared <= MathUtil.squareTwo(hideDistance)
-                && distanceSquared <= MathUtil.squareTwo(bukkitRange);
+        return location != null && player.getWorld().equals(location.getWorld())
+                && player.getLocation().distanceSquared(location) <= Math.pow(instance.getAutoHideDistance(), 2);
     }
-
     public boolean inViewOf(Player player) {
-        if (this.cosFOV <= -1.0D) return true;
-        Vector dir = location.toVector()
-                .subtract(player.getEyeLocation().toVector())
-                .normalize();
-        return dir.dot(player.getEyeLocation().getDirection()) >= cosFOV;
+        return cosFOV <= -1 || location.toVector().subtract(player.getEyeLocation().toVector()).normalize()
+                .dot(player.getEyeLocation().getDirection()) >= cosFOV;
     }
-
     public boolean isLocationChunkLoaded() {
-        if (this.location == null || this.location.getWorld() == null) return false;
-        return this.location.getWorld().isChunkLoaded(
-                this.location.getBlockX() >> 4,
-                this.location.getBlockZ() >> 4
-        );
+        return location != null && location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4);
     }
-
-    @Override
-    public void show(Player player) {
-        show(player, false);
-    }
-
+    @Override public void show(Player player) { show(player, false); }
     public void show(Player player, boolean auto) {
-        if (!created || destroyed || instance.isShutdown() || !player.isOnline() || player.isDead()) return;
-        if (isShown(player)) return;
+        requireMain();
+        if (!isCreated() || instance.isShutdown() || !player.isOnline() || player.isDead()) return;
         if (auto && !shown.contains(player.getUniqueId())) return;
+        if (isShown(player)) return;
         NPCShowEvent event = new NPCShowEvent(this, player, auto);
-        Bukkit.getServer().getPluginManager().callEvent(event);
+        Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return;
-
-        if (auto) {
-            sendShowPackets(player);
-            sendMetadataPacket(player);
-            sendEquipmentPackets(player);
-
-            // NPC is auto-shown now, we can remove the UUID from the set.
+        shown.add(player.getUniqueId());
+        if (inRangeOf(player) && inViewOf(player) && isLocationChunkLoaded()) {
             autoHidden.remove(player.getUniqueId());
-        } else {
-            // Adding the UUID to the set.
-            shown.add(player.getUniqueId());
-
-            if (isLocationChunkLoaded() && inRangeOf(player) && inViewOf(player)) {
-                // The player can see the NPC and is in range, send the packets.
-                sendShowPackets(player);
-                sendMetadataPacket(player);
-                sendEquipmentPackets(player);
-                autoHidden.remove(player.getUniqueId());
-            } else {
-                // We'll wait until we can show the NPC to the player via auto-show.
-                autoHidden.add(player.getUniqueId());
-            }
-        }
+            handle.setText(player, getText(player));
+            handle.show(player);
+        } else autoHidden.add(player.getUniqueId());
     }
-
-    @Override
-    public void hide(Player player) {
-        hide(player, false);
-    }
-
+    @Override public void hide(Player player) { hide(player, false); }
     public void hide(Player player, boolean auto) {
-        if (!shown.contains(player.getUniqueId()) || (auto && autoHidden.contains(player.getUniqueId()))) return;
+        requireMain();
+        if (!isCreated() || !shown.contains(player.getUniqueId()) || (auto && autoHidden.contains(player.getUniqueId()))) return;
         NPCHideEvent event = new NPCHideEvent(this, player, auto);
-        Bukkit.getServer().getPluginManager().callEvent(event);
+        Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return;
-
-        if (auto) {
-            sendHidePackets(player, true);
-
-            // NPC is auto-hidden now, we will add the UUID to the set.
-            autoHidden.add(player.getUniqueId());
-        } else {
-            if (isShown(player)) sendHidePackets(player, false);
-            // Removing the UUID from the set.
-            shown.remove(player.getUniqueId());
-            autoHidden.remove(player.getUniqueId());
-        }
+        handle.hide(player);
+        if (auto) autoHidden.add(player.getUniqueId());
+        else { shown.remove(player.getUniqueId()); autoHidden.remove(player.getUniqueId()); }
     }
-
-    @Override
-    public boolean getState(NPCState state) {
-        return activeStates.contains(state);
+    public void onLogout(Player player) {
+        requireMain();
+        if (handle != null) { handle.hide(player); handle.setText(player, null); }
+        shown.remove(player.getUniqueId()); autoHidden.remove(player.getUniqueId()); playerText.remove(player.getUniqueId());
     }
-
-    @Override
-    public NPC toggleState(NPCState state) {
-        if (activeStates.contains(state)) {
-            activeStates.remove(state);
-        } else {
-            activeStates.add(state);
-        }
-
-        // Send a new metadata packet to all players that can see the NPC.
-        for (UUID shownUuid : shown) {
-            Player player = Bukkit.getPlayer(shownUuid);
-            if (player != null && isShown(player)) {
-                sendMetadataPacket(player);
-            }
-        }
+    @Override public boolean getState(NPCState state) { return activeStates.contains(state); }
+    @Override public NPC toggleState(NPCState state) {
+        requireMain();
+        if (!activeStates.remove(state)) activeStates.add(state);
+        if (handle != null) applyState(state);
         return this;
     }
-
-    @Override
-    public void playAnimation(NPCAnimation animation) {
-        for (UUID shownUuid : shown) {
-            Player player = Bukkit.getPlayer(shownUuid);
-            if (player != null && isShown(player)) {
-                sendAnimationPacket(player, animation);
-            }
+    private void applyState(NPCState state) {
+        switch (state) {
+            case ON_FIRE -> handle.setAttribute("on_fire", Boolean.toString(getState(state)));
+            case INVISIBLE -> handle.setAttribute("invisible", Boolean.toString(getState(state)));
+            case CROUCHED -> handle.setAttribute("pose", getState(state) ? "crouching" : "standing");
         }
     }
-
-    @Override
-    public void playHurtFeedback() {
-        this.playAnimation(NPCAnimation.TAKE_DAMAGE);
+    @Override public void lookAt(Location location) { requireMain(); if (handle != null) handle.lookAt(location); }
+    @Override public void playAnimation(NPCAnimation animation) {
+        requireMain(); if (!isCreated()) return;
+        net.minecraft.network.protocol.Packet<?> packet = animation == NPCAnimation.TAKE_DAMAGE
+                ? new ClientboundHurtAnimationPacket(entityId, this.location.getYaw())
+                : net.mizukilab.pit.util.PaperPackets.animation(entityId, animation.getId());
+        for (UUID id : shown) { Player player = Bukkit.getPlayer(id); if (player != null && isShown(player)) ((CraftPlayer) player).getHandle().connection.send(packet); }
     }
-
-    @Override
-    public ItemStack getItem(NPCSlot slot) {
-        Objects.requireNonNull(slot, "Slot cannot be null");
-
-        return items.get(slot);
-    }
-
-    @Override
-    public NPC setItem(NPCSlot slot, ItemStack item) {
-        Objects.requireNonNull(slot, "Slot cannot be null");
-
-        items.put(slot, item);
-
-        for (UUID shownUuid : shown) {
-            Player player = Bukkit.getPlayer(shownUuid);
-            if (player != null && isShown(player)) {
-                sendEquipmentPacket(player, slot, false);
-            }
-        }
-        return this;
-    }
-
-    @Override
-    public List<String> getText() {
-        return text;
-    }
-
-    @Override
-    public void lookAt(Location location) {
-        sendHeadRotationPackets(location);
+    @Override public void playHurtFeedback() { playAnimation(NPCAnimation.TAKE_DAMAGE); }
+    @Override public void destroy() {
+        requireMain(); if (destroyed) return; destroyed = true;
+        NPCManager.remove(this); instance.forgetNPC(this);
+        if (handle != null) handle.close();
+        shown.clear(); autoHidden.clear(); playerText.clear();
     }
 }

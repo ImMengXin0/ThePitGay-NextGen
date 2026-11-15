@@ -38,7 +38,7 @@ public class WarehouseMainMenu extends Menu {
                 buttons.put(i, new Button() {
                     @Override
                     public ItemStack getButtonItem(Player player) {
-                        return new ItemBuilder(Material.STAINED_GLASS_PANE)
+                        return new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE)
                                 .name(" ")
                                 .durability(15)
                                 .build();

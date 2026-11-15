@@ -80,10 +80,10 @@ public abstract class AbstractShopButton extends Button {
             profile.setCoins(profile.getCoins() - getDiscountPrice(player, getPrice(player)));
             player.getInventory().addItem(this.getResultItem(player));
             player.sendMessage(CC.translate("&a购买成功!"));
-            player.playSound(player.getLocation(), Sound.NOTE_PLING, 1, 1);
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
         } else {
             player.sendMessage(CC.translate("&c你的硬币不足!"));
-            player.playSound(player.getLocation(), Sound.ENDERMAN_TELEPORT, 1, 1);
+            player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
         }
     }
 }

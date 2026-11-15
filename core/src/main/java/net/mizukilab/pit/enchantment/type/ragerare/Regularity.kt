@@ -103,10 +103,10 @@ class Regularity : AbstractEnchantment(), Listener {
             if (!victim.isDead) {
                 val boost = b(level) * 0.01
 
-                Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), {
+                Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), Runnable {
                     // Later listeners can cancel the hit (including the extension's detached event).
                     if (event.isCancelled || !attacker.isOnline || !victim.isOnline || victim.isDead) {
-                        return@runTaskLater
+                        return@Runnable
                     }
                     victim.noDamageTicks = 0
                     // Scope the marker to synchronous damage dispatch, retaining nested stacked hits.

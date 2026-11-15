@@ -68,8 +68,8 @@ public class AddonEnderCompatibilityTest extends BukkitDataTestSupport {
     @Before public void setup() throws Exception {
         addon = new URLClassLoader(new URL[]{Path.of(System.getProperty("pitAddonJar")).toUri().toURL(),
                 Path.of(System.getProperty("pitAddonLoaderJar")).toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
-        bukkit = mockStatic(Bukkit.class);
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getServer).thenReturn(mock(Server.class, RETURNS_DEEP_STUBS));
         manager = mock(PluginManager.class);
         bukkit.when(Bukkit::getPluginManager).thenReturn(manager);
@@ -125,6 +125,7 @@ public class AddonEnderCompatibilityTest extends BukkitDataTestSupport {
     }
 
     private AbstractEnchantment source(String name) throws Exception {
+        net.mizukilab.pit.OptionalTestFixtures.require("pitAddonJar", "pitAddonLoaderJar");
         return (AbstractEnchantment) addon.loadClass("cn.apnf.mistral.enchantments." + name).getConstructor().newInstance();
     }
     private AbstractEnchantment install(String name) throws Exception {
@@ -136,7 +137,7 @@ public class AddonEnderCompatibilityTest extends BukkitDataTestSupport {
     }
     private void pair() throws Exception { install("rare.EnderSword"); install("op.EnderEnvoy"); }
     private void equip(Map<String, Integer> enchantments) {
-        held = new ItemStack(Material.GOLD_SWORD); levels.put(held, enchantments);
+        held = new ItemStack(Material.GOLDEN_SWORD); levels.put(held, enchantments);
         when(attacker.getItemInHand()).thenReturn(held);
     }
     private void click() throws Exception { fire(interact(Action.RIGHT_CLICK_AIR)); }
@@ -247,16 +248,16 @@ public class AddonEnderCompatibilityTest extends BukkitDataTestSupport {
         pair(); equip(Map.of("ender_envoy", 3)); click();
         when(attacker.getActivePotionEffects()).thenReturn(List.of(new PotionEffect(PotionEffectType.SPEED, 200, 4)));
         fire(teleport(false)); verify(attacker, never()).addPotionEffect(any(PotionEffect.class), anyBoolean());
-        fire(new PlayerQuitEvent(attacker, null)); click();
+        fire(new PlayerQuitEvent(attacker, (String) null)); click();
         when(attacker.getActivePotionEffects()).thenReturn(List.of(new PotionEffect(PotionEffectType.SPEED, 200, 0)));
         fire(teleport(false)); verify(attacker).addPotionEffect(any(PotionEffect.class), eq(true));
     }
 
     @Test public void deathAndSilencePreventLandingBuff() throws Exception {
         pair(); equip(Map.of("ender_envoy", 3)); click();
-        fire(new PlayerDeathEvent(attacker, new ArrayList<>(), 0, null)); fire(teleport(false));
+        fire(new PlayerDeathEvent(attacker, mock(org.bukkit.damage.DamageSource.class), new ArrayList<>(), 0, null)); fire(teleport(false));
         verify(attacker, never()).addPotionEffect(any(PotionEffect.class), anyBoolean());
-        fire(new PlayerQuitEvent(attacker, null)); click();
+        fire(new PlayerQuitEvent(attacker, (String) null)); click();
         players.when(() -> PlayerUtil.shouldIgnoreEnchant(attacker)).thenReturn(true); fire(teleport(false));
         verify(attacker, never()).addPotionEffect(any(PotionEffect.class), anyBoolean());
     }
@@ -331,16 +332,16 @@ public class AddonEnderCompatibilityTest extends BukkitDataTestSupport {
 
     @Test public void echoDoesNotHitRespawnedTargetAfterDeath() throws Exception {
         AbstractEnchantment echo = install("rare.EchoArrowEnchant"); echo(echo);
-        fire(new PlayerDeathEvent(victim, new ArrayList<>(), 0, null));
+        fire(new PlayerDeathEvent(victim, mock(org.bukkit.damage.DamageSource.class), new ArrayList<>(), 0, null));
         verify(scheduled.get(0).task()).cancel(); scheduled.get(0).action().run();
         players.verify(() -> PlayerUtil.damage(any(Player.class), any(Player.class), any(PlayerUtil.DamageType.class), anyDouble(), anyBoolean()), never());
     }
 
     @Test public void echoStopsOnQuitReplacementAndInvalidNpc() throws Exception {
         AbstractEnchantment echo = install("rare.EchoArrowEnchant"); echo(echo);
-        fire(new PlayerQuitEvent(attacker, null)); scheduled.get(0).action().run();
+        fire(new PlayerQuitEvent(attacker, (String) null)); scheduled.get(0).action().run();
         echo(echo); when(victim.isValid()).thenReturn(false); scheduled.get(1).action().run();
-        fire(new PlayerQuitEvent(attacker, null)); echo(echo);
+        fire(new PlayerQuitEvent(attacker, (String) null)); echo(echo);
         factor.removeEnchantment(echo); verify(scheduled.get(2).task()).cancel(); scheduled.get(2).action().run();
         players.verify(() -> PlayerUtil.damage(any(Player.class), any(Player.class), any(PlayerUtil.DamageType.class), anyDouble(), anyBoolean()), never());
     }
@@ -381,7 +382,7 @@ public class AddonEnderCompatibilityTest extends BukkitDataTestSupport {
         damaged(enchant, attacker); damaged(enchant, attacker);
         until = state.getClass().getDeclaredField("boostUntil"); until.setAccessible(true); until.setLong(state, 1);
         assertEquals(1, boost(enchant, true), 0); assertEquals(1, boost(enchant, false), 0);
-        fire(new PlayerQuitEvent(victim, null)); assertTrue(((Map<?, ?>) field(enchant, "states")).isEmpty());
+        fire(new PlayerQuitEvent(victim, (String) null)); assertTrue(((Map<?, ?>) field(enchant, "states")).isEmpty());
     }
 
     @Test public void unsafeAddonPlayerCastsAreFilteredBeforeCallbackButPlayerBotsAreAllowed() throws Exception {
@@ -404,7 +405,7 @@ public class AddonEnderCompatibilityTest extends BukkitDataTestSupport {
     @Test public void coreRespawnCancelsEchoOnEitherParticipant() throws Exception {
         AbstractEnchantment echo = install("rare.EchoArrowEnchant"); echo(echo);
         fire(new PitPlayerSpawnEvent(victim)); verify(scheduled.get(0).task()).cancel(); scheduled.get(0).action().run();
-        fire(new PlayerQuitEvent(attacker, null)); echo(echo);
+        fire(new PlayerQuitEvent(attacker, (String) null)); echo(echo);
         fire(new PitPlayerSpawnEvent(attacker)); verify(scheduled.get(1).task()).cancel(); scheduled.get(1).action().run();
         players.verify(() -> PlayerUtil.damage(any(Player.class), any(Player.class), any(PlayerUtil.DamageType.class), anyDouble(), anyBoolean()), never());
     }

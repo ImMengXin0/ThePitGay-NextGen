@@ -78,9 +78,9 @@ public class MegaStreakEffectsIntegrationTest extends BukkitDataTestSupport {
         Path addonLoader = Path.of(System.getProperty("pitAddonLoaderJar"));
         Assume.assumeTrue("Local Addon fixtures unavailable", Files.isRegularFile(server) && Files.isRegularFile(addonLoader));
         loader = new URLClassLoader(new URL[]{server.toUri().toURL(), addonLoader.toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
         pit = mockStatic(ThePit.class);
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         profiles = mockStatic(PlayerProfile.class);
         ThePit plugin = mock(ThePit.class);
         pit.when(ThePit::getInstance).thenReturn(plugin);
@@ -181,7 +181,7 @@ public class MegaStreakEffectsIntegrationTest extends BukkitDataTestSupport {
         tick(20);
         verify(player, times(1)).damage(3D);
         assertEquals(1, effects.size());
-        effect(PotionEffectType.SLOW, 20, 1);
+        effect(PotionEffectType.SLOWNESS, 20, 1);
         tick(21);
         verify(player, times(1)).damage(3D);
         tick(40);
@@ -267,9 +267,9 @@ public class MegaStreakEffectsIntegrationTest extends BukkitDataTestSupport {
             if (kills != 19999) assertEquals("Streak " + kills, 20 - expectedDamage, health.get(), 0D);
             assertEquals("Debuff count at streak " + kills, kills >= 80000 ? 4 : kills >= 20000 ? 3 : 0, effects.size());
             if (kills >= 20000) {
-                effect(PotionEffectType.CONFUSION, 200, 0);
-                effect(PotionEffectType.SLOW, 200, 2);
-                effect(PotionEffectType.SLOW_DIGGING, 200, 0);
+                effect(PotionEffectType.NAUSEA, 200, 0);
+                effect(PotionEffectType.SLOWNESS, 200, 2);
+                effect(PotionEffectType.MINING_FATIGUE, 200, 0);
             }
             if (kills >= 80000) effect(PotionEffectType.BLINDNESS, 40, 0);
         }

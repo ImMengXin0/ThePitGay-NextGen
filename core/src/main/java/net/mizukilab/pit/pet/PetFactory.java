@@ -7,15 +7,14 @@ import cn.charlotte.pit.util.hologram.Hologram;
 import cn.charlotte.pit.util.hologram.HologramAPI;
 import lombok.Getter;
 import lombok.SneakyThrows;
-import net.minecraft.server.v1_8_R3.EntityLiving;
 import net.mizukilab.pit.util.ClassUtil;
 import net.mizukilab.pit.util.PlayerUtil;
 import net.mizukilab.pit.util.chat.CC;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftLivingEntity;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -166,8 +165,7 @@ public class PetFactory implements Listener {
             final Player killer = Bukkit.getPlayer(data.ownerUuid);
             if (event.getEntity() instanceof LivingEntity entity) {
                 if (entity.getHealth() < event.getFinalDamage()) {
-                    final EntityLiving player = ((CraftLivingEntity) entity).getHandle();
-                    player.killer = ((CraftPlayer) killer).getHandle();
+                    entity.setKiller(killer);
                 }
             }
         }

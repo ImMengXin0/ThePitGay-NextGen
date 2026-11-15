@@ -27,7 +27,7 @@ public class CombatSpadePerk extends AbstractPerk {
 
     @Override
     public Material getIcon() {
-        return Material.DIAMOND_SPADE;
+        return Material.DIAMOND_SHOVEL;
     }
 
     @Override

@@ -29,7 +29,7 @@ public class BossBar {
 
     public void removePlayer(Player player) {
         if (viewers.remove(player.getUniqueId())) {
-            ThePit.getInstance().getAudiences().player(player).hideBossBar(bar);
+            player.hideBossBar(bar);
         }
     }
 
@@ -42,13 +42,13 @@ public class BossBar {
     }
 
     public void update(Player player) {
-        ThePit.getInstance().getAudiences().player(player).showBossBar(bar);
+        player.showBossBar(bar);
     }
 
     public void update(UUID uuid) {
         Player player = Bukkit.getPlayer(uuid);
         if (player != null) {
-            ThePit.getInstance().getAudiences().player(player).showBossBar(bar);
+            player.showBossBar(bar);
         }
     }
 

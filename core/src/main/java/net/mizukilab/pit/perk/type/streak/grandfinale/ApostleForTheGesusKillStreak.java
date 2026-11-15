@@ -19,7 +19,7 @@ import net.mizukilab.pit.util.item.ItemBuilder;
 import net.mizukilab.pit.util.random.RandomUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -62,7 +62,7 @@ public class ApostleForTheGesusKillStreak extends AbstractPerk implements Listen
 
     @Override
     public Material getIcon() {
-        return Material.EYE_OF_ENDER;
+        return Material.ENDER_EYE;
     }
 
     @Override
@@ -150,8 +150,8 @@ public class ApostleForTheGesusKillStreak extends AbstractPerk implements Listen
                 profile.setRenown(profile.getRenown() + 1);
                 myself.sendMessage(CC.translate("&e&l掷骰! &7你获得了 &e1 声望 &7."));
             } else if (dice == 45) {
-                float heart = (((CraftPlayer) myself).getHandle()).getAbsorptionHearts();
-                (((CraftPlayer) myself).getHandle()).setAbsorptionHearts(heart + 20);
+                float heart = (((CraftPlayer) myself).getHandle()).getAbsorptionAmount();
+                (((CraftPlayer) myself).getHandle()).setAbsorptionAmount(heart + 20);
                 myself.sendMessage(CC.translate("&e&l掷骰! &7你获得了 &610❤ 伤害吸收效果 &7."));
             } else if (dice == 50) {
                 myself.getInventory().addItem(
@@ -205,8 +205,8 @@ public class ApostleForTheGesusKillStreak extends AbstractPerk implements Listen
                 myself.sendMessage(CC.translate("&e&l掷骰! &7你获得了 &b" + diceExperience + " 经验值 &7."));
             }
             if (dice % 12 == 0) {
-                float heart = (((CraftPlayer) myself).getHandle()).getAbsorptionHearts();
-                (((CraftPlayer) myself).getHandle()).setAbsorptionHearts(heart + 8);
+                float heart = (((CraftPlayer) myself).getHandle()).getAbsorptionAmount();
+                (((CraftPlayer) myself).getHandle()).setAbsorptionAmount(heart + 8);
                 myself.sendMessage(CC.translate("&e&l掷骰! &7你获得了 &64❤ 伤害吸收效果 &7."));
             }
             if (dice % 13 == 0) {

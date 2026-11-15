@@ -88,7 +88,7 @@ class Despot : AbstractPerk(), MegaStreak, Listener, IPlayerDamaged, IAttackEnti
                 MessageType.COMBAT,
                 "&c&l超级连杀! ${event.playerProfile.formattedNameWithRoman} &7激活了 &c&l暴君 &7!"
             )
-            Bukkit.getOnlinePlayers().forEach { it.playSound(it.location, Sound.WITHER_SPAWN, 0.8f, 1.5f) }
+            Bukkit.getOnlinePlayers().forEach { it.playSound(it.location, Sound.ENTITY_WITHER_SPAWN, 0.8f, 1.5f) }
             player.maxHealth += 4
         }
     }
@@ -176,7 +176,7 @@ class Despot : AbstractPerk(), MegaStreak, Listener, IPlayerDamaged, IAttackEnti
             }
             items.add(item)
         }
-        Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), {
+        Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), Runnable {
             items.forEach { it.remove() }
         }, 40L)
     }
@@ -187,7 +187,7 @@ class Despot : AbstractPerk(), MegaStreak, Listener, IPlayerDamaged, IAttackEnti
     ) {
         val profile = PlayerProfile.getPlayerProfileByUuid(myself.uniqueId) ?: return
         if (profile.streakKills >= 200) {
-            Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), {
+            Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), Runnable {
                 if (InventoryUtil.isInvFull(myself)) {
                     myself.sendMessage(CC.translate("&c&l暴君! &7你的背包已满,死亡奖励并没有给予!"))
                 } else {

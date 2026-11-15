@@ -47,7 +47,7 @@ public class CombatSpadeShopButton extends AbstractShopButton implements Listene
         }
 
         if (PlayerUtil.isPlayerUnlockedPerk(player, "CombatSpadeShopUnlock")) {
-            return new ItemBuilder(Material.DIAMOND_SPADE)
+            return new ItemBuilder(Material.DIAMOND_SHOVEL)
                     .lore(lines)
                     .itemDamage(7)
                     .name("&e战斗之铲")
@@ -70,7 +70,7 @@ public class CombatSpadeShopButton extends AbstractShopButton implements Listene
         lines.add("&7战斗之铲的基础攻击力 &c+1(0.5❤) &7.");
         lines.add("&7&o实际效果请以商店描述为准");
 
-        return new ItemStack[]{new ItemBuilder(Material.DIAMOND_SPADE)
+        return new ItemStack[]{new ItemBuilder(Material.DIAMOND_SHOVEL)
                 .deathDrop(true)
                 .canSaveToEnderChest(true)
                 .canDrop(true)

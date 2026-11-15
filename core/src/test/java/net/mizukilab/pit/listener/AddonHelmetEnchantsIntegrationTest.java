@@ -4,10 +4,10 @@ import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.perk.PerkFactory;
 import com.google.common.util.concurrent.AtomicDouble;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
-import net.minecraft.server.v1_8_R3.NBTTagList;
-import net.minecraft.server.v1_8_R3.NBTTagString;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.mizukilab.pit.BukkitDataTestSupport;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
@@ -23,7 +23,7 @@ import net.mizukilab.pit.util.RangedStreamLineList;
 import net.mizukilab.pit.util.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -75,9 +75,9 @@ public class AddonHelmetEnchantsIntegrationTest extends BukkitDataTestSupport {
     @Before public void setup() throws Exception {
         addon = new URLClassLoader(new URL[]{Path.of(System.getProperty("pitAddonJar")).toUri().toURL(),
                 Path.of(System.getProperty("pitAddonLoaderJar")).toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
         rageKill = enchant("RageKill"); addonTerminator = enchant("Terminator");
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class, RETURNS_DEEP_STUBS));
         bukkit.when(Bukkit::getPluginManager).thenReturn(mock(org.bukkit.plugin.PluginManager.class));
         bukkit.when(Bukkit::getScheduler).thenReturn(mock(BukkitScheduler.class));
@@ -95,7 +95,7 @@ public class AddonHelmetEnchantsIntegrationTest extends BukkitDataTestSupport {
         attackerProfile = profile(attacker); victimProfile = profile(victim);
         useBot(true);
         sword = new MythicSwordItem();
-        ItemStack held = new ItemStack(Material.GOLD_SWORD);
+        ItemStack held = new ItemStack(Material.GOLDEN_SWORD);
         when(attacker.getItemInHand()).thenReturn(held);
         when(attacker.getInventory().getItemInHand()).thenReturn(held);
         ItemFactory items = mock(ItemFactory.class);
@@ -104,6 +104,7 @@ public class AddonHelmetEnchantsIntegrationTest extends BukkitDataTestSupport {
     }
 
     private AbstractEnchantment enchant(String simpleName) throws Exception {
+        net.mizukilab.pit.OptionalTestFixtures.require("pitAddonJar", "pitAddonLoaderJar");
         return (AbstractEnchantment) addon.loadClass("cn.apnf.mistral.enchantments.normal." + simpleName)
                 .getConstructor().newInstance();
     }
@@ -115,7 +116,7 @@ public class AddonHelmetEnchantsIntegrationTest extends BukkitDataTestSupport {
         when(player.getHealth()).thenReturn(20D);
         when(player.getMaxHealth()).thenReturn(20D);
         try (var attributes = mockConstruction(AttributeModifier.class)) {
-            EntityPlayer handle = mock(EntityPlayer.class);
+            ServerPlayer handle = mock(ServerPlayer.class);
             when(player.getHandle()).thenReturn(handle);
         }
         return player;
@@ -137,8 +138,8 @@ public class AddonHelmetEnchantsIntegrationTest extends BukkitDataTestSupport {
     }
 
     private void equip(String nbtName, int level) {
-        NBTTagList list = new NBTTagList();
-        list.add(new NBTTagString(nbtName + ":" + level));
+        ListTag list = new ListTag();
+        list.add(StringTag.valueOf(nbtName + ":" + level));
         sword.getEnchantments().clear();
         Utils.readEnchantments(sword.getEnchantments(), list);
     }
@@ -203,7 +204,7 @@ public class AddonHelmetEnchantsIntegrationTest extends BukkitDataTestSupport {
 
     @Test public void rageKillDoesNotBoostRealHelmetsOrSuppressedEnchants() {
         equip("rage_kill", 3);
-        for (Material material : List.of(Material.LEATHER_HELMET, Material.DIAMOND_HELMET, Material.SKULL_ITEM)) {
+        for (Material material : List.of(Material.LEATHER_HELMET, Material.DIAMOND_HELMET, Material.PLAYER_HEAD)) {
             when(victim.getInventory().getHelmet()).thenReturn(new ItemStack(material));
             assertEquals(4D, hit(), 0D);
         }

@@ -8,7 +8,7 @@ import net.mizukilab.pit.enchantment.AbstractEnchantment
 import net.mizukilab.pit.util.chat.CC
 import org.bukkit.ChatColor
 import org.bukkit.Color
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer
+import org.bukkit.craftbukkit.entity.CraftPlayer
 import org.bukkit.entity.Player
 
 val music: MutableList<AbstractEnchantment> = mutableListOf()
@@ -20,7 +20,7 @@ fun Player.getPitProfile(): PlayerProfile {
 
 fun Player.releaseItem() {
     val craftPlayer = this as CraftPlayer
-    craftPlayer.handle.bU()
+    craftPlayer.handle.stopUsingItem()
 }
 
 fun Player.hasRealMan(): Boolean { //hasRealMan 不存在realMan附魔 //TODO
@@ -28,11 +28,11 @@ fun Player.hasRealMan(): Boolean { //hasRealMan 不存在realMan附魔 //TODO
 }
 
 fun Player.sendMessage(message: Component) {
-    ThePit.getInstance().audiences.player(this).sendMessage(message)
+    this.sendMessage(message)
 }
 
 val Player.audience: Audience
-    get() = ThePit.getInstance().audiences.player(this)
+    get() = this
 
 fun Player.sendMultiMessage(message: String) {
     message.split("/s").forEach { this.sendMessage(CC.translate(it)) }

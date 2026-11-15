@@ -56,13 +56,13 @@ object EventsHandler {
             this.epicEvents.addAll(epicQueue)
         }
 
-        Bukkit.getScheduler().runTaskAsynchronously(ThePit.getInstance()) {
+        Bukkit.getScheduler().runTaskAsynchronously(ThePit.getInstance(), Runnable {
             ThePit.getInstance().mongoDB.eventQueueCollection.replaceOne(
                 Filters.eq("id", "1"),
                 eventQueue,
                 ReplaceOptions().upsert(true)
             )
-        }
+        })
     }
 
     fun loadFromDatabase() {

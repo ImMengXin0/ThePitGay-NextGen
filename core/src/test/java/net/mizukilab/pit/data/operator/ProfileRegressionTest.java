@@ -26,7 +26,7 @@ public class ProfileRegressionTest extends net.mizukilab.pit.BukkitDataTestSuppo
 
     @Test
     public void supporterChecksStoredStateOfflineAndPermissionsOnline() {
-        try (MockedStatic<ThePit> pit = mockStatic(ThePit.class); MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<ThePit> pit = mockStatic(ThePit.class); MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             PitInternalHook api = mock(PitInternalHook.class);
             pit.when(ThePit::getApi).thenReturn(api);
             when(api.getPitSupportPermission()).thenReturn("pit.supporter");
@@ -97,7 +97,7 @@ public class ProfileRegressionTest extends net.mizukilab.pit.BukkitDataTestSuppo
 
     @Test
     public void periodicHeartbeatDoesNotScheduleAnEntityTaskButLegacyHeartbeatStillUpdates() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             Player player = mock(Player.class);
             UUID uuid = UUID.randomUUID();
             when(player.isOnline()).thenReturn(true);

@@ -138,7 +138,7 @@ public class AdminItemMenu extends Menu {
 
     private static void addRow(Map<Integer, Button> buttons, int row, String title, byte color, Button... items) {
         if (row < 0 || row >= 6 || items.length > 8) throw new IllegalArgumentException("Invalid item menu row");
-        buttons.put(row * 9, Button.placeholder(Material.STAINED_GLASS_PANE, color, title));
+        buttons.put(row * 9, Button.placeholder(Material.WHITE_STAINED_GLASS_PANE, color, title));
         for (int i = 0; i < items.length; i++) buttons.put(row * 9 + 1 + i, items[i]);
     }
 

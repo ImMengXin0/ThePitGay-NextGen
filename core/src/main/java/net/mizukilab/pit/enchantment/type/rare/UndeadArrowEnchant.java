@@ -1,9 +1,9 @@
 package net.mizukilab.pit.enchantment.type.rare;
 
 import com.google.common.util.concurrent.AtomicDouble;
-import net.minecraft.server.v1_8_R3.BlockPosition;
-import net.minecraft.server.v1_8_R3.PacketPlayOutWorldEvent;
-import net.minecraft.server.v1_8_R3.PlayerConnection;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.param.item.BowOnly;
 import net.mizukilab.pit.enchantment.rarity.EnchantmentRarity;
@@ -11,7 +11,7 @@ import net.mizukilab.pit.parm.listener.IPlayerShootEntity;
 import net.mizukilab.pit.util.cooldown.Cooldown;
 import org.bukkit.Location;
 import org.bukkit.Sound;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
@@ -58,15 +58,11 @@ public class UndeadArrowEnchant extends AbstractEnchantment implements IPlayerSh
         if (targetPlayer.getHealth() - damage * boostDamage.get() < (1.5 + (enchantLevel * 0.5))) {
             cancel.set(true);
             targetPlayer.damage(9999);
-            attacker.playSound(attacker.getLocation(), Sound.VILLAGER_DEATH, 1, 1F);
+            attacker.playSound(attacker.getLocation(), Sound.ENTITY_VILLAGER_DEATH, 1, 1F);
 
             Location deathLoc = target.getLocation();
-            PacketPlayOutWorldEvent packetA = new PacketPlayOutWorldEvent(2001, new BlockPosition(deathLoc.getBlockX(), deathLoc.getBlockY(), deathLoc.getBlockZ()), 152, false);
-            PacketPlayOutWorldEvent packetB = new PacketPlayOutWorldEvent(2001, new BlockPosition(deathLoc.getBlockX(), deathLoc.getBlockY() - 1, deathLoc.getBlockZ()), 152, false);
-
-            PlayerConnection connection = ((CraftPlayer) attacker).getHandle().playerConnection;
-            connection.sendPacket(packetA);
-            connection.sendPacket(packetB);
+            attacker.playEffect(deathLoc, org.bukkit.Effect.STEP_SOUND, org.bukkit.Material.REDSTONE_BLOCK);
+            attacker.playEffect(deathLoc.clone().add(0, -1, 0), org.bukkit.Effect.STEP_SOUND, org.bukkit.Material.REDSTONE_BLOCK);
         }
     }
 }

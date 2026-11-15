@@ -67,7 +67,7 @@ class BreachingChargeEnchant : AbstractEnchantment(), Listener,IAttackEntity, IP
         if (Companion.cooldown.getOrDefault(attacker.uniqueId, Cooldown(0)).hasExpired()) {
             Companion.cooldown[attacker.uniqueId] =
                 Cooldown((4 - enchantLevel).toLong(), TimeUnit.SECONDS)
-            targetPlayer.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE)
+            targetPlayer.removePotionEffect(PotionEffectType.RESISTANCE)
         }
     }
 
@@ -85,7 +85,7 @@ class BreachingChargeEnchant : AbstractEnchantment(), Listener,IAttackEntity, IP
         if (Companion.cooldown.getOrDefault(attacker.uniqueId, Cooldown(0)).hasExpired()) {
             Companion.cooldown[attacker.uniqueId] =
                 Cooldown((4 - enchantLevel).toLong(), TimeUnit.SECONDS)
-            targetPlayer.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE)
+            targetPlayer.removePotionEffect(PotionEffectType.RESISTANCE)
         }
     }
 

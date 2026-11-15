@@ -141,6 +141,10 @@ public class AsyncTickHandler extends BukkitRunnable {
         });
     }
     public void onHologramTick(){
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(instance, this::onHologramTick);
+            return;
+        }
         ThePit.getInstance().getHologramMarco().getHolograms().forEach((playerUuid,hologram) -> {
             Player player = Bukkit.getPlayer(playerUuid);
             if(player == null){

@@ -38,7 +38,7 @@ public class PlayerWarehouse {
     public void snapshot(){
         snapshot = new HashMap<>();
         warehouses.forEach((key, value) -> {
-            Inventory inventory = Bukkit.createInventory(null, value.getSize(), value.getTitle());
+            Inventory inventory = Bukkit.createInventory(null, value.getSize(), "寄存箱 #" + key);
             inventory.setContents(value.getContents());
             snapshot.put(key, inventory);
         });
@@ -122,7 +122,7 @@ public class PlayerWarehouse {
     }
 
     private ItemStack createBarrierPlaceholder() {
-        ItemStack glass = new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 15);
+        ItemStack glass = new ItemStack(Material.WHITE_STAINED_GLASS_PANE, 1, (short) 15);
         ItemMeta meta = glass.getItemMeta();
         meta.setDisplayName("§7储存格");
         glass.setItemMeta(meta);
@@ -138,7 +138,7 @@ public class PlayerWarehouse {
         }
     }
     private boolean isBarrierPlaceholder(ItemStack item) {
-        if (item == null || item.getType() != Material.STAINED_GLASS_PANE || item.getDurability() != 15) {
+        if (item == null || item.getType() != Material.WHITE_STAINED_GLASS_PANE || item.getDurability() != 15) {
             return false;
         }
         ItemMeta meta = item.getItemMeta();

@@ -45,7 +45,7 @@ public class MythicBotCombatTest extends BukkitDataTestSupport {
 
     @Before public void setup() {
         previousCombat = CombatListener.INSTANCE;
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         pit = mockStatic(ThePit.class);
         identities = mockStatic(NpcIdentity.class);
         plugin = mock(ThePit.class, RETURNS_DEEP_STUBS);

@@ -12,7 +12,7 @@ import net.mizukilab.pit.util.Utils;
 import nya.Skip;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -108,8 +108,8 @@ public class SpongeSteveKillStreak extends AbstractPerk implements Listener {
         //trigger check (every X streak)
         int streak = 25;
         if (Math.floor(event.getFrom()) % streak != 0 && Math.floor(event.getTo()) % streak == 0) {
-            float heart = (((CraftPlayer) myself).getHandle()).getAbsorptionHearts();
-            (((CraftPlayer) myself).getHandle()).setAbsorptionHearts(Einstein.clampf(heart + 30, 0, 40));
+            float heart = (((CraftPlayer) myself).getHandle()).getAbsorptionAmount();
+            (((CraftPlayer) myself).getHandle()).setAbsorptionAmount(Einstein.clampf(heart + 30, 0, 40));
         }
     }
 }

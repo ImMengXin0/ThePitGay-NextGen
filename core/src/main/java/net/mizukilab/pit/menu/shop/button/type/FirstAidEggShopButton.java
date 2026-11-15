@@ -41,7 +41,7 @@ public class FirstAidEggShopButton extends AbstractShopButton {
 
         PerkData data = profile.getUnlockedPerkMap().get("first_aid_egg_perk");
         if (data != null) {
-            return new ItemBuilder(Material.MONSTER_EGG)
+            return new ItemBuilder(Material.PIG_SPAWN_EGG)
                     .durability(96)
                     .name("&c急救蛋")
                     .lore(lines)
@@ -60,7 +60,7 @@ public class FirstAidEggShopButton extends AbstractShopButton {
     @Override
     public ItemStack[] getResultItem(Player player) {
         return new ItemStack[]{
-                new ItemBuilder(Material.MONSTER_EGG)
+                new ItemBuilder(Material.PIG_SPAWN_EGG)
                         .durability(96)
                         .name("&c急救蛋")
                         .deathDrop(true)

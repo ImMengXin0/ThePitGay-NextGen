@@ -5,8 +5,8 @@ import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.perk.PerkFactory;
 import com.google.common.util.concurrent.AtomicDouble;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.mizukilab.pit.BukkitDataTestSupport;
 import net.mizukilab.pit.config.PitWorldConfig;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
@@ -30,7 +30,7 @@ import org.bukkit.Material;
 import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.plugin.PluginManager;
 import spg.lgdev.iSpigot;
@@ -65,7 +65,7 @@ public class RepairEnchantReplacementIntegrationTest extends BukkitDataTestSuppo
         Path jar = Path.of(System.getProperty("repairExtendJar"));
         Assume.assumeTrue(Files.isRegularFile(jar));
         return new URLClassLoader(new URL[]{jar.toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
     }
 
     @Test
@@ -169,7 +169,7 @@ public class RepairEnchantReplacementIntegrationTest extends BukkitDataTestSuppo
             shot.setAccessible(true);
             shot.invoke(new GameEffectListener(), false, hit, arrowEnchantments, owner,
                     new AtomicDouble(4), new AtomicDouble(1), new AtomicBoolean());
-            verify(victim).addPotionEffect(argThat(effect -> effect.getType().equals(PotionEffectType.SLOW)
+            verify(victim).addPotionEffect(argThat(effect -> effect.getType().equals(PotionEffectType.SLOWNESS)
                     && effect.getDuration() == 60), eq(false));
             verify(owner, never()).addPotionEffect(any(PotionEffect.class), anyBoolean());
             assertSame(old, arrowEnchantments.keySet().iterator().next());
@@ -202,7 +202,7 @@ public class RepairEnchantReplacementIntegrationTest extends BukkitDataTestSuppo
             DurabilityEnchant delegate = new DurabilityEnchant();
             factor.registerEnchantment(delegate);
             factor.getIItemDamages().set(0, (IItemDamage) wrapper(loader, delegate));
-            ItemStack stack = new ItemStack(Material.GOLD_SWORD);
+            ItemStack stack = new ItemStack(Material.GOLDEN_SWORD);
             IMythicItem item = mock(IMythicItem.class);
             Object2IntOpenHashMap<AbstractEnchantment> enchantments = new Object2IntOpenHashMap<>();
             enchantments.defaultReturnValue(-1);
@@ -231,7 +231,7 @@ public class RepairEnchantReplacementIntegrationTest extends BukkitDataTestSuppo
     @Test
     public void actualRespawnHonorsSilenceAndStopsCallingRemovedEnchantments() throws Exception {
         try (URLClassLoader loader = extension(); MockedStatic<ThePit> pit = mockStatic(ThePit.class);
-             MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class); MockedStatic<Utils> utils = mockStatic(Utils.class);
+             MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit(); MockedStatic<Utils> utils = mockStatic(Utils.class);
              MockedStatic<PlayerUtil> playerUtil = mockStatic(PlayerUtil.class);
              MockedStatic<TitleUtil> titles = mockStatic(TitleUtil.class);
              var attributes = mockConstruction(AttributeModifier.class)) {
@@ -267,8 +267,8 @@ public class RepairEnchantReplacementIntegrationTest extends BukkitDataTestSuppo
             // Run the real respawn method; isolate only the server's attribute bootstrap.
             Class<?> allocatorType = Class.forName("org.objenesis.ObjenesisStd");
             Object allocator = allocatorType.getConstructor().newInstance();
-            EntityPlayer handle = (EntityPlayer) allocatorType.getMethod("newInstance", Class.class)
-                    .invoke(allocator, EntityPlayer.class);
+            ServerPlayer handle = (ServerPlayer) allocatorType.getMethod("newInstance", Class.class)
+                    .invoke(allocator, ServerPlayer.class);
             when(player.getHandle()).thenReturn(handle);
             Method respawn = CombatListener.class.getDeclaredMethod("doRespawn", Player.class, PlayerProfile.class);
             respawn.setAccessible(true);
@@ -290,7 +290,7 @@ public class RepairEnchantReplacementIntegrationTest extends BukkitDataTestSuppo
     public void actualManagerInstallsAndRestoresAllOrdinaryReplacementEntries() throws Exception {
         iSpigot previous = iSpigot.INSTANCE;
         try (URLClassLoader loader = extension(); MockedStatic<ThePit> pit = mockStatic(ThePit.class);
-             MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+             MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             bukkit.when(Bukkit::getPluginManager).thenReturn(mock(PluginManager.class));
             new iSpigot();
             ThePit plugin = mock(ThePit.class);

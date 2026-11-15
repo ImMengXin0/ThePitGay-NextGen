@@ -35,7 +35,7 @@ public class XPContractBoostPerk extends AbstractPerk implements IPlayerKilledEn
 
     @Override
     public Material getIcon() {
-        return Material.EXP_BOTTLE;
+        return Material.EXPERIENCE_BOTTLE;
     }
 
     @Override

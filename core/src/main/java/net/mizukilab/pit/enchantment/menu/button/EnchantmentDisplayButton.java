@@ -112,7 +112,7 @@ public class EnchantmentDisplayButton extends Button {
     }
 
     private ItemStack getEmptySlot(String reason) {
-        return new ItemBuilder(Material.STAINED_GLASS_PANE)
+        return new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE)
                 .durability(7)
                 .name("&7附魔槽位 " + (enchantIndex + 1))
                 .lore(

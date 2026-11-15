@@ -96,7 +96,7 @@ public class BowBundleShopButton extends AbstractShopButton implements Listener 
             return;
         }
         Player player = e.getPlayer();
-        if (e.getClickedBlock() != null && (e.getClickedBlock().getType() == Material.WORKBENCH
+        if (e.getClickedBlock() != null && (e.getClickedBlock().getType() == Material.CRAFTING_TABLE
                 || e.getClickedBlock().getType() == Material.ANVIL || e.getClickedBlock().getType() == Material.CHEST || e.getClickedBlock().getType() == Material.TRAPPED_CHEST)) {
             e.setCancelled(true);
             return;
@@ -139,7 +139,7 @@ public class BowBundleShopButton extends AbstractShopButton implements Listener 
                 player.sendMessage(CC.translate("&c你的背包内需要有10条及以上的未附魔神话之弓才能使用此物品!"));
             } else {
                 int count = 0;
-                ItemBuilder itemBuilder = new ItemBuilder(Material.STORAGE_MINECART)
+                ItemBuilder itemBuilder = new ItemBuilder(Material.CHEST_MINECART)
                         .name("&b神话之弓收纳箱")
                         .canSaveToEnderChest(true)
                         .canTrade(true)

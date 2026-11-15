@@ -80,7 +80,7 @@ object TabConfiguration {
         enable = config.getBoolean("enable")
         tick = config.getInt("tick")
         delay = config.getInt("delay")
-        config.getConfigurationSection("animation").getKeys(false).forEach {
+        (config.getConfigurationSection("animation") ?: config.createSection("animation")).getKeys(false).forEach {
             animation[it] = this.config.getStringList("animation.${it}")
         }
         head = this.config.getStringList("head")

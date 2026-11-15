@@ -37,7 +37,7 @@ public class EnchantSinceButton extends Button {
     }
 
     private ItemStack getNoneItem(MythicColor color) {
-        return new ItemBuilder(Material.STAINED_GLASS_PANE)
+        return new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE)
                 .durability(15)
                 .name("&d放入神话之甲作为升级材料")
                 .lore("&7要将此物品升级至等级 &a" + (color == MythicColor.DARK ? "II" : "III"), "&7需要放入 " + color.getChatColor() + color.getDisplayName() + "色神话之甲 &7作为升级材料.")
@@ -55,7 +55,7 @@ public class EnchantSinceButton extends Button {
         }
         profile.setEnchantingScience(InventoryUtil.serializeItemStack(new ItemStack(Material.AIR)));
         player.getInventory().addItem(item);
-        player.playSound(player.getLocation(), Sound.CHICKEN_EGG_POP, 1, 0.65F);
+        player.playSound(player.getLocation(), Sound.ENTITY_CHICKEN_EGG, 1, 0.65F);
 
         this.menu.openMenu(player);
     }

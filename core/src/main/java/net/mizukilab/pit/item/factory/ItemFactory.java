@@ -3,7 +3,7 @@ package net.mizukilab.pit.item.factory;
 import cn.charlotte.pit.ThePit;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
 import com.google.common.annotations.Beta;
-import net.minecraft.server.v1_8_R3.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.mizukilab.pit.item.AbstractPitItem;
 import net.mizukilab.pit.item.IItemFactory;
 import net.mizukilab.pit.item.IMythicItem;
@@ -12,7 +12,7 @@ import net.mizukilab.pit.util.Log;
 import net.mizukilab.pit.util.Utils;
 import net.mizukilab.pit.util.item.ItemUtil;
 import nya.Skip;
-import org.apache.commons.lang.Validate;
+import org.apache.commons.lang3.Validate;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 
@@ -109,7 +109,7 @@ public class ItemFactory implements IItemFactory {
     }
     @Beta
     public IMythicItem getIMythicItem(ItemStack stack, Runnable runnable,boolean clientSide) {
-        NBTTagCompound extra = ItemUtil.getExtra(stack);
+        CompoundTag extra = ItemUtil.getExtra(stack);
         String internalName = ItemUtil.getInternalName0(extra);
         if (internalName == null) {
             return null;

@@ -84,7 +84,7 @@ public class BattlefieldMedicEnchant extends AbstractEnchantment implements IPla
         double healAmount = (1.0 + enchantLevel * 0.5) * 2;
         PlayerUtil.heal(killer, healAmount);
 
-        killer.playSound(killer.getLocation(), Sound.ORB_PICKUP, 1.0f, 1.5f);
+        killer.playSound(killer.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.5f);
     }
 
     @Override
@@ -93,10 +93,10 @@ public class BattlefieldMedicEnchant extends AbstractEnchantment implements IPla
             int resistanceChance = enchantLevel * 15 + 10;
             if (Math.random() * 100 < resistanceChance) {
 
-                myself.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, (enchantLevel + 2) * 20, enchantLevel - 1), true);
+                myself.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, (enchantLevel + 2) * 20, enchantLevel - 1), true);
 
 
-                myself.playSound(myself.getLocation(), Sound.ANVIL_USE, 0.8f, 1.2f);
+                myself.playSound(myself.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.2f);
 
                 resistanceCooldown.put(myself.getUniqueId(), new Cooldown(8, TimeUnit.SECONDS));
             }

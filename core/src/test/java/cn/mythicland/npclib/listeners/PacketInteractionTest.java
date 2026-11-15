@@ -29,14 +29,7 @@ public class PacketInteractionTest {
     private final List<Runnable> pending = new ArrayList<>();
 
     @Before public void setup() throws Exception {
-        com.comphenix.protocol.utility.MinecraftVersion.setCurrentVersion(
-                new com.comphenix.protocol.utility.MinecraftVersion(1, 8, 8));
-        bukkit = mockStatic(Bukkit.class);
-        bukkit.when(Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class, RETURNS_DEEP_STUBS));
-        var packages = com.comphenix.protocol.utility.MinecraftReflection.class.getDeclaredMethod(
-                "setMinecraftPackage", String.class, String.class);
-        packages.setAccessible(true);
-        packages.invoke(null, "net.minecraft.server.v1_8_R3", "org.bukkit.craftbukkit.v1_8_R3");
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         protocols = mockStatic(ProtocolLibrary.class);
         protocols.when(ProtocolLibrary::getProtocolManager).thenReturn(mock(ProtocolManager.class));
         bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);

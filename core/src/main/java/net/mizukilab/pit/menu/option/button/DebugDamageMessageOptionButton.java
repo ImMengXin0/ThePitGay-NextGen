@@ -29,7 +29,7 @@ public class DebugDamageMessageOptionButton extends Button {
         lines.add(" ");
         lines.add("&7当前: " + (profile.getPlayerOption().isDebugDamageMessage() ? "&a允许" : "&c不允许"));
         lines.add(PlayerUtil.isStaff(player) ? "&e&e点击切换此选项!" : "&c需要用户组&9志愿者");
-        return new ItemBuilder(Material.DIAMOND_SPADE).name("&a测试选项: 伤害测试显示").lore(lines).build();
+        return new ItemBuilder(Material.DIAMOND_SHOVEL).name("&a测试选项: 伤害测试显示").lore(lines).build();
     }
 
     @Override

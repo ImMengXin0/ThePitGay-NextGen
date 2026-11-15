@@ -38,7 +38,7 @@ public class ExtensionRegistrationTest {
 
     @Test
     public void replacementAndShutdownRemoveAllOldCallbacksByIdentity() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             bukkit.when(Bukkit::getPluginManager).thenReturn(mock(PluginManager.class));
             EnchantmentFactor factor = new EnchantmentFactor();
             Callbacks original = new Callbacks(), replacement = new Callbacks();
@@ -71,7 +71,7 @@ public class ExtensionRegistrationTest {
 
     @Test
     public void bukkitListenerWithoutAutoRegisterAnnotationIsUnregistered() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             PluginManager manager = mock(PluginManager.class);
             bukkit.when(Bukkit::getPluginManager).thenReturn(manager);
             EnchantmentFactor factor = new EnchantmentFactor();
@@ -94,7 +94,7 @@ public class ExtensionRegistrationTest {
 
     @Test
     public void enchantPoolReloadsOnceAfterExtensionReplacement() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             bukkit.when(Bukkit::getPluginManager).thenReturn(mock(PluginManager.class));
             bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             EnchantmentFactor factor = new EnchantmentFactor();

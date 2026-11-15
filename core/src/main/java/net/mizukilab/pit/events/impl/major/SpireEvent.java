@@ -10,19 +10,18 @@ import cn.charlotte.pit.events.trigger.type.IEpicEvent;
 import cn.charlotte.pit.events.trigger.type.addon.IPreparative;
 import cn.charlotte.pit.events.trigger.type.addon.IScoreBoardInsert;
 import cn.charlotte.pit.events.trigger.type.addon.ISortable;
-import com.boydti.fawe.FaweAPI;
-import com.sk89q.worldedit.BlockVector;
-import com.sk89q.worldedit.CuboidClipboard;
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.math.BlockVector3;
+
 import com.sk89q.worldedit.EditSession;
-import com.sk89q.worldedit.blocks.BaseBlock;
-import com.sk89q.worldedit.blocks.BlockID;
+import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
 import com.sk89q.worldedit.function.mask.BlockMask;
-import com.sk89q.worldedit.patterns.SingleBlockPattern;
+import com.sk89q.worldedit.function.pattern.BlockPattern;
 import com.sk89q.worldedit.regions.CuboidRegion;
-import com.sk89q.worldedit.schematic.MCEditSchematicFormat;
-import com.sk89q.worldedit.schematic.SchematicFormat;
-import net.minecraft.server.v1_8_R3.MathHelper;
+
+
+import net.minecraft.util.Mth;
 import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.item.type.SpireArmor;
 import net.mizukilab.pit.item.type.SpireSword;
@@ -134,7 +133,7 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
                     .getSpawnLocations()
                     .get(RandomUtil.random.nextInt(ThePit.getInstance().getPitConfig().getSpawnLocations().size()));
             player.teleport(location);
-            player.playSound(player.getLocation(), Sound.ENDERDRAGON_GROWL, 1, 0.5F);
+            player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1, 0.5F);
         }
 
         cn.charlotte.pit.events.EventWorldEdits.build(this, () -> {
@@ -144,17 +143,17 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
 
             final BukkitWorld world = new BukkitWorld(location.getWorld());
 
-            BlockVector vector = new BlockVector(location.getX(), location.getY(), location.getZ());
+            BlockVector3 vector = BlockVector3.at(location.getX(), location.getY(), location.getZ());
 
-            session = FaweAPI.getEditSessionBuilder(world).build();
+            session = WorldEdit.getInstance().newEditSession(world);
 
-            final MCEditSchematicFormat mcedit = (MCEditSchematicFormat) SchematicFormat.MCEDIT;
+
 
 
             try (InputStream inputStream = ThePit.getInstance().getResource("spire.schematic")) {
                 if (inputStream == null) throw new IllegalStateException("Missing spire.schematic");
-                final CuboidClipboard clipboard = mcedit.load(inputStream);
-                clipboard.paste(session, vector, false);
+
+                cn.charlotte.pit.events.EventWorldEdits.pasteLegacy(session, inputStream, vector);
 
                 cn.charlotte.pit.events.EventWorldEdits.flush(session);
 
@@ -163,20 +162,20 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
             }
 
             Location middle = ThePit.getInstance().getPitConfig().getRagePitMiddle();
-            BlockVector wallVec = new BlockVector(middle.getBlockX(), middle.getBlockY(), middle.getBlockZ());
-            wall = FaweAPI.getEditSessionBuilder(world).build();
-            wall.makeCylinder(wallVec, new SingleBlockPattern(new BaseBlock(BlockID.GLASS)), ThePit.getInstance().getPitConfig().getRagePitRadius(), ThePit.getInstance().getPitConfig().getRagePitHeight(), false);
+            BlockVector3 wallVec = BlockVector3.at(middle.getBlockX(), middle.getBlockY(), middle.getBlockZ());
+            wall = WorldEdit.getInstance().newEditSession(world);
+            wall.makeCylinder(wallVec, new BlockPattern(com.sk89q.worldedit.world.block.BlockTypes.GLASS.getDefaultState().toBaseBlock()), ThePit.getInstance().getPitConfig().getRagePitRadius(), ThePit.getInstance().getPitConfig().getRagePitHeight(), false);
             cn.charlotte.pit.events.EventWorldEdits.flush(wall);
 
             if (teleport == null) {
-                teleport = FaweAPI.getEditSessionBuilder(world).build();
+                teleport = WorldEdit.getInstance().newEditSession(world);
 
                 Location portalA = ThePit.getInstance().getPitConfig().getPortalPosA();
                 Location portalB = ThePit.getInstance().getPitConfig().getPortalPosB();
-                BlockVector posA = new BlockVector(portalA.getBlockX(), portalA.getBlockY(), portalA.getBlockZ());
-                BlockVector posB = new BlockVector(portalB.getBlockX(), portalB.getBlockY(), portalB.getBlockZ());
+                BlockVector3 posA = BlockVector3.at(portalA.getBlockX(), portalA.getBlockY(), portalA.getBlockZ());
+                BlockVector3 posB = BlockVector3.at(portalB.getBlockX(), portalB.getBlockY(), portalB.getBlockZ());
 
-                teleport.replaceBlocks(new CuboidRegion(posA, posB), new BlockMask(teleport.getExtent(), new BaseBlock(BlockID.AIR)), new BaseBlock(BlockID.END_PORTAL));
+                teleport.replaceBlocks(new CuboidRegion(posA, posB), new BlockMask(teleport, com.sk89q.worldedit.world.block.BlockTypes.AIR.getDefaultState().toBaseBlock()), com.sk89q.worldedit.world.block.BlockTypes.END_PORTAL.getDefaultState().toBaseBlock());
                 cn.charlotte.pit.events.EventWorldEdits.flush(teleport);
             }
         });
@@ -244,10 +243,10 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
 
         PlayerInventory inventory = player.getInventory();
         if (floor == 0) {
-            final SpireSword sword = new SpireSword(Material.WOOD_SWORD);
+            final SpireSword sword = new SpireSword(Material.WOODEN_SWORD);
             inventory.addItem(sword.toItemStack());
         } else if (floor == 1 || floor == 2) {
-            inventory.addItem(SpireArmor.toItemStack(Material.WOOD_SWORD));
+            inventory.addItem(SpireArmor.toItemStack(Material.WOODEN_SWORD));
             inventory.setChestplate(SpireArmor.toItemStack(Material.LEATHER_CHESTPLATE));
 
             inventory.setLeggings(SpireArmor.toItemStack(Material.CHAINMAIL_LEGGINGS));
@@ -317,7 +316,7 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
             data.soul = data.soul + this.getKillRewardSouls(data);
             data.kills++;
             TitleUtil.sendTitle(killer, CC.translate("&a击杀!"), this.getFloorColor(data.floor) + "第" + (data.floor + 1) + "层", 5, 20, 10);
-            killer.playSound(killer.getLocation(), Sound.LEVEL_UP, 1, 1.5F);
+            killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1, 1.5F);
 
             runEventTaskLater(() -> {
                 if (!killer.isOnline() || dataMap.get(killer.getUniqueId()) != data) return;
@@ -415,7 +414,7 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
         //由x^2 + y^2 = r^2得
         //y^2 = r^2 - x^2
         //开根后得到y值
-        double randomZ = MathHelper.sqrt(radius * radius - randomX * randomX);
+        double randomZ = Math.sqrt(radius * radius - randomX * randomX);
         //因x,y均为正，所以随机取负值
         if (RandomUtil.hasSuccessfullyByChance(0.5)) {
             randomX = -randomX;
@@ -492,9 +491,9 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
         if (this.runnable != null) this.runnable.cancel();
 
         cn.charlotte.pit.events.EventWorldEdits.undo(() -> {
-            if (teleport != null) { cn.charlotte.pit.events.EventWorldEdits.restore(teleport); cn.charlotte.pit.events.EventWorldEdits.flush(teleport); teleport = null; }
-            if (wall != null) { cn.charlotte.pit.events.EventWorldEdits.restore(wall); cn.charlotte.pit.events.EventWorldEdits.flush(wall); wall = null; }
-            if (session != null) { cn.charlotte.pit.events.EventWorldEdits.restore(session); cn.charlotte.pit.events.EventWorldEdits.flush(session); session = null; }
+            if (teleport != null) { cn.charlotte.pit.events.EventWorldEdits.restore(teleport); teleport = null; }
+            if (wall != null) { cn.charlotte.pit.events.EventWorldEdits.restore(wall); wall = null; }
+            if (session != null) { cn.charlotte.pit.events.EventWorldEdits.restore(session); session = null; }
         });
 
         for (UUID uuid : cooldownList) PlayerMoveHandler.getCantMoveList().remove(Bukkit.getPlayer(uuid));
@@ -537,7 +536,7 @@ public class SpireEvent extends AbstractEvent implements IEpicEvent, Listener, I
             }
             if (data != null && enchantBoostLevel > 0) {
                 rewardCoins += 0.5 * enchantBoostLevel * rewardCoins;
-                rewardRenown += MathHelper.floor(0.5 * enchantBoostLevel * rewardRenown);
+                rewardRenown += Mth.floor(0.5 * enchantBoostLevel * rewardRenown);
                 MythicLeggingsItem mythicLeggings = new MythicLeggingsItem();
                 mythicLeggings.loadFromItemStack(player.getInventory().getLeggings());
                 if (mythicLeggings.isEnchanted()) {

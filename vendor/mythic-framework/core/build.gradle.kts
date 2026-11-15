@@ -1,7 +1,7 @@
 plugins { `java-library` }
 repositories { mavenCentral() }
-java { toolchain.languageVersion.set(JavaLanguageVersion.of(17)); withSourcesJar() }
-tasks.withType<JavaCompile>().configureEach { options.encoding = "UTF-8"; options.release.set(17) }
+java { toolchain.languageVersion.set(JavaLanguageVersion.of(21)); withSourcesJar() }
+tasks.withType<JavaCompile>().configureEach { options.encoding = "UTF-8"; options.release.set(21) }
 dependencies {
     api("org.reflections:reflections:0.10.2")
     compileOnly("it.unimi.dsi:fastutil:8.5.15")

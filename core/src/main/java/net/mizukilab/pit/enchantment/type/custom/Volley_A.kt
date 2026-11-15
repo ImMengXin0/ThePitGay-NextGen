@@ -4,8 +4,8 @@ package net.mizukilab.pit.enchantment.type.custom
 import cn.charlotte.pit.ThePit
 import cn.charlotte.pit.data.PlayerProfile
 
-import net.minecraft.server.v1_8_R3.EntityHuman
-import net.minecraft.server.v1_8_R3.ItemBow
+
+import net.minecraft.world.item.BowItem
 import net.mizukilab.pit.enchantment.AbstractEnchantment
 import net.mizukilab.pit.enchantment.param.item.BowOnly
 import net.mizukilab.pit.enchantment.rarity.EnchantmentRarity
@@ -14,8 +14,8 @@ import net.mizukilab.pit.util.PlayerUtil
 import net.mizukilab.pit.util.cooldown.Cooldown
 import net.mizukilab.pit.util.item.ItemBuilder
 import org.bukkit.Material
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack
+import org.bukkit.craftbukkit.entity.CraftPlayer
+import org.bukkit.craftbukkit.inventory.CraftItemStack
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -32,12 +32,7 @@ import java.util.concurrent.ConcurrentHashMap
 @AutoRegister
 @BowOnly
 class VollewyA : AbstractEnchantment(), Listener {
-    private val playerUsingFiled: Field = EntityHuman::class.java.getDeclaredField("h")
     private val arrowBuilder: ItemBuilder = ItemBuilder(Material.ARROW).internalName("default_arrow").defaultItem().canDrop(false).canSaveToEnderChest(false)
-
-    init {
-        playerUsingFiled.isAccessible = true
-    }
 
     override fun getEnchantName(): String {
         return "连续射击"
@@ -72,7 +67,7 @@ class VollewyA : AbstractEnchantment(), Listener {
 
         if (PlayerUtil.isVenom(player) || PlayerUtil.isEquippingSomber(player)) return
 
-        val itemInHand = player.itemInHand
+        val itemInHand = player.inventory.itemInMainHand
         if (itemInHand == null || itemInHand.type != Material.BOW) return
 
         val level = ThePit.api.getItemEnchantLevel(itemInHand, this.nbtName)
@@ -82,15 +77,11 @@ class VollewyA : AbstractEnchantment(), Listener {
         event.isCancelled = true
 
         val nmsItem = CraftItemStack.asNMSCopy(itemInHand)
-        val bow = nmsItem.item as ItemBow
+        val bow = nmsItem.item as BowItem
         val entityPlayer = (player as CraftPlayer).handle
 
-        val value: Int
-        try {
-            value = playerUsingFiled[entityPlayer] as Int
-        } catch (e: IllegalAccessException) {
-            throw RuntimeException("Failed to access player field.", e)
-        }
+        val drawnTicks = kotlin.math.ceil(20.0 * (kotlin.math.sqrt(1.0 + 3.0 * event.force) - 1.0)).toInt()
+        val value = bow.getUseDuration(nmsItem, entityPlayer) - drawnTicks
 
         player.inventory.addItem(arrowBuilder.amount(level + 1).build())
 
@@ -107,7 +98,7 @@ class VollewyA : AbstractEnchantment(), Listener {
                 }
 
                 ++tick
-                bow.a(nmsItem, entityPlayer.world, entityPlayer, value)
+                bow.releaseUsing(nmsItem, entityPlayer.level(), entityPlayer, value)
             }
         }.runTaskTimer(ThePit.getInstance(), 0L, 1L)
     }

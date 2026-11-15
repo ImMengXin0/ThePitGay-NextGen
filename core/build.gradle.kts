@@ -16,6 +16,7 @@ buildscript {
     }
 }
 plugins {
+    id("io.papermc.paperweight.userdev")
     kotlin("plugin.lombok") version "2.1.20"
     id("io.freefair.lombok") version "8.10"
     kotlin("jvm") version "2.1.20"
@@ -24,8 +25,16 @@ plugins {
 
 group = "top.mcrw"
 
-version = "V"
+version = rootProject.version
 repositories {
+    maven("https://mvn.lumine.io/repository/maven-public/") {
+        content { includeGroup("io.lumine") }
+    }
+    maven("https://repo.papermc.io/repository/maven-public/")
+    exclusiveContent {
+        forRepository { maven("https://api.modrinth.com/maven") }
+        filter { includeGroup("maven.modrinth") }
+    }
     exclusiveContent {
         forRepository { maven("https://repo.panda-lang.org/releases") }
         filter { includeGroup("dev.rollczi") }
@@ -77,8 +86,9 @@ tasks.register<ProGuardTask>("proguard") {
 
 tasks.named<ShadowJar>("shadowJar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    archiveFileName.set("ThePitGay-$version" + ".jar")
-    exclude("META-INF/**")
+    archiveFileName.set("ThePitGay-High.jar")
+    exclude("META-INF/*.SF", "META-INF/*.RSA", "META-INF/*.DSA", "META-INF/INDEX.LIST")
+    filesMatching("META-INF/services/**") { duplicatesStrategy = DuplicatesStrategy.INCLUDE }
 
     exclude("org.hamcrest")
 
@@ -89,7 +99,7 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("panda", "net.mizukilab.pit.libs")
     relocate("dev.rollczi", "net.mizukilab.pit.libs")
     relocate("cn.hutool", "net.mizukilab.pit.libs")
-    relocate("net.kyori", "net.mizukilab.pit.libs")
+    // Paper and Fancy share Adventure types in public JVM method signatures.
     relocate("net.jodah", "net.mizukilab.pit.libs")
     // Preserve the NPC API descriptors consumed by existing extensions.
     relocate("cn.mythicland.npclib", "net.mizukilab.pit.libs.npclib")
@@ -100,49 +110,48 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("net.sourceforge.pinyin4j", "net.mizukilab.pit.libs.mythicframework.pinyin4j")
     relocate("org.yaml.snakeyaml", "net.mizukilab.pit.libs.mythicframework.yaml")
     relocate("xyz.upperlevel.spigot", "net.mizukilab.pit.libs")
-    exclude("kotlin/**", "junit/**", "org/junit/**")
+    exclude("junit/**", "org/junit/**")
     from("build/tmp/processed-resources")
     mergeServiceFiles()
 }
 dependencies {
+    implementation(project(":paper-platform"))
+    paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
+    compileOnly("maven.modrinth:worldedit:2YDdVDmG")
+    compileOnly("maven.modrinth:fancynpcs:2.9.2")
+    compileOnly("maven.modrinth:fancyholograms:2.10.1")
+    compileOnly("io.lumine:Mythic-Dist:5.12.1") { isTransitive = false }
     implementation(project(":mythic-framework-bukkit"))
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.mockito:mockito-inline:4.11.0")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.11.4")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.11.4")
+    testImplementation("org.mockito:mockito-core:5.18.0")
 
     compileOnly(fileTree("../packLib"))
-    // PandaSpigot adds the tracker/spawn events used by the source tree.
-    compileOnly(files(rootProject.file(providers.gradleProperty("pandaSpigotJar")
-        .orElse("libs/pandaspigot-221.jar").get())))
     compileOnly(fileTree(mapOf("dir" to "../libs", "include" to listOf("*.jar"),
-        "exclude" to listOf("citizens*.jar", "Citizens*.jar"))))
+        "exclude" to listOf("citizens*.jar", "Citizens*.jar", "*spigot*.jar", "WorldEdit.jar", "FastAsyncWorldEdit*.jar", "mythicmobs*.jar"))))
     implementation(libs.reflectionhelper)
 
     implementation(libs.hutool.crypto)
     implementation(libs.book)
     compileOnly(libs.slf4j)
     implementation(libs.litecommands)
-    implementation("zone.rong:imaginebreaker:2.1")
-    compileOnly(libs.adventure.bukkit)
     compileOnly("com.caoccao.javet:javet:3.1.4")
     compileOnly("org.projectlombok:lombok:1.18.32")
     annotationProcessor("org.projectlombok:lombok:1.18.32")
     compileOnly(libs.luckperms)
     compileOnly("com.github.f4b6a3:uuid-creator:6.0.0")
     compileOnly(libs.papi)
-    compileOnly(libs.narshorn)
-    compileOnly(libs.protocollib)
-    compileOnly(libs.jedis)
-    compileOnly("org.mongojack:mongojack:5.0.1")
-    compileOnly("org.mongodb:mongodb-driver-sync:5.2.0")
-
-    compileOnly(fileTree("libs"))
+    implementation(libs.narshorn)
+    compileOnly(files(rootProject.file("vendor/dependencies/ProtocolLib-5.5.0-SNAPSHOT-Spigot.jar")))
+    implementation(libs.jedis)
+    implementation("org.mongojack:mongojack:5.0.1")
+    implementation("org.mongodb:mongodb-driver-sync:5.2.0")
 
     compileOnly(libs.fastutil)
     compileOnly("us.crazycrew.crazycrates:api:0.7")
     compileOnly(libs.luckperms)
     compileOnly(libs.playerpoints)
-    compileOnly(libs.decentholograms)
-    implementation(libs.adventure.bukkit)
     implementation(kotlin("reflect"))
 }
 sourceSets.test {
@@ -150,11 +159,7 @@ sourceSets.test {
     runtimeClasspath += configurations.compileClasspath.get()
 }
 tasks.test {
-    useJUnit()
-    // Keep the 1.8 server's bundled libraries ahead of raw framework dependencies.
-    // Production isolates those dependencies through Shadow relocation.
-    classpath = files(rootProject.file(providers.gradleProperty("pandaSpigotJar")
-        .orElse("libs/pandaspigot-221.jar").get()), file("libs/spigot-1.8.8-R0.1-SNAPSHOT.jar")) + classpath
+    useJUnitPlatform()
     // Binary integration tests need the same relocated libraries shipped to Bukkit.
     dependsOn(tasks.named("shadowJar"))
     val repairExtendJar = rootProject.file(providers.gradleProperty("repairExtendJar")
@@ -176,7 +181,7 @@ tasks.test {
     systemProperty("nativeRepairJar", nativeRepairJar.absolutePath)
 }
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 tasks.withType<JavaCompile> {

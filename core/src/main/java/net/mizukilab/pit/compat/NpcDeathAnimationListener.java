@@ -7,13 +7,13 @@ import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
-import com.comphenix.protocol.wrappers.WrappedDataWatcher;
-import com.comphenix.protocol.wrappers.WrappedWatchableObject;
+import com.comphenix.protocol.wrappers.WrappedDataValue;
+import net.minecraft.world.entity.LivingEntity;
 import net.mizukilab.pit.npc.NpcIdentity;
 import cn.mythicland.npclib.internal.NPCManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
+
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** 1.8 client-only cleanup: never cancels damage, death, drops or bot respawning. */
+/** Client corpse cleanup, preserving server damage, drops and bot respawning. */
 final class NpcDeathAnimationListener extends PacketAdapter implements Listener {
     private static final long RETAIN_NANOS = TimeUnit.SECONDS.toNanos(10);
     private final ProtocolManager protocol;
@@ -43,8 +43,7 @@ final class NpcDeathAnimationListener extends PacketAdapter implements Listener 
 
     NpcDeathAnimationListener(Plugin plugin) {
         super(plugin, ListenerPriority.HIGHEST, PacketType.Play.Server.ENTITY_STATUS,
-                PacketType.Play.Server.ENTITY_METADATA, PacketType.Play.Server.NAMED_ENTITY_SPAWN,
-                PacketType.Play.Server.SPAWN_ENTITY_LIVING);
+                PacketType.Play.Server.ENTITY_METADATA, PacketType.Play.Server.SPAWN_ENTITY);
         protocol = ProtocolLibrary.getProtocolManager();
     }
 
@@ -82,7 +81,7 @@ final class NpcDeathAnimationListener extends PacketAdapter implements Listener 
     }
 
     private void track(Entity entity) {
-        if (entity instanceof LivingEntity && NpcIdentity.isNpc(entity)) {
+        if (entity instanceof org.bukkit.entity.LivingEntity && NpcIdentity.isNpc(entity)) {
             tracked.compute(entity.getEntityId(), (id, existing) -> existing != null && existing.entity.get() == entity
                     ? existing : new TrackedNpc(entity));
         }
@@ -127,35 +126,25 @@ final class NpcDeathAnimationListener extends PacketAdapter implements Listener 
             event.setCancelled(true); // Late spawn/metadata must not resurrect an old corpse.
             return;
         }
-        boolean zeroHealth;
-        if (packet.getType() == PacketType.Play.Server.ENTITY_METADATA) {
-            zeroHealth = hasZeroHealth(packet.getWatchableCollectionModifier().readSafely(0));
-        } else {
-            WrappedDataWatcher watcher = packet.getDataWatcherModifier().readSafely(0);
-            // A decoded/cloned 1.8 spawn carries a metadata list instead of a watcher.
-            zeroHealth = hasZeroHealth(watcher != null ? watcher.getWatchableObjects()
-                    : packet.getWatchableCollectionModifier().readSafely(0));
-        }
-        // A 1.8 client can also start death animation from health metadata alone.
-        if (zeroHealth) {
+        if (packet.getType() == PacketType.Play.Server.ENTITY_METADATA
+                && hasZeroHealth(packet.getDataValueCollectionModifier().readSafely(0))) {
             event.setCancelled(true);
             sendDestroy(event.getPlayer(), destroyPacket(id));
         }
     }
 
-    private static boolean hasZeroHealth(List<WrappedWatchableObject> values) {
+    private static boolean hasZeroHealth(List<WrappedDataValue> values) {
         if (values == null) return false;
-        for (WrappedWatchableObject value : values) {
-            if (value != null && value.getIndex() == 6 && value.getValue() instanceof Number
-                    && ((Number) value.getValue()).doubleValue() <= 0) return true;
+        for (WrappedDataValue value : values) {
+            if (value != null && value.getIndex() == LivingEntity.DATA_HEALTH_ID.id()
+                    && value.getValue() instanceof Number health && health.doubleValue() <= 0) return true;
         }
         return false;
     }
 
     private PacketContainer destroyPacket(int id) {
-        PacketContainer packet = protocol.createPacket(PacketType.Play.Server.ENTITY_DESTROY);
-        packet.getIntegerArrays().write(0, new int[]{id});
-        return packet;
+        return new PacketContainer(PacketType.Play.Server.ENTITY_DESTROY,
+                new net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket(id));
     }
 
     private void sendDestroy(Player viewer, PacketContainer packet) {

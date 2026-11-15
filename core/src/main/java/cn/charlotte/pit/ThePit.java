@@ -12,14 +12,13 @@ import cn.charlotte.pit.events.EventsHandler;
 import cn.charlotte.pit.park.IParker;
 import cn.charlotte.pit.perk.AbstractPerk;
 import cn.charlotte.pit.perk.PerkFactory;
-import cn.charlotte.pit.util.hologram.packet.PacketHologramRunnable;
+import cn.charlotte.pit.util.hologram.HologramAPI;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
@@ -75,7 +74,6 @@ import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.slf4j.Logger;
 import redis.clients.jedis.JedisPool;
 import spg.lgdev.iSpigot;
-import zone.rong.imaginebreaker.ImagineBreaker;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -111,6 +109,10 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
     private AnimationHandler animator;
     @Getter
     private NpcFactory npcFactory;
+    @Getter
+    private net.mizukilab.pit.platform.paper.FancyTextService fancyTexts;
+    @Getter
+    private net.mizukilab.pit.platform.paper.FancyNpcService fancyNpcs;
     @Getter
     private net.mizukilab.pit.npc.CustomEntityNPCFactory customEntityNPCFactory;
     @Getter
@@ -163,8 +165,6 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
     @Setter
     @Getter
     private String serverId;
-    @Getter
-    private BukkitAudiences audiences;
     @Setter
     @Getter
     private IActionBarManager actionBarManager;
@@ -205,8 +205,9 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
     @Override
     public void onEnable() {
+        fancyTexts = new net.mizukilab.pit.platform.paper.FancyTextService(this);
+        fancyNpcs = new net.mizukilab.pit.platform.paper.FancyNpcService(this, fancyTexts);
         BASE_VERSION = this.getDescription().getVersion();
-        audiences = BukkitAudiences.create(this);
         BannerUtil.printFileContent("banner.txt");
         serverId = DateCodeUtils.dateToCode(LocalDate.now());
 
@@ -330,6 +331,8 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
     @Override
     public void onDisable() {
+        if (signGui != null) signGui.close();
+        for (World world : Bukkit.getWorlds()) world.removePluginChunkTickets(this);
         if (mythicBotCombat != null) mythicBotCombat.close();
         if (eventFactory != null) eventFactory.shutdown();
         cn.charlotte.pit.events.EventWorldEdits.shutdown();
@@ -337,7 +340,9 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
         if (npcFactory != null) npcFactory.shutdown();
         if (customEntityNPCFactory != null) customEntityNPCFactory.cleanup();
         net.mizukilab.pit.menu.trade.TradeManager.cancelAll();
-        PacketHologramRunnable.deSpawnAll();
+        HologramAPI.shutdown();
+        if (fancyNpcs != null) fancyNpcs.close();
+        if (fancyTexts != null) fancyTexts.close();
         synchronized (Bukkit.getOnlinePlayers()) {
             CC.boardCast0("&6&l公告! &7正在执行关闭服务器...");
             PlayerProfile.saveAllSync(false);
@@ -524,335 +529,9 @@ public class ThePit extends JavaPlugin implements PluginMessageListener {
 
 
     public final void onLoad() {
-        ImagineBreaker.openBootModules();
-        ImagineBreaker.wipeMethodFilters();
-        ImagineBreaker.wipeFieldFilters();
         instance = this;
-        DependencyManager dependencyManager = new DependencyManager(this, new ReflectionClassLoader(this));
-        dependencyManager.loadDependencies(
-                new Dependency("fastutil", "it.unimi.dsi", "fastutil", "8.5.15", LoaderType.REFLECTION),
-                new Dependency("kotlin", "org.jetbrains.kotlin", "kotlin-stdlib", "2.1.20", LoaderType.ISOLATED),
-                new Dependency("adventure-platform-bukkit", "net.kyori", "adventure-platform-bukkit", "4.3.2", LoaderType.REFLECTION),
-                new Dependency("adventure-platform-facet", "net.kyori", "adventure-platform-facet", "4.3.2", LoaderType.REFLECTION),
-                new Dependency("adventure-text-serializer-legacy", "net.kyori", "adventure-text-serializer-legacy", "4.13.1", LoaderType.REFLECTION),
-                new Dependency("adventure-text-serializer-gson", "net.kyori", "adventure-text-serializer-gson", "4.13.1", LoaderType.REFLECTION),
-                new Dependency("adventure-text-serializer-gson-legacy-impl", "net.kyori", "adventure-text-serializer-gson-legacy-impl", "4.13.1", LoaderType.REFLECTION),
-
-                new Dependency("adventure-nbt", "net.kyori", "adventure-nbt", "4.13.1", LoaderType.REFLECTION),
-                new Dependency("adventure-platform-api", "net.kyori", "adventure-platform-api", "4.3.2", LoaderType.REFLECTION),
-                new Dependency("adventure-key", "net.kyori", "adventure-key", "4.13.1", LoaderType.REFLECTION),
-                new Dependency("adventure-api", "net.kyori", "adventure-api", "4.13.1", LoaderType.REFLECTION),
-                new Dependency("hutool", "cn.hutool", "hutool-core", "5.8.36", LoaderType.REFLECTION),
-                new Dependency("hutool-cry", "cn.hutool", "hutool-crypto", "5.8.36", LoaderType.REFLECTION),
-                new Dependency(
-                        "annotations",
-                        "org.jetbrains",
-                        "annotations",
-                        "13.0",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "kotlin-stdlib-common",
-                        "org.jetbrains.kotlin",
-                        "kotlin-stdlib-common",
-                        "1.4.32",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "kotlin-stdlib-jdk7",
-                        "org.jetbrains.kotlin",
-                        "kotlin-stdlib-jdk7",
-                        "1.4.32",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "kotlin-stdlib",
-                        "org.jetbrains.kotlin",
-                        "kotlin-stdlib",
-                        "1.4.32",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "kotlin-stdlib-jdk8",
-                        "org.jetbrains.kotlin",
-                        "kotlin-stdlib-jdk8",
-                        "1.4.32",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Junit",
-                        "junit",
-                        "junit",
-                        "4.11",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Apache Http Client",
-                        "org.apache.httpcomponents",
-                        "httpclient",
-                        "4.5.14",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Pool2",
-                        "org.apache.commons",
-                        "commons-pool2",
-                        "2.4.2",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Apache Http Core",
-                        "org.apache.httpcomponents",
-                        "httpcore",
-                        "4.4",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Apache Logging",
-                        "commons-logging",
-                        "commons-logging",
-                        "1.2",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "MongoDB-Driver-Core",
-                        "org.mongodb",
-                        "mongodb-driver-core",
-                        "5.2.0",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "MongoDB-Driver-Sync",
-                        "org.mongodb",
-                        "mongodb-driver-sync",
-                        "5.2.0",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "MongoDB-Bson",
-                        "org.mongodb",
-                        "bson",
-                        "5.2.0",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Jedis",
-                        "redis.clients",
-                        "jedis",
-                        "2.9.0",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "MongoJack",
-                        "org.mongojack",
-                        "mongojack",
-                        "5.0.1",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "JackSon-Annotations",
-                        "com.fasterxml.jackson.core",
-                        "jackson-annotations",
-                        "2.10.3",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "JackSon-Databind",
-                        "com.fasterxml.jackson.core",
-                        "jackson-databind",
-                        "2.10.3",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "JackSon-Core",
-                        "com.fasterxml.jackson.core",
-                        "jackson-core",
-                        "2.10.3",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "JackSon-DataType",
-                        "com.fasterxml.jackson.datatype",
-                        "jackson-datatype-jsr310",
-                        "2.10.3",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Bson4Jackson",
-                        "de.undercouch",
-                        "bson4jackson",
-                        "2.9.2",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Redisson",
-                        "org.redisson",
-                        "redisson",
-                        "3.0.1",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Netty-common",
-                        "io.netty",
-                        "netty-common",
-                        "4.0.42.Final",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "Netty-codec",
-                        "io.netty",
-                        "netty-codec",
-                        "4.0.42.Final",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "netty-buffer",
-                        "io.netty",
-                        "netty-buffer",
-                        "4.0.42.Final",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "netty-transport",
-                        "io.netty",
-                        "netty-transport",
-                        "4.0.42.Final",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "netty-handler",
-                        "io.netty",
-                        "netty-handler",
-                        "4.0.42.Final",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "reactor-core",
-                        "io.projectreactor",
-                        "reactor-core",
-                        "3.3.9.RELEASE",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "rxjava",
-                        "io.reactivex.rxjava2",
-                        "rxjava",
-                        "2.2.19",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "cache-api",
-                        "javax.cache",
-                        "cache-api",
-                        "1.0.0",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "byte-buddy",
-                        "net.bytebuddy",
-                        "byte-buddy",
-                        "1.10.14",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "jboss-marshalling-river",
-                        "org.jboss.marshalling",
-                        "jboss-marshalling-river",
-                        "2.0.9.Final",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "jodd-bean",
-                        "org.jodd",
-                        "jodd-bean",
-                        "5.1.6",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "snakeyaml",
-                        "org.yaml",
-                        "snakeyaml",
-                        "1.26",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "slf4j-api",
-                        "org.slf4j",
-                        "slf4j-api",
-                        "1.7.30",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "jboss-marshalling-river",
-                        "org.jboss.marshalling",
-                        "jboss-marshalling-river",
-                        "2.0.9.Final",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "jboss-marshalling",
-                        "org.jboss.marshalling",
-                        "jboss-marshalling",
-                        "2.0.9.Final",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "jackson-dataformat-yaml",
-                        "com.fasterxml.jackson.dataformat",
-                        "jackson-dataformat-yaml",
-                        "2.11.2",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "netty-all",
-                        "io.netty",
-                        "netty-all",
-                        "4.0.42.Final",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "guava",
-                        "com.google.guava",
-                        "guava",
-                        "29.0-jre",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "asm",
-                        "org.ow2.asm",
-                        "asm",
-                        "7.3.1",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "asm-commons",
-                        "org.ow2.asm",
-                        "asm-commons",
-                        "7.3.1",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "asm-tree",
-                        "org.ow2.asm",
-                        "asm-tree",
-                        "7.3.1",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "asm-util",
-                        "org.ow2.asm",
-                        "asm-util",
-                        "7.3.1",
-                        LoaderType.REFLECTION
-                ),
-                new Dependency(
-                        "nashorn-core",
-                        "org.openjdk.nashorn",
-                        "nashorn-core",
-                        "15.3",
-                        LoaderType.REFLECTION
-                )
-        );
+        // Runtime libraries are resolved by Gradle and shipped in the plugin.
+        // Paper supplies Netty, Adventure, SLF4J, fastutil and Guava.
     }
 
     /**

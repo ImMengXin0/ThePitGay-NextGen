@@ -81,7 +81,7 @@ public class MinerPerk extends AbstractPerk implements IPlayerKilledEntity {
 
     @Override
     public void onPerkActive(Player player) {
-        player.getInventory().addItem(new ItemBuilder(Material.DIAMOND_PICKAXE).deathDrop(false).canDrop(false).canSaveToEnderChest(false).internalName("perk_miner").enchant(Enchantment.DIG_SPEED, 4).buildWithUnbreakable());
+        player.getInventory().addItem(new ItemBuilder(Material.DIAMOND_PICKAXE).deathDrop(false).canDrop(false).canSaveToEnderChest(false).internalName("perk_miner").enchant(Enchantment.EFFICIENCY, 4).buildWithUnbreakable());
         player.getInventory().addItem(new ItemBuilder(Material.COBBLESTONE).canDrop(false).canSaveToEnderChest(false).deathDrop(true).internalName("perk_miner").amount(24).build());
     }
 

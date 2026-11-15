@@ -1,14 +1,15 @@
 
 plugins {
     id("java")
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.18" apply false
 }
 // Keep local builds reproducible when the source is distributed without .git metadata.
-version = providers.gradleProperty("pluginVersion").orElse("4.4.11-20261028").get()
+version = providers.gradleProperty("pluginVersion").orElse("5.0.0-HIGH-SNAPSHOT").get()
 extra["gitVersionString"] = version.toString()
 allprojects {
     extra["gitVersionString"] = version.toString()
 }
-println("ThePitUltimate version: $version")
+println("ThePitGay-High version: $version")
 tasks.named<Jar>("jar") {
     enabled = false
 }

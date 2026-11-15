@@ -23,7 +23,7 @@ public class SwrodBundleShopPerk extends AbstractPerk {
 
     @Override
     public Material getIcon() {
-        return Material.STORAGE_MINECART;
+        return Material.CHEST_MINECART;
     }
 
     @Override

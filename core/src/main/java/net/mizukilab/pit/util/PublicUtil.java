@@ -4,15 +4,15 @@ import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.PlayerOption;
 import net.mizukilab.pit.compat.enchant.AddonEnchantReplacements;
-import net.minecraft.server.v1_8_R3.Chunk;
-import net.minecraft.server.v1_8_R3.World;
+
+
 import net.mizukilab.pit.parm.AutoRegister;
 import net.mizukilab.pit.parm.listener.*;
 import net.mizukilab.pit.util.rank.RankUtil;
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftEntity;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.entity.CraftEntity;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
@@ -72,7 +72,7 @@ public class PublicUtil {
         HEX_VALUES['F'] = 0xf;
     }
     public static void processActionBar(Player victim, Player damager, int damage,double finalDamage) {
-        int absorptionHearts1 = (int) ((CraftPlayer) victim).getHandle().getAbsorptionHearts();
+        int absorptionHearts1 = (int) ((CraftPlayer) victim).getHandle().getAbsorptionAmount();
         int absorptionHearts = (int) (absorptionHearts1 / 2);
         int totalHearts = (int) victim.getMaxHealth() / 2;
         int nowHearts = (int) Math.ceil(victim.getHealth() / 2D);
@@ -184,26 +184,8 @@ public class PublicUtil {
         mostSignificantBits |= getHexValueForChar(uuidSequence.charAt(17));
         return mostSignificantBits;
     }
-    public static net.minecraft.server.v1_8_R3.ItemStack toNMStackQuick(ItemStack item) {
-        if (item instanceof CraftItemStack) {
-            try {
-                if (METHOD_ != null) {
-                    return (net.minecraft.server.v1_8_R3.ItemStack) METHOD_.get(item);
-                }
-                java.lang.reflect.Field handleField = CraftItemStack.class.getDeclaredField("handle");
-                handleField.setAccessible(true);
-                net.minecraft.server.v1_8_R3.ItemStack itemStack = (net.minecraft.server.v1_8_R3.ItemStack) handleField.get(item);
-                if (itemStack != null) {
-                    MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(CraftItemStack.class, MethodHandles.lookup());
-                    METHOD_ = lookup.unreflectVarHandle(handleField);
-                }
-                return itemStack;
-            } catch (NoSuchFieldException | IllegalAccessException e) {
-                throw new RuntimeException("Failed to access the handle field", e);
-            }
-        } else {
-            return CraftItemStack.asNMSCopy(item);
-        }
+    public static net.minecraft.world.item.ItemStack toNMStackQuick(ItemStack item) {
+        return org.bukkit.craftbukkit.inventory.CraftItemStack.unwrap(item);
     }
 
     public static void removeFromWorld(Entity entity){
@@ -211,16 +193,7 @@ public class PublicUtil {
             Bukkit.getScheduler().runTask(ThePit.getInstance(), () -> removeFromWorld(entity));
             return;
         }
-        if(entity instanceof CraftEntity){
-            net.minecraft.server.v1_8_R3.Entity entityRaw = ((CraftEntity) entity).getHandle();
-            int i = entityRaw.ae;
-            int j = entityRaw.ag;
-            World world = entityRaw.world;
-            Chunk chunkIfLoaded = world.getChunkIfLoaded(i, j);
-            if (chunkIfLoaded != null) {
-                chunkIfLoaded.b(entityRaw);
-            }
-        }
+        entity.remove();
     }
     /**
      * 超级高效的split方法。

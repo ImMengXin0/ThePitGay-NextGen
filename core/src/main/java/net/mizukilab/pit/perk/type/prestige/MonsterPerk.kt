@@ -26,7 +26,7 @@ class MonsterPerk : AbstractPerk(), Listener {
     }
 
     override fun getIcon(): Material {
-        return Material.LEASH
+        return Material.LEAD
     }
 
     override fun requireCoins(): Double {

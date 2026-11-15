@@ -111,7 +111,7 @@ public class EnchantingViewerMenu extends Menu {
 
         Player target = Bukkit.getPlayer(targetId);
         boolean online = target != null && target.isOnline();
-        buttons.put(18, display(new ItemBuilder(Material.WATCH)
+        buttons.put(18, display(new ItemBuilder(Material.CLOCK)
                 .name(online ? "&a玩家在线" : "&7玩家离线")
                 .lore(online ? "&7实时显示附魔台内物品。" : "&7显示离线前保存的附魔台物品。").build()));
 
@@ -126,7 +126,7 @@ public class EnchantingViewerMenu extends Menu {
             buttons.put(slots[i] - 9, display(new ItemBuilder(Material.PAPER).name("&e" + labels[i]).build()));
             ItemStack item = decodedItems[i];
             if (item == null || item.getType() == Material.AIR) {
-                item = new ItemBuilder(current[i] == null ? Material.STAINED_GLASS_PANE : Material.BARRIER)
+                item = new ItemBuilder(current[i] == null ? Material.WHITE_STAINED_GLASS_PANE : Material.BARRIER)
                         .name(current[i] == null ? "&7" + labels[i] + "槽为空" : "&c" + labels[i] + "无法读取").build();
             }
             buttons.put(slots[i], display(item));

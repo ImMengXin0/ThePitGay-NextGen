@@ -85,9 +85,9 @@ public class ComboComaEnchant extends AbstractEnchantment implements IAttackEnti
         Player player1 = (Player) target;
         if ((Cooldown.getOrDefault(player1.getUniqueId(), new Cooldown(0L))).hasExpired() && PlayerProfile.getPlayerProfileByUuid(attacker.getUniqueId()).getMeleeHit() % 5 == 0) {
             Cooldown.put(attacker.getUniqueId(), new Cooldown(8L, TimeUnit.SECONDS));
-            player1.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_DIGGING, 32 * enchantLevel, 9));
+            player1.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 32 * enchantLevel, 9));
             player1.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 32 * enchantLevel, 9));
-            player1.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 32 * enchantLevel, 1));
+            player1.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 32 * enchantLevel, 1));
             player1.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 32 * enchantLevel, 3));
         }
     }

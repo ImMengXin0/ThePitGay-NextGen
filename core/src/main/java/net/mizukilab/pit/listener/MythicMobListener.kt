@@ -3,7 +3,7 @@ package net.mizukilab.pit.listener
 import net.mizukilab.pit.config.NewConfiguration
 import cn.charlotte.pit.data.PlayerProfile
 import net.mizukilab.pit.getPitProfile
-import io.lumine.xikage.mythicmobs.api.bukkit.events.MythicMobDeathEvent
+import io.lumine.mythic.bukkit.events.MythicMobDeathEvent
 import nya.Skip
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player

@@ -23,10 +23,10 @@ import net.mizukilab.pit.util.menu.pagination.PageButton;
 import net.mizukilab.pit.util.menu.pagination.PaginatedMenu;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftInventory;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftInventoryCustom;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.inventory.CraftInventory;
+import org.bukkit.craftbukkit.inventory.CraftInventoryCustom;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.inventory.CraftItemFactory;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.*;
@@ -50,15 +50,15 @@ import static org.mockito.Mockito.*;
 public class MenuRoutingIntegrationTest extends BukkitDataTestSupport {
     private MockedStatic<Bukkit> bukkit;
     private MockedStatic<ThePit> pit;
-    private MockedStatic<CraftItemStack> itemCopies;
+
     private final ButtonListener listener = new ButtonListener();
     private final Map<UUID, Surface> surfaces = new HashMap<>();
 
     @Before
     public void setupRouting() {
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         pit = mockStatic(ThePit.class);
-        itemCopies = mockStatic(CraftItemStack.class);
+
         ThePit plugin = mock(ThePit.class);
         pit.when(ThePit::getInstance).thenReturn(plugin);
         when(plugin.getEnchantmentFactor()).thenReturn(new EnchantmentFactor());
@@ -66,7 +66,7 @@ public class MenuRoutingIntegrationTest extends BukkitDataTestSupport {
         bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
         bukkit.when(Bukkit::getScheduler).thenReturn(mock(BukkitScheduler.class));
         bukkit.when(() -> Bukkit.createInventory(any(InventoryHolder.class), anyInt(), anyString()))
-                .thenAnswer(call -> new CraftInventoryCustom(call.getArgument(0), (int) call.getArgument(1), call.getArgument(2)));
+                .thenAnswer(call -> new CraftInventoryCustom(call.getArgument(0), (int) call.getArgument(1), (String) call.getArgument(2)));
         bukkit.when(() -> Bukkit.getPlayer(any(UUID.class))).thenAnswer(call -> {
             Surface surface = surfaces.get(call.getArgument(0));
             return surface == null ? null : surface.player;
@@ -84,7 +84,7 @@ public class MenuRoutingIntegrationTest extends BukkitDataTestSupport {
             Menu.currentlyOpenedMenus.remove(surface.player.getUniqueId());
             TradeManager.trades.remove(surface.player.getUniqueId());
         }
-        itemCopies.close();
+
         pit.close();
         bukkit.close();
     }
@@ -121,7 +121,12 @@ public class MenuRoutingIntegrationTest extends BukkitDataTestSupport {
         }
 
         InventoryView viewOf(Inventory top) {
-            return new InventoryView() {
+            return new org.bukkit.craftbukkit.inventory.CraftAbstractInventoryView() {
+            @Override public org.bukkit.inventory.MenuType getMenuType() { return null; }
+            @Override public String getTitle() { return top instanceof CraftInventory craft
+                    ? net.mizukilab.pit.InventoryTestTitles.title(craft) : "Crafting"; }
+            @Override public String getOriginalTitle() { return getTitle(); }
+            @Override public void setTitle(String title) { }
                 @Override public Inventory getTopInventory() { return top; }
                 @Override public Inventory getBottomInventory() { return bottom; }
                 @Override public HumanEntity getPlayer() { return player; }

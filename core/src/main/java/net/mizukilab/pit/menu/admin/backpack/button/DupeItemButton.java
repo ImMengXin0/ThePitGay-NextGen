@@ -8,7 +8,7 @@ import org.bukkit.inventory.ItemStack;
 public class DupeItemButton extends DisplayButton {
 
     public DupeItemButton() {
-        super(new ItemStack(Material.ACACIA_DOOR_ITEM), true);
+        super(new ItemStack(Material.ACACIA_DOOR), true);
     }
 
 

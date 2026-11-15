@@ -33,7 +33,7 @@ public class PlayerOptionMenu extends Menu {
             button.put(8, new Button() {
                 @Override
                 public ItemStack getButtonItem(Player player) {
-                    return adminVersion ? new ItemBuilder(Material.WATCH)
+                    return adminVersion ? new ItemBuilder(Material.CLOCK)
                             .name("&a返回普通版")
                             .build() : new ItemBuilder(Material.COMPASS)
                             .name("&c切换管理员版")

@@ -67,9 +67,9 @@ public class RepairSoulEaterBridgeIntegrationTest {
         HandlerList handlers = EntityDamageByEntityEvent.getHandlerList();
         List<RegisteredListener> registered = new ArrayList<>();
         try (URLClassLoader loader = new URLClassLoader(new URL[]{jar.toUri().toURL(),
-                    Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
+                    Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
              MockedStatic<ThePit> pit = mockStatic(ThePit.class);
-             MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+             MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
              MockedStatic<PlayerUtil> playerUtil = mockStatic(PlayerUtil.class)) {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);

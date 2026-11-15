@@ -86,7 +86,7 @@ public class HemorrhageEnchant extends AbstractEnchantment implements Listener, 
             if (immune.getOrDefault(targetPlayer.getUniqueId(), new Cooldown(0)).hasExpired()) {
                 cooldown.put(attacker.getUniqueId(), new Cooldown(8 - enchantLevel * 2L, TimeUnit.SECONDS));
                 immune.put(targetPlayer.getUniqueId(), new Cooldown(enchantLevel >= 3 ? 5 : 4, TimeUnit.SECONDS));
-                targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, (enchantLevel >= 3 ? 5 : 4) * 20, 0), false);
+                targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, (enchantLevel >= 3 ? 5 : 4) * 20, 0), false);
                 buff.stackBuff(targetPlayer, (enchantLevel >= 3 ? 5 : 4) * 20);
             }
         }

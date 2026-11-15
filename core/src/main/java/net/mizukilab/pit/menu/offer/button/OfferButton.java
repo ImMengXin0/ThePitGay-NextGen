@@ -23,7 +23,7 @@ public class OfferButton extends Button {
     }
     public OfferButton(Player target, OfferData offer) { this.target = target; expected = offer; }
     @Override public ItemStack getButtonItem(Player player) {
-        return new ItemBuilder(Material.STAINED_CLAY).durability(5).name("&e接受交易报价")
+        return new ItemBuilder(Material.WHITE_TERRACOTTA).durability(5).name("&e接受交易报价")
                 .lore("&7卖家: " + target.getName(), "&7价格: &6" + (long) expected.getPrice() + " 硬币",
                         "&e点击接受，成交前将再次检查报价。").build();
     }

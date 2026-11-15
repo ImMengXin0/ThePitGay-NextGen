@@ -30,7 +30,7 @@ fun Inventory.countItem(matcher: (itemStack: ItemStack) -> Boolean): Int {
     return amount
 }
 
-inline fun ItemStack.toNMS(): net.minecraft.server.v1_8_R3.ItemStack {
+inline fun ItemStack.toNMS(): net.minecraft.world.item.ItemStack {
     return Utils.toNMStackQuick(this);
 }
 

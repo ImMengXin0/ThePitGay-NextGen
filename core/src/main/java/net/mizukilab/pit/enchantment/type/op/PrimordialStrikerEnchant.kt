@@ -85,8 +85,8 @@ class PrimordialStrikerEnchant : AbstractEnchantment(), IPlayerDamaged, IPlayerK
             val shieldLeft = shields[myself.uniqueId] ?: 0
 
             myself.sendMessage(CC.translate("&e&l原初圣伊! &b抵消一层攻击!"))
-            myself.playSound(myself.location, Sound.DRINK, 1.0f, 1.0f)
-            player.playSound(myself.location, Sound.DRINK, 1.0f, 1.0f)
+            myself.playSound(myself.location, Sound.ENTITY_GENERIC_DRINK, 1.0f, 1.0f)
+            player.playSound(myself.location, Sound.ENTITY_GENERIC_DRINK, 1.0f, 1.0f)
             player.sendMessage(CC.translate("&e&l原初圣伊! &b你的攻击被抵消,对方剩余圣盾数: $shieldLeft"))
         }
         finalDamage.set(finalDamage.get() - 1.33)

@@ -2,16 +2,16 @@ package net.mizukilab.pit.item.type;
 
 import net.mizukilab.pit.item.AbstractPitItem;
 import net.mizukilab.pit.item.IMythicItem;
-import net.minecraft.server.v1_8_R3.NBTTagCompound;
-import net.minecraft.server.v1_8_R3.NBTTagList;
-import net.minecraft.server.v1_8_R3.NBTTagString;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.mizukilab.pit.util.Utils;
 import net.mizukilab.pit.util.chat.CC;
 import net.mizukilab.pit.util.item.ItemBuilder;
 import net.mizukilab.pit.util.item.ItemUtil;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -96,17 +96,17 @@ public class MythicRepairKit extends AbstractPitItem implements Listener {
         if (cursorKit && isEmpty(target)) return; // Allow placing the kit into an empty slot.
         event.setCancelled(true);
 
-        NBTTagCompound extra = ItemUtil.getExtra(target);
+        CompoundTag extra = ItemUtil.getExtra(target);
         String internal = ItemUtil.getInternalName0(extra);
         if (isEmpty(target) || target.getAmount() != 1 || internal == null
                 || !Utils.needToCheck(internal) || "lucky_chestplate".equals(internal)
-                || !extra.hasKeyOfType("maxLive", 99) || !extra.hasKeyOfType("live", 99)
-                || extra.getInt("maxLive") <= 0 || extra.getInt("live") < 0) {
+                || !(extra.get("maxLive") instanceof net.minecraft.nbt.NumericTag) || !(extra.get("live") instanceof net.minecraft.nbt.NumericTag)
+                || extra.getIntOr("maxLive", 0) <= 0 || extra.getIntOr("live", 0) < 0) {
             player.sendMessage(CC.translate("&c请在自己的背包中选择一件可修复的神话物品，幸运之甲无法修复。"));
             return;
         }
-        int maxLive = extra.getInt("maxLive");
-        if (extra.getInt("live") >= maxLive) {
+        int maxLive = extra.getIntOr("maxLive", 0);
+        if (extra.getIntOr("live", 0) >= maxLive) {
             player.sendMessage(CC.translate("&e这件神话物品的生命已满，无需修复。"));
             return;
         }
@@ -143,26 +143,25 @@ public class MythicRepairKit extends AbstractPitItem implements Listener {
     }
 
     private static ItemStack repairCopy(ItemStack stack, int maxLive) {
-        var nms = CraftItemStack.asNMSCopy(stack);
-        nms.setTag((NBTTagCompound) nms.getTag().clone());
-        NBTTagCompound tag = nms.getTag();
-        tag.getCompound("extra").setInt("live", maxLive);
-        NBTTagCompound display = tag.getCompound("display");
-        NBTTagList oldLore = display.getList("Lore", 8), lore = new NBTTagList();
+        ItemStack repaired = stack.clone();
+        CompoundTag extra = ItemUtil.getExtra(repaired);
+        extra.putInt("live", maxLive);
+        ItemUtil.setExtra(repaired, extra);
+        var meta = repaired.getItemMeta();
+        java.util.List<String> oldLore = meta.hasLore() ? meta.getLore() : java.util.List.of();
+        java.util.List<String> lore = new java.util.ArrayList<>();
         String life = "§7生命: §a" + maxLive + "§7/" + maxLive;
         boolean replaced = false;
-        for (int i = 0; i < oldLore.size(); i++) {
-            String line = oldLore.getString(i);
-            Matcher match = LIFE_LINE.matcher(line);
+        for (String original : oldLore) {
+            Matcher match = LIFE_LINE.matcher(original);
             if (!replaced && match.find()) {
-                line = life + line.substring(match.end());
+                lore.add(life + original.substring(match.end()));
                 replaced = true;
-            }
-            lore.add(new NBTTagString(line));
+            } else lore.add(original);
         }
-        if (!replaced) lore.add(new NBTTagString(life));
-        display.set("Lore", lore);
-        tag.set("display", display);
-        return CraftItemStack.asBukkitCopy(nms);
+        if (!replaced) lore.add(life);
+        meta.setLore(lore);
+        repaired.setItemMeta(meta);
+        return repaired;
     }
 }

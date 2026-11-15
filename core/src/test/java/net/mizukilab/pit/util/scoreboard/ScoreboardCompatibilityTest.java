@@ -29,7 +29,7 @@ public class ScoreboardCompatibilityTest {
     private final AtomicReference<List<String>> lines = new AtomicReference<>(List.of("one", "two", "three"));
 
     @Before public void setup() {
-        bukkit = mockStatic(Bukkit.class); pit = mockStatic(ThePit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit(); pit = mockStatic(ThePit.class);
         bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
         plugin = mock(ThePit.class); pit.when(ThePit::getInstance).thenReturn(plugin);
         when(plugin.getLogger()).thenReturn(Logger.getAnonymousLogger());
@@ -119,10 +119,10 @@ public class ScoreboardCompatibilityTest {
         Player player = mock(Player.class); UUID uuid=UUID.randomUUID();
         when(player.getUniqueId()).thenReturn(uuid); when(player.isOnline()).thenReturn(true);
         bukkit.when(() -> Bukkit.getPlayer(uuid)).thenReturn(player);
-        var ctor=org.bukkit.craftbukkit.v1_8_R3.scoreboard.CraftScoreboard.class
-                .getDeclaredConstructor(net.minecraft.server.v1_8_R3.Scoreboard.class);
+        var ctor=org.bukkit.craftbukkit.scoreboard.CraftScoreboard.class
+                .getDeclaredConstructor(net.minecraft.world.scores.Scoreboard.class);
         ctor.setAccessible(true);
-        Scoreboard real=(Scoreboard)ctor.newInstance(new net.minecraft.server.v1_8_R3.Scoreboard());
+        Scoreboard real=(Scoreboard)ctor.newInstance(new net.minecraft.world.scores.Scoreboard());
         when(player.getScoreboard()).thenReturn(real);
         AssembleBoard board=new AssembleBoard(player,assemble); boards.put(uuid,board);
         ticker.run(); assertEquals(3,real.getTeams().size());

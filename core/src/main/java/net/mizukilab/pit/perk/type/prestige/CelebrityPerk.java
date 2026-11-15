@@ -35,7 +35,7 @@ public class CelebrityPerk extends AbstractPerk implements IPlayerKilledEntity {
 
     @Override
     public Material getIcon() {
-        return Material.RAW_FISH;
+        return Material.COD;
     }
 
     @Override

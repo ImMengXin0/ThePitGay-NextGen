@@ -23,7 +23,7 @@ public abstract class Menu {
     private boolean updateAfterClick = true;
     private boolean closedByMenu = false;
     private boolean placeholder = false;
-    private Button placeholderButton = Button.placeholder(Material.STAINED_GLASS_PANE, (byte) 15, " ");
+    private Button placeholderButton = Button.placeholder(Material.WHITE_STAINED_GLASS_PANE, (byte) 15, " ");
     public static Menu find(Player player) {
         return currentlyOpenedMenus.get(player.getUniqueId());
     }
@@ -79,7 +79,7 @@ public abstract class Menu {
                     int previousSize = player.getOpenInventory().getTopInventory().getSize();
 
                     if (previousMenu == this && find(player, player.getOpenInventory().getTopInventory()) == this
-                            && previousSize == size && player.getOpenInventory().getTopInventory().getTitle().equals(title)) {
+                            && previousSize == size && player.getOpenInventory().getTitle().equals(title)) {
                         inventory = player.getOpenInventory().getTopInventory();
                         update = true;
                     } else {

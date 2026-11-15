@@ -61,7 +61,7 @@ public class BulletTimeEnchant extends AbstractEnchantment implements IPlayerDam
         if (attacker instanceof Arrow && myself.isBlocking()) {
             cancel.set(true);
             myself.getLocation().getWorld().playEffect(myself.getLocation(), Effect.SMOKE, 1, 1);
-            myself.playSound(myself.getLocation(), Sound.ZOMBIE_WOODBREAK, 2f, 2f);
+            myself.playSound(myself.getLocation(), Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 2f, 2f);
             if (enchantLevel > 1) {
                 PlayerUtil.heal(myself, enchantLevel);
             }

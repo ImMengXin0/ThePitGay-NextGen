@@ -27,7 +27,7 @@ public class HighlanderBundlePerk extends AbstractPerk {
 
     @Override
     public Material getIcon() {
-        return Material.GOLD_BOOTS;
+        return Material.GOLDEN_BOOTS;
     }
 
     @Override

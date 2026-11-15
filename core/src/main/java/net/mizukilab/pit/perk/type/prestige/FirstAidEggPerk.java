@@ -29,7 +29,7 @@ public class FirstAidEggPerk extends AbstractPerk {
 
     @Override
     public Material getIcon() {
-        return Material.MONSTER_EGG;
+        return Material.PIG_SPAWN_EGG;
     }
 
     @Override //200 coins for the item
@@ -84,7 +84,7 @@ public class FirstAidEggPerk extends AbstractPerk {
 
     @Override
     public ItemStack getIconWithNameAndLore(String name, List<String> lore, int durability, int amount) {
-        return new ItemBuilder(Material.MONSTER_EGG)
+        return new ItemBuilder(Material.PIG_SPAWN_EGG)
                 .durability(96)
                 .name(name)
                 .lore(lore)

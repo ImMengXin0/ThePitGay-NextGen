@@ -2,7 +2,7 @@ package net.mizukilab.pit.enchantment.type.limit.xzq
 
 import cn.charlotte.pit.ThePit
 import com.google.common.util.concurrent.AtomicDouble
-import net.minecraft.server.v1_8_R3.PacketPlayInFlying
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket
 import net.mizukilab.pit.enchantment.AbstractEnchantment
 import net.mizukilab.pit.enchantment.param.event.PlayerOnly
 import net.mizukilab.pit.enchantment.param.item.ArmorOnly
@@ -16,7 +16,7 @@ import net.mizukilab.pit.util.music.NBSDecoder
 import net.mizukilab.pit.util.music.PositionSongPlayer
 import net.mizukilab.pit.util.music.Song
 import org.bukkit.Bukkit
-import org.bukkit.Effect
+import org.bukkit.Particle
 import org.bukkit.Location
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
@@ -87,7 +87,7 @@ class LimitXZQ1Ench : AbstractEnchantment(), ITickTask, MovementHandler, IPlayer
             player.volume = 0.08.toInt().toByte()
             playerMap[target.uniqueId] = player
         } else {
-            target.world.playEffect(target.location.clone().add(0.0, 3.0, 0.0), Effect.NOTE, 1)
+            target.world.spawnParticle(Particle.NOTE, target.location.clone().add(0.0, 3.0, 0.0), 1)
         }
     }
 
@@ -96,15 +96,15 @@ class LimitXZQ1Ench : AbstractEnchantment(), ITickTask, MovementHandler, IPlayer
     }
 
     override fun handleUpdateLocation(
-        player: Player, location: Location?, location1: Location?, packetPlayInFlying: PacketPlayInFlying?
+        player: Player, location: Location?, location1: Location?, packetPlayInFlying: ServerboundMovePlayerPacket?
     ) {
         val songPlayer: PositionSongPlayer? = playerMap.get(player.uniqueId)
         if (songPlayer != null) {
-            songPlayer.targetLocation = player.player.location
+            songPlayer.targetLocation = player.location
         }
     }
 
-    override fun handleUpdateRotation(var1: Player?, var2: Location?, var3: Location?, var4: PacketPlayInFlying?) {
+    override fun handleUpdateRotation(var1: Player?, var2: Location?, var3: Location?, var4: ServerboundMovePlayerPacket?) {
     }
 
     override fun getUsefulnessLore(enchantLevel: Int): String {
@@ -185,7 +185,7 @@ class LimitXZQ1Ench : AbstractEnchantment(), ITickTask, MovementHandler, IPlayer
                     speedLevel(enchantLevel)
                 ), true
             )
-            attacker.addPotionEffect(PotionEffect(PotionEffectType.SLOW, 2 * 20, 0))
+            attacker.addPotionEffect(PotionEffect(PotionEffectType.SLOWNESS, 2 * 20, 0))
         }
     }
 

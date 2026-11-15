@@ -45,6 +45,18 @@ import java.util.concurrent.TimeUnit;
 @AutoRegister
 @Skip
 public class ProtectListener implements Listener {
+    public ProtectListener() {
+        for (org.bukkit.World world : Bukkit.getWorlds()) {
+            if (isPitWorld(world)) for (org.bukkit.Chunk chunk : world.getLoadedChunks())
+                chunk.addPluginChunkTicket(ThePit.getInstance());
+        }
+    }
+    private static boolean isPitWorld(org.bukkit.World world) {
+        var config = ThePit.getInstance().getConfigManager();
+        return config != null && config.getPitConfigs().values().stream()
+                .anyMatch(map -> world.getName().equals(map.getWorldName()));
+    }
+
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerInteract(PlayerInteractEvent event) {
@@ -57,7 +69,8 @@ public class ProtectListener implements Listener {
 
     @EventHandler
     public void onWorldLoad(WorldLoadEvent event) {
-        event.getWorld().getEntities().clear();
+        if (isPitWorld(event.getWorld())) for (org.bukkit.Chunk chunk : event.getWorld().getLoadedChunks())
+            chunk.addPluginChunkTicket(ThePit.getInstance());
     }
 
     @EventHandler
@@ -98,8 +111,8 @@ public class ProtectListener implements Listener {
 
             Set<Material> BLOCKED_MATERIALS = EnumSet.of(
                     Material.WATER,
-                    Material.STATIONARY_WATER,
-                    Material.WATER_LILY
+                    Material.WATER,
+                    Material.LILY_PAD
             );
 
             Location temp = location.clone();
@@ -129,7 +142,7 @@ public class ProtectListener implements Listener {
                     if (PlayerUtil.isVenom(event.getPlayer()) || PlayerUtil.isEquippingSomber(event.getPlayer())) {
                         return;
                     }
-                    TNTPrimed tntPrimed = (TNTPrimed) event.getPlayer().getWorld().spawnEntity(event.getBlockPlaced().getLocation(), EntityType.PRIMED_TNT);
+                    TNTPrimed tntPrimed = (TNTPrimed) event.getPlayer().getWorld().spawnEntity(event.getBlockPlaced().getLocation(), EntityType.TNT);
                     tntPrimed.setFuseTicks(30);
 
                     tntPrimed.setMetadata("internal", new FixedMetadataValue(ThePit.getInstance(), "tnt_enchant_item"));
@@ -145,7 +158,7 @@ public class ProtectListener implements Listener {
                     if (PlayerUtil.isVenom(event.getPlayer()) || PlayerUtil.isEquippingSomber(event.getPlayer())) {
                         return;
                     }
-                    TNTPrimed tntPrimed = (TNTPrimed) event.getPlayer().getWorld().spawnEntity(event.getBlockPlaced().getLocation(), EntityType.PRIMED_TNT);
+                    TNTPrimed tntPrimed = (TNTPrimed) event.getPlayer().getWorld().spawnEntity(event.getBlockPlaced().getLocation(), EntityType.TNT);
                     tntPrimed.setFuseTicks(0);
 
                     tntPrimed.setMetadata("internal", new FixedMetadataValue(ThePit.getInstance(), "tnt_enchant_item"));
@@ -167,7 +180,7 @@ public class ProtectListener implements Listener {
                     existTime = (long) (baseTime * (1 + (0.6 * entry.getValue().getLevel())));
                 }
             }
-            if (event.getBlockPlaced().getType() == Material.WOOD) {
+            if (event.getBlockPlaced().getType() == Material.OAK_PLANKS) {
                 existTime = 30L;
             }
             /*
@@ -208,8 +221,8 @@ public class ProtectListener implements Listener {
 
             Set<Material> BLOCKED_MATERIALS = EnumSet.of(
                     Material.WATER,
-                    Material.STATIONARY_WATER,
-                    Material.WATER_LILY
+                    Material.WATER,
+                    Material.LILY_PAD
             );
 
             Location location = event.getBlockClicked().getLocation();
@@ -397,8 +410,8 @@ public class ProtectListener implements Listener {
     }
 
     @EventHandler
-    private void onChunkUnload(ChunkUnloadEvent e) {
-        e.setCancelled(true);
+    private void onChunkLoad(org.bukkit.event.world.ChunkLoadEvent e) {
+        if (isPitWorld(e.getWorld())) e.getChunk().addPluginChunkTicket(ThePit.getInstance());
     }
 
     @EventHandler

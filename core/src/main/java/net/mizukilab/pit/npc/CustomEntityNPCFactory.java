@@ -10,7 +10,7 @@ import net.mizukilab.pit.npc.events.CustomEntityNPCInteractEvent;
 import net.mizukilab.pit.util.chat.CC;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftLivingEntity;
+import org.bukkit.craftbukkit.entity.CraftLivingEntity;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -103,8 +103,6 @@ public class CustomEntityNPCFactory implements Listener {
 
     @SneakyThrows
     public void init(Collection<Class<? extends AbstractCustomEntityNPC>> classes) {
-        cleanupWorldEntities();
-
         Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), () -> {
             for (Class<?> clazz : classes) {
                 if (AbstractCustomEntityNPC.class.isAssignableFrom(clazz)) {
@@ -158,15 +156,8 @@ public class CustomEntityNPCFactory implements Listener {
                     Bat bat = (Bat) entity;
                     bat.setAwake(true);
                     
-                    net.minecraft.server.v1_8_R3.Entity nmsEntity = ((CraftLivingEntity) livingEntity).getHandle();
-                    net.minecraft.server.v1_8_R3.NBTTagCompound nbt = new net.minecraft.server.v1_8_R3.NBTTagCompound();
-                    nmsEntity.c(nbt);
-                    nbt.setInt("NoAI", 1);
-                    nbt.setInt("Silent", 1);
-                    nbt.setByte("BatFlags", (byte) 1);
-                    nmsEntity.f(nbt);
-                    
-
+                    livingEntity.setAI(false);
+                    livingEntity.setSilent(true);
                     trackFixedPosition(entity);
                     
                 } catch (Exception e) {
@@ -174,12 +165,8 @@ public class CustomEntityNPCFactory implements Listener {
                 }
             } else if (!npc.canMove()) {
                 try {
-                    net.minecraft.server.v1_8_R3.Entity nmsEntity = ((CraftLivingEntity) livingEntity).getHandle();
-                    net.minecraft.server.v1_8_R3.NBTTagCompound nbt = new net.minecraft.server.v1_8_R3.NBTTagCompound();
-                    nmsEntity.c(nbt);
-                    nbt.setInt("NoAI", 1);
-                    nbt.setInt("Silent", 1);
-                    nmsEntity.f(nbt);
+                    livingEntity.setAI(false);
+                    livingEntity.setSilent(true);
                 } catch (Exception e) {
                     Bukkit.getLogger().warning("失败: " + e.getMessage());
                 }
@@ -297,28 +284,6 @@ public class CustomEntityNPCFactory implements Listener {
                 });
             }
         });
-    }
-
-    private void cleanupWorldEntities() {
-        try {
-            Bukkit.getWorlds().forEach(world -> {
-                
-                List<Entity> entitiesToRemove = new ArrayList<>();
-
-                for (Entity entity : world.getEntities()) {
-                    if (!(entity instanceof Player) && 
-                        !(entity instanceof org.bukkit.entity.Item) &&
-                        !(entity instanceof org.bukkit.entity.ExperienceOrb)) {
-                        entitiesToRemove.add(entity);
-                    }
-                }
-
-                entitiesToRemove.forEach(Entity::remove);
-
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     public void cleanup() {

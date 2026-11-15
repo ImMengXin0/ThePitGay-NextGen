@@ -79,7 +79,7 @@ public class AegisEnchant extends AbstractEnchantment implements ITickTask, IPla
         if (cooldown.hasExpired() && !shield.get(player.getUniqueId())) {
             player.sendMessage(CC.translate("&e&l宙斯之盾! &7恢复一层护盾."));
             shield.put(player.getUniqueId(), true);
-            player.playSound(player.getLocation(), Sound.NOTE_PLING, 1, 1);
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
         }
     }
 
@@ -96,11 +96,11 @@ public class AegisEnchant extends AbstractEnchantment implements ITickTask, IPla
             shield.put(myself.getUniqueId(), false);
 
             myself.sendMessage(CC.translate("&e&l宙斯之盾! &7抵消一次攻击."));
-            myself.playSound(myself.getLocation(), Sound.ANVIL_LAND, 1, 1);
+            myself.playSound(myself.getLocation(), Sound.BLOCK_ANVIL_LAND, 1, 1);
             attacker.sendMessage(CC.translate("&c你的攻击被对方护盾抵消!"));
 
             if (attacker instanceof Player) {
-                ((Player) attacker).playSound(attacker.getLocation(), Sound.ANVIL_LAND, 1, 1);
+                ((Player) attacker).playSound(attacker.getLocation(), Sound.BLOCK_ANVIL_LAND, 1, 1);
             }
         }
     }

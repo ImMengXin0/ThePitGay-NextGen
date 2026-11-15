@@ -5,8 +5,8 @@ import cn.charlotte.pit.api.PitInternalHook;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.operator.IProfilerOperator;
 import cn.charlotte.pit.perk.PerkFactory;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.mizukilab.pit.BukkitDataTestSupport;
 import net.mizukilab.pit.data.operator.PackedOperator;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
@@ -20,7 +20,7 @@ import net.mizukilab.pit.util.PlayerUtil;
 import net.mizukilab.pit.util.item.ItemUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.ItemStack;
@@ -67,7 +67,7 @@ public class RegularityDamageIntegrationTest extends BukkitDataTestSupport {
     private double armorReduction;
 
     @Before public void setup() {
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class, RETURNS_DEEP_STUBS));
         bukkit.when(Bukkit::getPluginManager).thenReturn(mock(org.bukkit.plugin.PluginManager.class));
         pit = mockStatic(ThePit.class);
@@ -95,8 +95,9 @@ public class RegularityDamageIntegrationTest extends BukkitDataTestSupport {
         doAnswer(call -> { coins = call.getArgument(0); return null; })
                 .when(attackerProfile).setCoins(anyDouble());
 
-        ItemStack held = new ItemStack(Material.GOLD_SWORD);
+        ItemStack held = new ItemStack(Material.GOLDEN_SWORD);
         when(attacker.getItemInHand()).thenReturn(held);
+        when(attacker.getInventory().getItemInMainHand()).thenReturn(held);
         when(attacker.getInventory().getItemInHand()).thenReturn(held);
         when(items.getIMythicItem(same(held))).thenReturn(sword);
         ItemStack leggings = new ItemStack(Material.LEATHER_LEGGINGS);
@@ -127,7 +128,7 @@ public class RegularityDamageIntegrationTest extends BukkitDataTestSupport {
         when(player.getHealth()).thenReturn(20D);
         when(player.getMaxHealth()).thenReturn(20D);
         try (var attributes = mockConstruction(AttributeModifier.class)) {
-            EntityPlayer handle = mock(EntityPlayer.class);
+            ServerPlayer handle = mock(ServerPlayer.class);
             when(player.getHandle()).thenReturn(handle);
         }
         return player;
@@ -251,6 +252,7 @@ public class RegularityDamageIntegrationTest extends BukkitDataTestSupport {
     @Test public void changingToEmptyHandDoesNotOverwriteAlreadyQueuedDamage() {
         double original = hit(0.25D).getDamage();
         when(attacker.getItemInHand()).thenReturn(null);
+        when(attacker.getInventory().getItemInMainHand()).thenReturn(null);
         when(attacker.getInventory().getItemInHand()).thenReturn(null);
         runNextHit(); runNextHit();
         assertEquals(original * 0.75D, delayedHits.get(0).getDamage(), 0.000001D);

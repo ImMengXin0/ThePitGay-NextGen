@@ -29,7 +29,7 @@ public class SelfConfidencePerk extends AbstractPerk {
 
     @Override
     public Material getIcon() {
-        return Material.RAW_FISH;
+        return Material.COD;
     }
 
     @Override
@@ -84,7 +84,7 @@ public class SelfConfidencePerk extends AbstractPerk {
 
     @Override
     public ItemStack getIconWithNameAndLore(String name, List<String> lore, int durability, int amount) {
-        return new ItemBuilder(Material.RAW_FISH)
+        return new ItemBuilder(Material.COD)
                 .durability(3)
                 .name(name)
                 .lore(lore)

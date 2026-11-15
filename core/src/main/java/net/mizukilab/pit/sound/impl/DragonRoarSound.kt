@@ -17,20 +17,20 @@ object DragonRoarSound : AbstractPitSound() {
     override fun onSoundTick(player: Player, tick: Int) {
         when (tick) {
             0 -> {
-                player.playSound(player.location, Sound.ENDERDRAGON_GROWL, 2.0f, 0.6f)
+                player.playSound(player.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 2.0f, 0.6f)
             }
             4 -> {
-                player.playSound(player.location, Sound.ENDERDRAGON_GROWL, 1.8f, 0.8f)
-                player.playSound(player.location, Sound.GHAST_SCREAM, 0.5f, 0.4f)
+                player.playSound(player.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.8f, 0.8f)
+                player.playSound(player.location, Sound.ENTITY_GHAST_SCREAM, 0.5f, 0.4f)
             }
             8 -> {
-                player.playSound(player.location, Sound.ENDERDRAGON_HIT, 1.2f, 0.7f)
+                player.playSound(player.location, Sound.ENTITY_ENDER_DRAGON_HURT, 1.2f, 0.7f)
             }
             12 -> {
-                player.playSound(player.location, Sound.ENDERDRAGON_WINGS, 1.5f, 1.0f)
+                player.playSound(player.location, Sound.ENTITY_ENDER_DRAGON_FLAP, 1.5f, 1.0f)
             }
             16 -> {
-                player.playSound(player.location, Sound.ENDERDRAGON_DEATH, 0.8f, 1.5f)
+                player.playSound(player.location, Sound.ENTITY_ENDER_DRAGON_DEATH, 0.8f, 1.5f)
             }
         }
 
@@ -38,4 +38,4 @@ object DragonRoarSound : AbstractPitSound() {
             end(player)
         }
     }
-} 
+}

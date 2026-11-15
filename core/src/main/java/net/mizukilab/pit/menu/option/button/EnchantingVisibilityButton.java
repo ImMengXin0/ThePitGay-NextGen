@@ -17,7 +17,7 @@ public class EnchantingVisibilityButton extends Button {
         if (!canChange) {
             profile.getPlayerOption().setEnchantingVisibility(true);
         }
-        return new ItemBuilder(Material.ENCHANTMENT_TABLE).name("&a隐私选项: 附魔台物品")
+        return new ItemBuilder(Material.ENCHANTING_TABLE).name("&a隐私选项: 附魔台物品")
                 .lore("&7允许其他玩家通过 /view 查看你的附魔台物品。",
                         "&7包括附魔物品、附魔书和材料。",
                         "&7本人和管理人员始终可以查看。", " ",

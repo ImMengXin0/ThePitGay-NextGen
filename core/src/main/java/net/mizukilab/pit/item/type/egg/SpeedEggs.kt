@@ -33,7 +33,7 @@ class SpeedEggs : AbstractPitItem(), Listener {
     }
 
     override fun getItemDisplayMaterial(): Material {
-        return Material.MONSTER_EGG
+        return Material.PIG_SPAWN_EGG
     }
 
     override fun toItemStack(): ItemStack {
@@ -55,7 +55,7 @@ class SpeedEggs : AbstractPitItem(), Listener {
                 event.setUseItemInHand(Event.Result.DENY)
                 player.removePotionEffect(PotionEffectType.SPEED)
                 cooldowns[player.uniqueId] = Cooldown(28, TimeUnit.SECONDS)
-                player.playSound(player.location, Sound.EAT, 1f, 1f)
+                player.playSound(player.location, Sound.ENTITY_GENERIC_EAT, 1f, 1f)
 
                 player.addPotionEffect(PotionEffect(PotionEffectType.SPEED, 400, 1))
             } else {

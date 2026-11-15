@@ -17,7 +17,7 @@ abstract class AbstractItemToItemButton : Button() {
     override fun getButtonItem(player: Player): ItemStack {
         val itemStack = getDisplayButtonItem(player)
         return try {
-            val lines = itemStack.itemMeta.lore
+            val lines = itemStack.itemMeta.lore?.toMutableList() ?: mutableListOf()
             lines.add(" ")
             lines.addAll(getNeedItem(player))
             ItemBuilder(itemStack).lore(lines).build()
@@ -44,12 +44,12 @@ abstract class AbstractItemToItemButton : Button() {
                 return
             }
             costItems(player)
-            player.inventory.addItem(*getResultItem(player))
+            player.inventory.addItem(*getResultItem(player).filterNotNull().toTypedArray())
             player.sendMessage(CC.translate("&a购买成功!"))
-            player.playSound(player.location, Sound.NOTE_PLING, 1f, 1f)
+            player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f)
         } else {
             player.sendMessage(CC.translate("&c你的材料不足!"))
-            player.playSound(player.location, Sound.ENDERMAN_TELEPORT, 1f, 1f)
+            player.playSound(player.location, Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1f)
         }
     }
 }

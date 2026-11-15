@@ -40,7 +40,7 @@ public class EnchantingViewerMenuTest extends BukkitDataTestSupport {
 
     @Before
     public void setupViewer() {
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         profiles = mockStatic(PlayerProfile.class);
         players = mockStatic(PlayerUtil.class);
         inventory = mockStatic(InventoryUtil.class);

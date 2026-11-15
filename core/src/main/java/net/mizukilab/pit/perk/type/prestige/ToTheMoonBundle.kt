@@ -17,7 +17,7 @@ class ToTheMoonBundle : AbstractPerk() {
     }
 
     override fun getIcon(): Material {
-        return Material.ENDER_STONE
+        return Material.END_STONE
     }
 
     override fun requireCoins(): Double {

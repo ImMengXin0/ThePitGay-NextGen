@@ -27,7 +27,7 @@ import net.mizukilab.pit.util.menu.Menu;
 import net.mizukilab.pit.util.menu.buttons.DisplayButton;
 import org.bukkit.Material;
 import org.bukkit.Sound;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.ClickType;
@@ -115,7 +115,7 @@ public class MythicWellMenu extends Menu {
             }
 
             for (int i : ANIMATIONS_SLOT) {
-                button.put(i, new DisplayButton(new ItemBuilder(Material.STAINED_GLASS_PANE).name("&c").durability(foundColor.getColorByte()).build(), true));
+                button.put(i, new DisplayButton(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE).name("&c").durability(foundColor.getColorByte()).build(), true));
             }
             String enchantingItem = profile.getEnchantingItem();
             ItemStack itemStack = InventoryUtil.deserializeItemStack(enchantingItem);
@@ -153,9 +153,9 @@ public class MythicWellMenu extends Menu {
                 byte[] colors = {14, 1, 4, 5, 11, 10, 6, 0};
                 byte currentColor = colors[tick % colors.length];
                 for (int i : ANIMATIONS_SLOT) {
-                    button.put(i, new DisplayButton(new ItemBuilder(Material.STAINED_GLASS_PANE).name("&c").durability(currentColor).build(), true));
+                    button.put(i, new DisplayButton(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE).name("&c").durability(currentColor).build(), true));
                 }
-                button.put(INPUT_SLOT, new DisplayButton(new ItemBuilder(Material.STAINED_GLASS_PANE)
+                button.put(INPUT_SLOT, new DisplayButton(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE)
                         .name("&a能量共鸣中!")
                         .durability(currentColor)
                         .build(), true));
@@ -163,12 +163,12 @@ public class MythicWellMenu extends Menu {
                 int rotationIndex = ((tick - 12) / 3) % 8;
                 for (int i = 0; i < ANIMATIONS_SLOT.length; i++) {
                     if (rotationIndex == i) {
-                        button.put(ANIMATIONS_SLOT[i], new DisplayButton(new ItemBuilder(Material.STAINED_GLASS_PANE).name("&c").durability(foundColor.getColorByte()).build(), true));
+                        button.put(ANIMATIONS_SLOT[i], new DisplayButton(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE).name("&c").durability(foundColor.getColorByte()).build(), true));
                     } else {
-                        button.put(ANIMATIONS_SLOT[i], new DisplayButton(new ItemBuilder(Material.STAINED_GLASS_PANE).name("&c").durability(0).build(), true));
+                        button.put(ANIMATIONS_SLOT[i], new DisplayButton(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE).name("&c").durability(0).build(), true));
                     }
                 }
-                button.put(INPUT_SLOT, new DisplayButton(new ItemBuilder(Material.INK_SACK)
+                button.put(INPUT_SLOT, new DisplayButton(new ItemBuilder(Material.INK_SAC)
                         .name("&a正在聚集能量!")
                         .durability(Math.min((tick - 12) / 3, 15))
                         .build(), true));
@@ -177,12 +177,12 @@ public class MythicWellMenu extends Menu {
                 int burstIndex = ((tick - 36) / 3) % 8;
                 for (int i = 0; i < ANIMATIONS_SLOT.length; i++) {
                     if (i <= burstIndex) {
-                        button.put(ANIMATIONS_SLOT[i], new DisplayButton(new ItemBuilder(Material.STAINED_GLASS_PANE).name("&c").durability(foundColor.getColorByte()).build(), true));
+                        button.put(ANIMATIONS_SLOT[i], new DisplayButton(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE).name("&c").durability(foundColor.getColorByte()).build(), true));
                     } else {
-                        button.put(ANIMATIONS_SLOT[i], new DisplayButton(new ItemBuilder(Material.STAINED_GLASS_PANE).name("&c").durability(0).build(), true));
+                        button.put(ANIMATIONS_SLOT[i], new DisplayButton(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE).name("&c").durability(0).build(), true));
                     }
                 }
-                button.put(INPUT_SLOT, new DisplayButton(new ItemBuilder(Material.INK_SACK)
+                button.put(INPUT_SLOT, new DisplayButton(new ItemBuilder(Material.INK_SAC)
                         .name("&a能量汇聚中!")
                         .durability(Math.min(burstIndex + 8, 15))
                         .build(), true));
@@ -190,7 +190,7 @@ public class MythicWellMenu extends Menu {
                 String enchantingItem = profile.getEnchantingItem();
                 ItemStack itemStack = InventoryUtil.deserializeItemStack(enchantingItem);
                 for (int i : ANIMATIONS_SLOT) {
-                    button.put(i, new DisplayButton(new ItemBuilder(Material.STAINED_GLASS_PANE).name("&c").durability(foundColor.getColorByte()).build(), true));
+                    button.put(i, new DisplayButton(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE).name("&c").durability(foundColor.getColorByte()).build(), true));
                 }
                 if (itemStack != null && itemStack.getType() != Material.AIR) {
                     button.put(INPUT_SLOT, new EnchantDisplayButton(itemStack, this, false));
@@ -305,7 +305,7 @@ public class MythicWellMenu extends Menu {
                 player.sendMessage(CC.translate("&c你必须放入未被附魔的神话武器才可以进行附魔!"));
                 player.sendMessage(CC.translate("&c神话武器有概率从战斗中掉落!"));
 
-                player.playSound(player.getLocation(), Sound.VILLAGER_NO, 1, 1.2F);
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1.2F);
                 return;
             }
 
@@ -363,12 +363,12 @@ public class MythicWellMenu extends Menu {
                                                 profile.setEnchantingScience(InventoryUtil.serializeItemStack(event.getCurrentItem()));
                                                 event.getClickedInventory().setItem(event.getSlot(), new ItemBuilder(Material.AIR).build());
                                                 this.openMenu(player);
-                                                player.playSound(player.getLocation(), Sound.CHICKEN_EGG_POP, 1, 0.9F);
+                                                player.playSound(player.getLocation(), Sound.ENTITY_CHICKEN_EGG, 1, 0.9F);
                                                 return;
                                             }
                                         }
                                     }
-                                    player.playSound(player.getLocation(), Sound.VILLAGER_NO, 1, 1.2F);
+                                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1.2F);
                                     player.sendMessage(CC.translate("&c颜色不符合! 您需要放入 " + color.getChatColor() + color.getDisplayName() + "色神话之甲 &c作为附魔材料."));
                                     return;
                                 }
@@ -385,7 +385,7 @@ public class MythicWellMenu extends Menu {
             // Depositing is not enchanting: only the actual input NBT is authoritative.
             // Bukkit 1.8 ItemMeta.clone can share custom NBT compounds; copy the NMS
             // tags as well before initializing an identity on a legacy/blank item.
-            ItemStack inputCopy = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(item).cloneItemStack());
+            ItemStack inputCopy = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(item).copy());
             IMythicItem mythicItem = Utils.getMythicItem0(inputCopy, internalName);
             if (mythicItem == null) return;
             if (mythicItem.getUuid() == null || IMythicItem.getDefUUID().equals(mythicItem.getUuid())
@@ -404,7 +404,7 @@ public class MythicWellMenu extends Menu {
             event.getClickedInventory().setItem(event.getSlot(), returnItem);
             IMythicItem.clearCache(item);
             this.openMenu(player);
-            player.playSound(player.getLocation(), Sound.CHICKEN_EGG_POP, 1, 0.9F);
+            player.playSound(player.getLocation(), Sound.ENTITY_CHICKEN_EGG, 1, 0.9F);
         }
     }
 
@@ -432,7 +432,7 @@ public class MythicWellMenu extends Menu {
         event.getClickedInventory().setItem(event.getSlot(), oldBook);
         profile.setEnchantingBook(encoded);
         this.openMenu(player);
-        player.playSound(player.getLocation(), Sound.CHICKEN_EGG_POP, 1, 0.9F);
+        player.playSound(player.getLocation(), Sound.ENTITY_CHICKEN_EGG, 1, 0.9F);
     }
 
     @Override
@@ -446,7 +446,7 @@ public class MythicWellMenu extends Menu {
         if (!isClosedByMenu() && player.isOnline() && !player.isDead() && !NewConfiguration.INSTANCE.getRapidEnchanting()) {
             if (animationData.isStartEnchanting() && !animationData.isFinished()) {
                 player.sendMessage(CC.translate("&c附魔进行中，无法关闭界面！"));
-                player.playSound(player.getLocation(), Sound.VILLAGER_NO, 1, 1.2F);
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1.2F);
                 throw CancelOp.INST;
             }
         }

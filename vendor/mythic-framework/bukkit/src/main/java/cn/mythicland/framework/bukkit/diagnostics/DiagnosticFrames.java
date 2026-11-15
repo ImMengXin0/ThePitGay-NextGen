@@ -38,10 +38,6 @@ final class DiagnosticFrames extends ChannelInboundHandlerAdapter {
                     fields.put("frameId", id);
                     fields.put("protocolId", type);
                     fields.put("bytes", buffer.readableBytes());
-                    if (type == 2) {
-                        fields.put("targetEntityId", varInt(buffer, cursor));
-                        fields.put("action", varInt(buffer, cursor));
-                    }
                     byte[] payload = new byte[Math.min(256, buffer.readableBytes())];
                     buffer.getBytes(buffer.readerIndex(), payload);
                     fields.put("hex", HexFormat.of().formatHex(payload));

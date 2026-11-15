@@ -27,7 +27,7 @@ public class TheWayPerk extends AbstractPerk {
 
     @Override
     public Material getIcon() {
-        return Material.JUNGLE_DOOR_ITEM;
+        return Material.JUNGLE_DOOR;
     }
 
     @Override

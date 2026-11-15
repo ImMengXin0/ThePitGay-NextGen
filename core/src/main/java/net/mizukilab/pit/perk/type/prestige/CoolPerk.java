@@ -27,7 +27,7 @@ public class CoolPerk extends AbstractPerk {
 
     @Override
     public Material getIcon() {
-        return Material.BOOK_AND_QUILL;
+        return Material.WRITABLE_BOOK;
     }
 
     @Override

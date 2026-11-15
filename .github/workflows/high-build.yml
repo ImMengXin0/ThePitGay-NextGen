@@ -1,0 +1,39 @@
+name: High migration build
+
+on:
+  push:
+    branches: [ThePitGay-High]
+  pull_request:
+    branches: [ThePitGay-High]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and run all automated checks
+        run: bash gradlew build --continue --console=plain
+      - name: Save test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: high-test-reports
+          path: |
+            core/build/reports/tests/
+            paper-platform/build/reports/tests/
+            vendor/mythic-framework/*/build/reports/tests/
+      - name: Save plugin JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThePitGay-High
+          path: core/build/libs/ThePitGay-High.jar

@@ -124,7 +124,7 @@ public class CarePackageEvent extends AbstractEvent implements INormalEvent, Lis
         }
         data.setNum(data.getNum() - 1);
 
-        chest.getWorld().playSound(chest, Sound.ZOMBIE_WOODBREAK, 0.5F, 1.5F);
+        chest.getWorld().playSound(chest, Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 0.5F, 1.5F);
 
         data.setLeft(!data.isLeft());
         Hologram hologram = data.getFirstHologram();
@@ -177,7 +177,7 @@ public class CarePackageEvent extends AbstractEvent implements INormalEvent, Lis
 
         for (int i = 0; i < RandomUtil.random.nextInt(3) + 3; i++) {
             if (items.get(i) == null) {
-                items.put(i, (ItemStack) RandomUtil.helpMeToChooseOne(new ItemBuilder(Material.EXP_BOTTLE)
+                items.put(i, (ItemStack) RandomUtil.helpMeToChooseOne(new ItemBuilder(Material.EXPERIENCE_BOTTLE)
                                 .name("&b+1000经验值").internalName("xp_reward").shiny().build(),
                         new ItemBuilder(Material.GOLD_INGOT).name("&6+1000硬币").internalName("coin_reward").shiny().build()));
             }

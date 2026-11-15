@@ -92,7 +92,7 @@ public class TickHandlerTest extends BukkitDataTestSupport {
             PlayerInventory inventory = mock(PlayerInventory.class);
             when(player.getInventory()).thenReturn(inventory);
             ItemStack sword = mock(ItemStack.class), leggings = mock(ItemStack.class);
-            when(sword.getType()).thenReturn(Material.GOLD_SWORD);
+            when(sword.getType()).thenReturn(Material.GOLDEN_SWORD);
             when(sword.clone()).thenReturn(sword);
             when(leggings.clone()).thenReturn(leggings);
             when(inventory.getItemInHand()).thenReturn(sword);

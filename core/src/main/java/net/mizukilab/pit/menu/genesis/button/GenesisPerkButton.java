@@ -144,7 +144,7 @@ public class GenesisPerkButton extends Button {
             durability = teamLockedDurability;
             lines.add(teamColor + "你处于对立阵营中!");
         }
-        return new ItemBuilder(Material.STAINED_CLAY).name(teamColor + "阵营奖励 - 阶段 " + RomanUtil.convert(tier)).lore(lines).durability(durability).amount(tier).build();
+        return new ItemBuilder(Material.WHITE_TERRACOTTA).name(teamColor + "阵营奖励 - 阶段 " + RomanUtil.convert(tier)).lore(lines).durability(durability).amount(tier).build();
     }
 
     @Override

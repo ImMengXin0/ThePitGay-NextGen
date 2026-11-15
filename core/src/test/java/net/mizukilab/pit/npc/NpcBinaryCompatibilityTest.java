@@ -16,7 +16,7 @@ public class NpcBinaryCompatibilityTest {
         Path loader = Path.of(System.getProperty("pitAddonLoaderJar"));
         Path repair = Path.of(System.getProperty("repairExtendJar"));
         assumeTrue(Files.isRegularFile(addon) && Files.isRegularFile(loader) && Files.isRegularFile(repair));
-        try (URLClassLoader classes = new URLClassLoader(new URL[]{Path.of("build/libs/ThePitGay-V.jar").toUri().toURL(),
+        try (URLClassLoader classes = new URLClassLoader(new URL[]{Path.of("build/libs/ThePitGay-High.jar").toUri().toURL(),
                 addon.toUri().toURL(), loader.toUri().toURL(), repair.toUri().toURL()}, getClass().getClassLoader()) {
             @Override protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
                 synchronized (getClassLoadingLock(name)) {
@@ -64,7 +64,7 @@ public class NpcBinaryCompatibilityTest {
     }
 
     @Test public void shippedCoreContainsFrameworkAndNoCitizensLinkage() throws Exception {
-        try (JarFile jar = new JarFile("build/libs/ThePitGay-V.jar")) {
+        try (JarFile jar = new JarFile("build/libs/ThePitGay-High.jar")) {
             assertNotNull(jar.getEntry("net/mizukilab/pit/libs/npclib/NPCLib.class"));
             assertNotNull(jar.getEntry("net/mizukilab/pit/libs/npclib/bot/BotPatrol.class"));
             assertNotNull(jar.getEntry("net/mizukilab/pit/libs/mythicframework/bukkit/reflect/Reflection.class"));

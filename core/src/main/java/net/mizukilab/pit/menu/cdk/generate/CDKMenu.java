@@ -56,7 +56,7 @@ public class CDKMenu extends Menu {
                 .build(),
                 this,
                 data::setCoins));
-        buttonMap.put(12, new CDKEditButton(new ItemBuilder(Material.EXP_BOTTLE)
+        buttonMap.put(12, new CDKEditButton(new ItemBuilder(Material.EXPERIENCE_BOTTLE)
                 .name("&b经验值")
                 .lore(Arrays.asList(" ", "&7当前: &b" + data.getExp() + " 经验值", "&e点击编辑经验值数量!"))
                 .build(),
@@ -107,7 +107,7 @@ public class CDKMenu extends Menu {
         });
 
         buttonMap.put(14, new CDKEditStringButton(
-                new ItemBuilder(Material.SIGN).name("&c有效时间").lore("&7过期时间: " + format.format(data.getExpireTime())).build(),
+                new ItemBuilder(Material.OAK_SIGN).name("&c有效时间").lore("&7过期时间: " + format.format(data.getExpireTime())).build(),
                 this,
                 element -> {
                     data.setExpireTime(System.currentTimeMillis() + TimeUtil.parseTime(element));
@@ -115,13 +115,13 @@ public class CDKMenu extends Menu {
         ));
 
         buttonMap.put(15, new CDKEditStringButton(
-                new ItemBuilder(Material.SIGN).name("&c领取权限").lore("&7当前限制权限: " + data.getLimitPermission()).build(),
+                new ItemBuilder(Material.OAK_SIGN).name("&c领取权限").lore("&7当前限制权限: " + data.getLimitPermission()).build(),
                 this,
                 data::setLimitPermission
         ));
 
         buttonMap.put(16, new CDKEditButton(
-                new ItemBuilder(Material.SIGN).name("&c限制等级").lore("&7当前限制等级: " + data.getLimitLevel()).build(),
+                new ItemBuilder(Material.OAK_SIGN).name("&c限制等级").lore("&7当前限制等级: " + data.getLimitLevel()).build(),
                 this,
                 data::setLimitLevel
         ));
@@ -148,7 +148,7 @@ public class CDKMenu extends Menu {
         buttonMap.put(33, new Button() {
             @Override
             public ItemStack getButtonItem(Player player) {
-                return new ItemBuilder(Material.COMMAND_MINECART).name("&a作为邮件发送").build();
+                return new ItemBuilder(Material.COMMAND_BLOCK_MINECART).name("&a作为邮件发送").build();
             }
 
             @Override

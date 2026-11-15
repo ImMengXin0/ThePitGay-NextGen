@@ -9,19 +9,18 @@ import cn.charlotte.pit.events.AbstractEvent;
 import cn.charlotte.pit.events.trigger.type.addon.IScoreBoardInsert;
 import cn.charlotte.pit.util.hologram.Hologram;
 import cn.charlotte.pit.util.hologram.HologramAPI;
-import com.boydti.fawe.FaweAPI;
-import com.sk89q.worldedit.BlockVector;
-import com.sk89q.worldedit.CuboidClipboard;
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.math.BlockVector3;
+
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
-import com.sk89q.worldedit.schematic.MCEditSchematicFormat;
-import com.sk89q.worldedit.schematic.SchematicFormat;
+
+
 import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import net.minecraft.server.v1_8_R3.EntityVillager;
-import net.minecraft.server.v1_8_R3.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.item.type.mythic.MythicLeggingsItem;
 import net.mizukilab.pit.medal.impl.challenge.PizzaEventMedal;
@@ -40,7 +39,7 @@ import net.mizukilab.pit.util.time.TimeUtil;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.Skull;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftVillager;
+import org.bukkit.craftbukkit.entity.CraftVillager;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
@@ -91,7 +90,7 @@ public class HamburgerEvent extends AbstractEvent implements IEpicEvent, Listene
         this.pizzaDataMap = new HashMap<>();
         this.villagerDataMap = new HashMap<>();
         this.spawnedLocations = new ArrayList<>();
-        this.pizza = new ItemBuilder(Material.SKULL_ITEM)
+        this.pizza = new ItemBuilder(Material.PLAYER_HEAD)
                 .durability(3)
                 .internalName("ham")
                 .removeOnJoin(true)
@@ -124,7 +123,7 @@ public class HamburgerEvent extends AbstractEvent implements IEpicEvent, Listene
     @EventHandler
     public void onRightClick(PlayerInteractEvent event) {
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            if (event.getClickedBlock().getType() == Material.SKULL) {
+            if (event.getClickedBlock().getType() == Material.PLAYER_HEAD) {
                 final Skull skull = (Skull) event.getClickedBlock().getState();
                 if (skull.getSkullType() == SkullType.PLAYER) {
                     Location location1 = event.getClickedBlock().getLocation();
@@ -215,16 +214,16 @@ public class HamburgerEvent extends AbstractEvent implements IEpicEvent, Listene
             try (InputStream inputStream = ThePit.getInstance().getResource("hamburger.schematic")) {
                 if (inputStream == null) throw new IllegalStateException("Missing hamburger.schematic");
 
-                BlockVector vector = new BlockVector(location.getX(), location.getY(), location.getZ());
+                BlockVector3 vector = BlockVector3.at(location.getX(), location.getY(), location.getZ());
 
-                session = FaweAPI.getEditSessionBuilder(world).build();
-
-                final MCEditSchematicFormat mcedit = (MCEditSchematicFormat) SchematicFormat.MCEDIT;
-
-                final CuboidClipboard clipboard = mcedit.load(inputStream);
+                session = WorldEdit.getInstance().newEditSession(world);
 
 
-                clipboard.paste(session, vector, false);
+
+
+
+
+                cn.charlotte.pit.events.EventWorldEdits.pasteLegacy(session, inputStream, vector);
 
                 cn.charlotte.pit.events.EventWorldEdits.flush(session);
 
@@ -232,14 +231,7 @@ public class HamburgerEvent extends AbstractEvent implements IEpicEvent, Listene
                     if (getGeneration() != activation) return;
                     try {
                         this.villager = (Villager) location.getWorld().spawnEntity(location, EntityType.VILLAGER);
-                        final EntityVillager entityVillager = ((CraftVillager) villager).getHandle();
-                        NBTTagCompound tag = entityVillager.getNBTTag();
-                        if (tag == null) {
-                            tag = new NBTTagCompound();
-                        }
-                        entityVillager.c(tag);
-                        tag.setInt("NoAI", 1);
-                        entityVillager.f(tag);
+                        villager.setAI(false);
                         villager.setAdult();
 
                         hologram = HologramAPI.createHologram(location.clone().add(0, 2.4, 0), CC.translate("&d请给我钱"));
@@ -290,7 +282,7 @@ public class HamburgerEvent extends AbstractEvent implements IEpicEvent, Listene
 
     @EventHandler(priority = EventPriority.LOW)
     public void onPlace(BlockPlaceEvent event) {
-        if (event.getBlockPlaced().getType() == Material.SKULL) {
+        if (event.getBlockPlaced().getType() == Material.PLAYER_HEAD) {
             event.setCancelled(true);
         }
         if (event.getBlockPlaced().getWorld().equals(location.getWorld()) && event.getBlockPlaced().getLocation().distanceSquared(location) < 64) {
@@ -309,7 +301,7 @@ public class HamburgerEvent extends AbstractEvent implements IEpicEvent, Listene
 
         cn.charlotte.pit.events.EventWorldEdits.undo(() -> {
             if (session != null) cn.charlotte.pit.events.EventWorldEdits.restore(session);
-            if (session != null) { cn.charlotte.pit.events.EventWorldEdits.flush(session); session = null; }
+            if (session != null) { session = null; }
         });
 
         for (Map.Entry<UUID, VillagerData> entry : new HashMap<>(this.villagerDataMap).entrySet()) {
@@ -452,15 +444,7 @@ public class HamburgerEvent extends AbstractEvent implements IEpicEvent, Listene
         try {
             final World world = location.getWorld();
             final Villager villager = (Villager) world.spawnEntity(location, EntityType.VILLAGER);
-            final EntityVillager entityVillager = ((CraftVillager) villager).getHandle();
-            NBTTagCompound tag = entityVillager.getNBTTag();
-            if (tag == null) {
-                tag = new NBTTagCompound();
-            }
-            entityVillager.c(tag);
-            tag.setInt("NoAI", 1);
-            tag.setInt("Silent", 1);
-            entityVillager.f(tag);
+            villager.setAI(false);
             villager.setAdult();
 
 

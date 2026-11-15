@@ -59,13 +59,13 @@ public class CreativeEnchant extends AbstractEnchantment implements IPlayerKille
     @Override
     @PlayerOnly
     public void handlePlayerKilled(int enchantLevel, Player myself, Entity target, AtomicDouble coins, AtomicDouble experience) {
-        ItemBuilder woodBuilder = new ItemBuilder(Material.WOOD).canDrop(false).canSaveToEnderChest(false).deathDrop(true).canTrade(false).removeOnJoin(true).internalName("creative_enchantment_item");
+        ItemBuilder woodBuilder = new ItemBuilder(Material.OAK_PLANKS).canDrop(false).canSaveToEnderChest(false).deathDrop(true).canTrade(false).removeOnJoin(true).internalName("creative_enchantment_item");
         myself.getInventory().addItem(woodBuilder.amount(6 * enchantLevel).build());
     }
 
     @Override
     public void handleRespawn(int enchantLevel, Player myself) {
-        ItemBuilder woodBuilder = new ItemBuilder(Material.WOOD).canDrop(false).canSaveToEnderChest(false).deathDrop(true).canTrade(false).removeOnJoin(true).internalName("creative_enchantment_item");
+        ItemBuilder woodBuilder = new ItemBuilder(Material.OAK_PLANKS).canDrop(false).canSaveToEnderChest(false).deathDrop(true).canTrade(false).removeOnJoin(true).internalName("creative_enchantment_item");
         myself.getInventory().addItem(woodBuilder.amount(16 * enchantLevel).build());
     }
 }

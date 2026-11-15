@@ -6,17 +6,15 @@ import cn.charlotte.pit.event.PitDamageEvent;
 import cn.charlotte.pit.event.PitKillEvent;
 import cn.charlotte.pit.events.trigger.type.IEpicEvent;
 import cn.charlotte.pit.events.AbstractEvent;
-import com.boydti.fawe.FaweAPI;
-import com.sk89q.worldedit.BlockVector;
-import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.blocks.BaseBlock;
-import com.sk89q.worldedit.blocks.BlockID;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
-import net.minecraft.server.v1_8_R3.MathHelper;
+import net.minecraft.util.Mth;
 import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.item.type.mythic.MythicLeggingsItem;
 import net.mizukilab.pit.medal.impl.challenge.RagePitTopMedal;
@@ -122,11 +120,11 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
                     .registerEvents(this, ThePit.getInstance());
             //build wall - start
             Location middle = ThePit.getInstance().getPitConfig().getRagePitMiddle();
-            BlockVector vector = new BlockVector(middle.getBlockX(), middle.getBlockY(), middle.getBlockZ());
+            BlockVector3 vector = BlockVector3.at(middle.getBlockX(), middle.getBlockY(), middle.getBlockZ());
             BukkitWorld world = new BukkitWorld(middle.getWorld());
             cn.charlotte.pit.events.EventWorldEdits.build(this, () -> {
-                session = FaweAPI.getEditSessionBuilder(world).build();
-                session.makeCylinder(vector, new JustAirBlockPattern(new BaseBlock(BlockID.GLASS)),
+                session = WorldEdit.getInstance().newEditSession(world);
+                session.makeCylinder(vector, new JustAirBlockPattern(session, com.sk89q.worldedit.world.block.BlockTypes.GLASS.getDefaultState().toBaseBlock()),
                         ThePit.getInstance().getPitConfig().getRagePitRadius(), ThePit.getInstance().getPitConfig().getRagePitHeight(), false);
                 cn.charlotte.pit.events.EventWorldEdits.flush(session);
             });
@@ -147,7 +145,7 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
                         .getSpawnLocations()
                         .get(RandomUtil.random.nextInt(ThePit.getInstance().getPitConfig().getSpawnLocations().size()));
                 player.teleport(location);
-                player.playSound(player.getLocation(), Sound.ENDERDRAGON_GROWL, 1, 0.5F);
+                player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1, 0.5F);
                 player.sendMessage(CC.translate("&5&l大型事件! &6&l疯狂天坑 &7事件开始!"));
             }
 
@@ -207,7 +205,7 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
         if (runnable != null) runnable.cancel();
         //还原建筑
         cn.charlotte.pit.events.EventWorldEdits.undo(() -> {
-            if (session != null) { cn.charlotte.pit.events.EventWorldEdits.restore(session); cn.charlotte.pit.events.EventWorldEdits.flush(session); session = null; }
+            if (session != null) { cn.charlotte.pit.events.EventWorldEdits.restore(session); session = null; }
         });
         //还原BossBar
         ThePit.getInstance()
@@ -257,7 +255,7 @@ public class RagePitEvent extends AbstractEvent implements IEpicEvent, Listener 
             }
             if (enchantBoostLevel > 0) {
                 rewardCoins += 0.5 * enchantBoostLevel * rewardCoins;
-                rewardRenown += MathHelper.floor(0.5 * enchantBoostLevel * rewardRenown);
+                rewardRenown += Mth.floor(0.5 * enchantBoostLevel * rewardRenown);
                 MythicLeggingsItem mythicLeggings = new MythicLeggingsItem();
                 mythicLeggings.loadFromItemStack(player.getInventory().getLeggings());
                 if (mythicLeggings.isEnchanted()) {

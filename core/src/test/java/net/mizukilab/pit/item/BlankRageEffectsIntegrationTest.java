@@ -4,10 +4,10 @@ import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.api.PitInternalHook;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.perk.PerkFactory;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.DispenserRegistry;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
-import net.minecraft.server.v1_8_R3.NBTTagList;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.Bootstrap;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.nbt.ListTag;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
 import net.mizukilab.pit.enchantment.type.rage.NewDealEnchant;
@@ -20,9 +20,9 @@ import net.mizukilab.pit.util.PublicUtil;
 import net.mizukilab.pit.util.Utils;
 import net.mizukilab.pit.util.item.ItemUtil;
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -57,16 +57,17 @@ public class BlankRageEffectsIntegrationTest {
 
     @BeforeClass public static void vanilla() {
         PrintStream out = System.out, err = System.err;
-        try (var attributes = mockConstruction(AttributeModifier.class)) { DispenserRegistry.c(); }
+        try (var attributes = mockConstruction(AttributeModifier.class)) { net.mizukilab.pit.PaperTestBootstrap.initialize(); }
         finally { System.setOut(out); System.setErr(err); }
     }
 
     @Before public void setup() throws Exception {
         loader = new URLClassLoader(new URL[]{Path.of(System.getProperty("repairExtendJar")).toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
+        net.mizukilab.pit.OptionalTestFixtures.require("repairExtendJar");
         speed = (AbstractEnchantment) loader.loadClass("cn.mx.thepitaddon.enchantment.SpeedForceEnchant")
                 .getConstructor().newInstance();
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getItemFactory).thenReturn(CraftItemFactory.instance());
         bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
         org.bukkit.Server server = mock(org.bukkit.Server.class, RETURNS_DEEP_STUBS);
@@ -87,9 +88,9 @@ public class BlankRageEffectsIntegrationTest {
         attacker = mock(CraftPlayer.class); target = mock(CraftPlayer.class);
         when(attacker.getUniqueId()).thenReturn(UUID.randomUUID());
         when(target.getUniqueId()).thenReturn(UUID.randomUUID());
-        EntityPlayer attackerHandle, targetHandle;
+        ServerPlayer attackerHandle, targetHandle;
         try (var attributes = mockConstruction(AttributeModifier.class)) {
-            attackerHandle = mock(EntityPlayer.class); targetHandle = mock(EntityPlayer.class);
+            attackerHandle = mock(ServerPlayer.class); targetHandle = mock(ServerPlayer.class);
         }
         when(attacker.getHandle()).thenReturn(attackerHandle);
         when(target.getHandle()).thenReturn(targetHandle);
@@ -147,7 +148,7 @@ public class BlankRageEffectsIntegrationTest {
         UUID id = UUID.randomUUID();
         IMythicItem old = factory.getIMythicItem(pants(id, speed, 3));
         equipped = pants(id, null, 0);
-        assertEquals(0, ItemUtil.getExtra(equipped).getList("ench", 8).size());
+        assertEquals(0, ItemUtil.getExtra(equipped).getListOrEmpty("ench").size());
         tickEquipment(new TickHandler());
         hit(); noSpeedForce();
         assertNotSame(old, profile.leggings);
@@ -155,10 +156,10 @@ public class BlankRageEffectsIntegrationTest {
     }
 
     @Test public void removingNbtInPlaceInvalidatesTheProfileEvenWhenTheStackObjectIsUnchanged() throws Exception {
-        equipped = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(pants(UUID.randomUUID(), speed, 3)).cloneItemStack());
+        equipped = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(pants(UUID.randomUUID(), speed, 3)).copy());
         TickHandler ticker = new TickHandler(); tickEquipment(ticker);
         assertEquals(3, profile.leggings.getEnchantments().getInt(speed));
-        ItemUtil.getExtra(equipped).set("ench", new NBTTagList());
+        var extra = ItemUtil.getExtra(equipped); extra.put("ench", new ListTag()); ItemUtil.setExtra(equipped, extra);
         tickEquipment(ticker);
         assertTrue(profile.leggings.getEnchantments().isEmpty());
         hit(); noSpeedForce();
@@ -194,7 +195,7 @@ public class BlankRageEffectsIntegrationTest {
     @Test public void reusingAParsedItemWithNoEnchantTagCannotRetainOldEnchantments() {
         ItemStack source = pants(UUID.randomUUID(), speed, 3);
         IMythicItem parsed = Utils.getMythicItem0(source);
-        ItemStack blank = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(pants(parsed.getUuid(), null, 0)).cloneItemStack());
+        ItemStack blank = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(pants(parsed.getUuid(), null, 0)).copy());
         ItemUtil.getExtra(blank).remove("ench");
         parsed.loadFromItemStack(blank);
         assertTrue(parsed.getEnchantments().isEmpty());

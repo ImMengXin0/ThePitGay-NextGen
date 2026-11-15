@@ -9,7 +9,7 @@ import static org.mockito.Mockito.*;
 
 public class ActionBarRegressionTest {
     @Test public void fivePlayersAllReceiveThreeRepeatsWithoutStarvingFourOfThem() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class); MockedStatic<ActionBarUtil> bars = mockStatic(ActionBarUtil.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit(); MockedStatic<ActionBarUtil> bars = mockStatic(ActionBarUtil.class)) {
             ActionBarManager manager = new ActionBarManager(); List<Player> players = new ArrayList<>();
             for (int i=0; i<5; i++) {
                 Player p=mock(Player.class); UUID uuid=UUID.randomUUID(); when(p.getUniqueId()).thenReturn(uuid); when(p.isOnline()).thenReturn(true);

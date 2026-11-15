@@ -2,7 +2,7 @@ package net.mizukilab.pit.item.type
 
 import cn.charlotte.pit.ThePit
 
-import net.minecraft.server.v1_8_R3.EnumParticle
+import org.bukkit.Particle
 import net.mizukilab.pit.item.AbstractPitItem
 import net.mizukilab.pit.parm.AutoRegister
 import net.mizukilab.pit.util.ParticleBuilder
@@ -92,7 +92,7 @@ class LuckyGem : AbstractPitItem(), Listener {
 
                     ParticleBuilder(
                         player.location.clone().add(0.0, 2.0, 0.0),
-                        EnumParticle.VILLAGER_HAPPY
+                        Particle.HAPPY_VILLAGER
                     ).apply {
                         setVelocity(0.5f)
                         setCount(3)

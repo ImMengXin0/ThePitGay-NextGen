@@ -25,7 +25,7 @@ class HeadOnBlow : AbstractEnchantment(), Listener {
 
     @EventHandler
     fun onPlayerFish(event: PlayerFishEvent) {
-        if (event.player.inventory.itemInHand.toMythicItem()?.enchantments?.any {
+        if (event.player.inventory.itemInMainHand.toMythicItem()?.enchantments?.any {
                 enchantName == "head-on_blow"
             } == true) {
             if (event.state == PlayerFishEvent.State.CAUGHT_ENTITY && event.caught is Player) {

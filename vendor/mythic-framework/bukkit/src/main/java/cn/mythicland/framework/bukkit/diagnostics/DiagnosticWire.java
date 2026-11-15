@@ -7,11 +7,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
-import net.minecraft.server.v1_8_R3.EnumProtocol;
-import net.minecraft.server.v1_8_R3.EnumProtocolDirection;
-import net.minecraft.server.v1_8_R3.Packet;
-import net.minecraft.server.v1_8_R3.PacketDataSerializer;
-import java.lang.reflect.Constructor;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.ProtocolInfo;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.GameProtocols;
+import net.minecraft.server.MinecraftServer;
 
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -28,7 +29,8 @@ final class DiagnosticWire extends ChannelOutboundHandlerAdapter {
     private final UUID observer;
     private final String connection;
     private final DiagnosticPacketSelection selection;
-    private final Map<Integer, Constructor<? extends Packet>> types = new HashMap<>();
+    private final ProtocolInfo<ClientGamePacketListener> protocol = GameProtocols.CLIENTBOUND_TEMPLATE.bind(
+            RegistryFriendlyByteBuf.decorator(MinecraftServer.getServer().registryAccess()));
     private final MessageDigest digest;
     private long sequence;
 
@@ -45,12 +47,7 @@ final class DiagnosticWire extends ChannelOutboundHandlerAdapter {
         this.selection = selection.copy();
         try {
             this.digest = MessageDigest.getInstance("SHA-256");
-            for (int id = 0; id < 256; id++) {
-                Packet packet = EnumProtocol.PLAY.a(EnumProtocolDirection.CLIENTBOUND, id);
-                if (packet != null && options.outbound(packet.getClass().getSimpleName()))
-                    this.types.put(id, packet.getClass().getDeclaredConstructor());
-            }
-        } catch (NoSuchAlgorithmException | ReflectiveOperationException failure) {
+        } catch (NoSuchAlgorithmException failure) {
             throw new IllegalStateException(failure);
         }
     }
@@ -73,22 +70,19 @@ final class DiagnosticWire extends ChannelOutboundHandlerAdapter {
                 if (names.indexOf(context.name()) != names.indexOf(anchor) + 1)
                     throw new IllegalStateException("Outbound diagnostic boundary changed: " + names);
                 this.capture(bytes);
-            } catch (IOException | ReflectiveOperationException | RuntimeException failure) {
+            } catch (RuntimeException failure) {
                 this.recorder.fail("outbound.encoded", failure);
             }
         }
         context.write(message, promise);
     }
 
-    private void capture(ByteBuf bytes) throws IOException, ReflectiveOperationException {
-        PacketDataSerializer input = new PacketDataSerializer(bytes.duplicate());
-        int protocolId = input.e();
-        Constructor<? extends Packet> constructor = this.types.get(protocolId);
-        if (constructor == null) return;
+    private void capture(ByteBuf bytes) {
+        ByteBuf input = bytes.duplicate();
+        int protocolId = net.minecraft.network.VarInt.read(input.duplicate());
         if (bytes.readableBytes() > 2 * 1024 * 1024)
             throw new IllegalArgumentException("Encoded diagnostic packet exceeds 2 MiB");
-        Packet packet = constructor.newInstance();
-        packet.a(input);
+        Packet<?> packet = protocol.codec().decode(input);
         if (input.isReadable()) throw new IllegalArgumentException("Trailing bytes in encoded " + packet.getClass().getSimpleName());
         if (!this.selection.relevant(this.observer, packet, true)) return;
         Map<String, Object> fields = new LinkedHashMap<>();

@@ -28,10 +28,10 @@ class HandHasItemValidator : Validator<CommandSender> {
         val handHasItem = meta.meta().get(metaKey, meta.parentMeta()?.meta()?.get(metaKey, null))
             ?: return Flow.continueFlow()
         val player = inv.sender() as Player
-        if (handHasItem.mythic && Utils.getMythicItem(player.itemInHand) == null) {
+        if (handHasItem.mythic && Utils.getMythicItem(player.inventory.itemInMainHand) == null) {
             return Flow.stopCurrentFlow("§c请手持神话物品!")
         }
-        if (player.itemInHand.isAir()) {
+        if (player.inventory.itemInMainHand.isAir()) {
             return Flow.stopCurrentFlow("§c请手持物品!")
         }
         return Flow.continueFlow()

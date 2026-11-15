@@ -1,36 +1,18 @@
 package net.mizukilab.pit.util.worldedit;
 
-import com.sk89q.worldedit.Vector;
-import com.sk89q.worldedit.WorldEditException;
-import com.sk89q.worldedit.blocks.BaseBlock;
 import com.sk89q.worldedit.extent.Extent;
-import com.sk89q.worldedit.patterns.Pattern;
+import com.sk89q.worldedit.function.pattern.Pattern;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.world.block.BaseBlock;
 
-public class JustAirBlockPattern implements Pattern {
-
-    private BaseBlock block;
-
-    public JustAirBlockPattern(BaseBlock block) {
-        this.block = block;
-    }
-
-    public BaseBlock getBlock() {
-        return this.block;
-    }
-
-    @Override
-    public boolean apply(Extent extent, Vector setPosition, Vector getPosition) throws WorldEditException {
-        if (!extent.getBlock(getPosition).isAir()) {
-            return false;
-        }
-        return extent.setBlock(setPosition, this.next(getPosition));
-    }
-
-    public BaseBlock next(Vector position) {
-        return this.block;
-    }
-
-    public BaseBlock next(int x, int y, int z) {
-        return this.block;
+/** Reads the original block through the edit session so solid blocks are retained. */
+public final class JustAirBlockPattern implements Pattern {
+    private final Extent extent;
+    private final BaseBlock block;
+    public JustAirBlockPattern(Extent extent, BaseBlock block) { this.extent = extent; this.block = block; }
+    public BaseBlock getBlock() { return block; }
+    @Override public BaseBlock applyBlock(BlockVector3 position) {
+        BaseBlock existing = extent.getFullBlock(position);
+        return existing.getBlockType().getMaterial().isAir() ? block : existing;
     }
 }

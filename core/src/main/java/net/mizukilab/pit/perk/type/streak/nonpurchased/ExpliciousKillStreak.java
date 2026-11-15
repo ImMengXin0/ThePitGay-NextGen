@@ -37,7 +37,7 @@ public class ExpliciousKillStreak extends AbstractPerk implements Listener {
 
     @Override
     public Material getIcon() {
-        return Material.EXP_BOTTLE;
+        return Material.EXPERIENCE_BOTTLE;
     }
 
     @Override

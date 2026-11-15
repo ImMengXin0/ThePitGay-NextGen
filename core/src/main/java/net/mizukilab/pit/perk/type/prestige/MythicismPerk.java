@@ -30,7 +30,7 @@ public class MythicismPerk extends AbstractPerk {
 
     @Override
     public Material getIcon() {
-        return Material.ENCHANTMENT_TABLE;
+        return Material.ENCHANTING_TABLE;
     }
 
     @Override

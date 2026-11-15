@@ -4,7 +4,7 @@ import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.data.PlayerProfile;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import lombok.SneakyThrows;
-import net.minecraft.server.v1_8_R3.*;
+import net.minecraft.nbt.*;
 import net.mizukilab.pit.config.PitWorldConfig;
 import net.mizukilab.pit.data.operator.PackedOperator;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
@@ -28,7 +28,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -48,35 +48,16 @@ public class Utils {
             float g,
             float b
     ) {
-        CraftPlayer craftPlayer = (CraftPlayer) player;
-        World world = craftPlayer.getHandle().world;
-
-        if(world instanceof WorldServer e){
-            EntityTrackerEntry entityTrackerEntry = e.tracker.trackedEntities.get(craftPlayer.getEntityId());
-            if(entityTrackerEntry == null){
-                return;
-            }
-            PacketPlayOutWorldParticles packet = new PacketPlayOutWorldParticles(
-                    EnumParticle.REDSTONE,
-                    true,
-                    (float) location.getX(),
-                    (float) location.getY(),
-                    (float) location.getZ(),
-                    r / 255,
-                    g / 255,
-                    b / 255,
-                    1.0f,
-                    0
-            );
-            entityTrackerEntry.broadcastIncludingSelf(packet);
-        }
+        player.getWorld().spawnParticle(org.bukkit.Particle.DUST, location, 1, 0, 0, 0, 0,
+                new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(
+                        Math.clamp((int) r, 0, 255), Math.clamp((int) g, 0, 255), Math.clamp((int) b, 0, 255)), 1));
     }
     /**
      * 需要Paper支持。
      *
      * @return
      */
-    public static net.minecraft.server.v1_8_R3.ItemStack toNMStackQuick(ItemStack item) {
+    public static net.minecraft.world.item.ItemStack toNMStackQuick(ItemStack item) {
         return PublicUtil.toNMStackQuick(item);
     }
     public static long toUnsignedInt(int data){
@@ -115,10 +96,10 @@ public class Utils {
      * 原理: Enchantment NBT always prepend number at the last char
      */
     @SneakyThrows
-    public static void readEnchantments(Object2IntMap<AbstractEnchantment> ment, NBTTagList nbtTagList) {
+    public static void readEnchantments(Object2IntMap<AbstractEnchantment> ment, ListTag nbtTagList) {
         int size = nbtTagList.size();
         for (int i = 0; i < size; i++) {
-            String s = nbtTagList.getString(i);
+            String s = nbtTagList.getStringOr(i, "");
             int length = s.length();
             int splitIndex = s.lastIndexOf(':',length - 2);
 
@@ -206,7 +187,7 @@ public class Utils {
     }
 
     public static String dumpNBTOnString(ItemStack stack) {
-        NBTTagCompound tag = Utils.toNMStackQuick(stack).getTag();
+        CompoundTag tag = cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(stack));
         return tag.toString();
     }
 
@@ -221,8 +202,7 @@ public class Utils {
         return getMythicItem0(item);
     }
     public static void playBlockBreak(Location location, Material material) {
-        PacketPlayOutWorldEvent ppowe = new PacketPlayOutWorldEvent(2001, new BlockPosition(location.getX(), location.getY(), location.getZ()), material.getId(), false);
-        Bukkit.getOnlinePlayers().forEach(p -> ((CraftPlayer)p).getHandle().playerConnection.sendPacket(ppowe));
+        location.getWorld().playEffect(location, org.bukkit.Effect.STEP_SOUND, material);
     }
     public static PackedOperator constructUnsafeOperator(String searchName) {
         PlayerProfile playerProfile = PlayerProfile.loadPlayerProfileByName(searchName);

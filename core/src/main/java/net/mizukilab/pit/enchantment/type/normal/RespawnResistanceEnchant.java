@@ -51,6 +51,6 @@ public class RespawnResistanceEnchant extends AbstractEnchantment implements IPl
 
     @Override
     public void handleRespawn(int enchantLevel, Player myself) {
-        myself.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, (enchantLevel + 1) * 10 * 20, (enchantLevel >= 3 ? 1 : 0)), true);
+        myself.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, (enchantLevel + 1) * 10 * 20, (enchantLevel >= 3 ? 1 : 0)), true);
     }
 }

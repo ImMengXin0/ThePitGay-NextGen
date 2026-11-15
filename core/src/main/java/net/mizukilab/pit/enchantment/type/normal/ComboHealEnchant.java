@@ -13,7 +13,7 @@ import net.mizukilab.pit.util.cooldown.Cooldown;
 import com.google.common.util.concurrent.AtomicDouble;
 import nya.Skip;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
@@ -65,10 +65,10 @@ public class ComboHealEnchant extends AbstractEnchantment implements IAttackEnti
     @Override
     public void handleAttackEntity(int enchantLevel, Player attacker, Entity target, double damage, AtomicDouble finalDamage, AtomicDouble boostDamage, AtomicBoolean cancel) {
         if (PlayerProfile.getPlayerProfileByUuid(attacker.getUniqueId()).getMeleeHit() % 4 == 0) {
-            float heart = (((CraftPlayer) attacker).getHandle()).getAbsorptionHearts();
+            float heart = (((CraftPlayer) attacker).getHandle()).getAbsorptionAmount();
             float heal = enchantLevel * 0.8F;
             if (heart <= heal) {
-                (((CraftPlayer) attacker).getHandle()).setAbsorptionHearts(Math.min(heart + heal, heal));
+                (((CraftPlayer) attacker).getHandle()).setAbsorptionAmount(Math.min(heart + heal, heal));
             }
             PlayerUtil.heal(attacker, 0.8 * enchantLevel);
         }
@@ -78,10 +78,10 @@ public class ComboHealEnchant extends AbstractEnchantment implements IAttackEnti
     @net.mizukilab.pit.parm.type.BowOnly
     public void handleShootEntity(int enchantLevel, Player attacker, Entity target, double damage, AtomicDouble finalDamage, AtomicDouble boostDamage, AtomicBoolean cancel) {
         if (PlayerProfile.getPlayerProfileByUuid(attacker.getUniqueId()).getBowHit() % 4 == 0) {
-            float heart = (((CraftPlayer) attacker).getHandle()).getAbsorptionHearts();
+            float heart = (((CraftPlayer) attacker).getHandle()).getAbsorptionAmount();
             float heal = enchantLevel * 0.8F;
             if (heart <= heal) {
-                (((CraftPlayer) attacker).getHandle()).setAbsorptionHearts(Math.min(heart + heal, heal));
+                (((CraftPlayer) attacker).getHandle()).setAbsorptionAmount(Math.min(heart + heal, heal));
             }
             PlayerUtil.heal(attacker, 0.8 * enchantLevel);
         }

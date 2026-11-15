@@ -35,7 +35,7 @@ public class BowBoostPerk extends AbstractPerk implements IPlayerShootEntity {
 
     @Override
     public Material getIcon() {
-        return Material.getMaterial(351);
+        return Material.INK_SAC;
     }
 
     @Override

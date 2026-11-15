@@ -1,15 +1,15 @@
 package cn.mythicland.framework.bukkit.diagnostics;
 
 import java.lang.reflect.Array;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
-import net.minecraft.server.v1_8_R3.DataWatcher;
-import net.minecraft.server.v1_8_R3.GenericAttributes;
-import net.minecraft.server.v1_8_R3.MinecraftServer;
-import net.minecraft.server.v1_8_R3.NBTTagCompound;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.nbt.CompoundTag;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
-import org.bukkit.craftbukkit.v1_8_R3.util.CraftMagicNumbers;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -63,7 +63,7 @@ final class DiagnosticSnapshot {
         if (options.captures(DiagnosticOptions.PacketGroup.HEALTH)) {
             out.put("health", player.getHealth());
             out.put("maxHealth", player.getMaxHealth());
-            out.put("absorption", ((CraftPlayer) player).getHandle().getAbsorptionHearts());
+            out.put("absorption", ((CraftPlayer) player).getHandle().getAbsorptionAmount());
             out.put("dead", player.isDead());
         }
         if (options.captures(DiagnosticOptions.PacketGroup.EQUIPMENT)) {
@@ -71,7 +71,7 @@ final class DiagnosticSnapshot {
             out.put("hand", value(player.getItemInHand(), 0, new IdentityHashMap<>(), remaining));
             out.put("armor", value(player.getInventory().getArmorContents(), 0, new IdentityHashMap<>(), remaining));
         }
-        if (options.captures(DiagnosticOptions.PacketGroup.LATENCY)) out.put("ping", ((CraftPlayer) player).getHandle().ping);
+        if (options.captures(DiagnosticOptions.PacketGroup.LATENCY)) out.put("ping", player.getPing());
         return out;
     }
 
@@ -100,7 +100,7 @@ final class DiagnosticSnapshot {
     }
 
     private static Map<String, Object> player(Player player, boolean equipment, int[] remaining) {
-        EntityPlayer handle = ((CraftPlayer) player).getHandle();
+        ServerPlayer handle = ((CraftPlayer) player).getHandle();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("uuid", player.getUniqueId().toString());
         out.put("name", player.getName());
@@ -110,20 +110,20 @@ final class DiagnosticSnapshot {
         out.put("eye", location(player.getEyeLocation()));
         out.put("velocity", vector(player.getVelocity()));
         out.put("bounds", List.of(
-                handle.getBoundingBox().a,
-                handle.getBoundingBox().b,
-                handle.getBoundingBox().c,
-                handle.getBoundingBox().d,
-                handle.getBoundingBox().e,
-                handle.getBoundingBox().f
+                handle.getBoundingBox().minX,
+                handle.getBoundingBox().minY,
+                handle.getBoundingBox().minZ,
+                handle.getBoundingBox().maxX,
+                handle.getBoundingBox().maxY,
+                handle.getBoundingBox().maxZ
         ));
         out.put("health", player.getHealth());
         out.put("maxHealth", player.getMaxHealth());
-        out.put("absorption", handle.getAbsorptionHearts());
-        out.put("noDamageTicks", handle.noDamageTicks);
-        out.put("maximumNoDamageTicks", handle.maxNoDamageTicks);
-        out.put("lastDamage", handle.lastDamage);
-        out.put("hurtTicks", handle.hurtTicks);
+        out.put("absorption", handle.getAbsorptionAmount());
+        out.put("noDamageTicks", player.getNoDamageTicks());
+        out.put("maximumNoDamageTicks", player.getMaximumNoDamageTicks());
+        out.put("lastDamage", player.getLastDamage());
+        out.put("hurtTicks", handle.hurtTime);
         out.put("fallDistance", player.getFallDistance());
         out.put("onGround", player.isOnGround());
         out.put("sprint", player.isSprinting());
@@ -133,10 +133,10 @@ final class DiagnosticSnapshot {
         out.put("gameMode", player.getGameMode().name());
         out.put("flying", player.isFlying());
         out.put("vehicle", player.getVehicle() == null ? null : player.getVehicle().getUniqueId().toString());
-        out.put("water", handle.V());
-        out.put("climbing", handle.k_());
-        out.put("nativeAttack", handle.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).getValue());
-        out.put("ping", handle.ping);
+        out.put("water", player.isInWater());
+        out.put("climbing", player.isClimbing());
+        out.put("nativeAttack", handle.getAttributeValue(Attributes.ATTACK_DAMAGE));
+        out.put("ping", player.getPing());
         out.put("slot", player.getInventory().getHeldItemSlot());
         ItemStack hand = player.getItemInHand();
         out.put("hand", equipment ? value(hand, 0, new IdentityHashMap<>(), remaining) : hand == null ? "AIR" : hand.getType().name());
@@ -186,21 +186,18 @@ final class DiagnosticSnapshot {
         return (Map<String, Object>) value(packet, 0, new IdentityHashMap<>(), new int[]{512, 8192, nbt ? 1 : 0});
     }
 
-    static Map<String, Object> item(net.minecraft.server.v1_8_R3.ItemStack item, boolean nbt) {
-        return item(item, new int[]{512, 8192, nbt ? 1 : 0});
+    static Map<String, Object> item(net.minecraft.world.item.ItemStack item, boolean nbt) {
+        return item(CraftItemStack.asBukkitCopy(item), new int[]{512, 8192, nbt ? 1 : 0});
     }
 
-    private static Map<String, Object> item(net.minecraft.server.v1_8_R3.ItemStack item, int[] remaining) {
+    private static Map<String, Object> item(ItemStack item, int[] remaining) {
         if (item == null) return Map.of("type", "AIR");
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("type", CraftMagicNumbers.getMaterial(item.getItem()).name());
-        out.put("amount", item.count);
-        out.put("damage", item.getData());
-        if (remaining.length == 2 || remaining[2] != 0) {
-            NBTTagCompound tag = new NBTTagCompound();
-            item.save(tag);
-            out.put("nbt", limited(tag.toString(), remaining));
-        }
+        out.put("type", item.getType().name());
+        out.put("amount", item.getAmount());
+        out.put("damage", item.getDurability());
+        if (remaining.length == 2 || remaining[2] != 0)
+            out.put("nbt", limited(java.util.Base64.getEncoder().encodeToString(item.serializeAsBytes()), remaining));
         return out;
     }
 
@@ -218,13 +215,11 @@ final class DiagnosticSnapshot {
         try {
             if (object instanceof Location location) return location(location);
             if (object instanceof Vector vector) return vector(vector);
-            if (object instanceof net.minecraft.server.v1_8_R3.ItemStack item) return item(item, remaining);
-            if (object instanceof DataWatcher watcher) return value(watcher.c(), depth + 1, seen, remaining);
-            if (object instanceof DataWatcher.WatchableObject watched) {
+            if (object instanceof net.minecraft.world.item.ItemStack item) return item(CraftItemStack.asBukkitCopy(item), remaining);
+            if (object instanceof SynchedEntityData.DataValue<?> watched) {
                 Map<String, Object> out = new LinkedHashMap<>();
-                out.put("index", watched.a());
-                out.put("type", watched.c());
-                out.put("value", value(watched.b(), depth + 1, seen, remaining));
+                out.put("index", watched.id());
+                out.put("value", value(watched.value(), depth + 1, seen, remaining));
                 return out;
             }
             if (object instanceof Entity entity) {
@@ -249,7 +244,7 @@ final class DiagnosticSnapshot {
                 return out;
             }
             if (object instanceof ItemStack item) {
-                return item(CraftItemStack.asNMSCopy(item), remaining);
+                return item(item, remaining);
             }
             if (object instanceof Map<?, ?> map) {
                 Map<String, Object> out = new LinkedHashMap<>();

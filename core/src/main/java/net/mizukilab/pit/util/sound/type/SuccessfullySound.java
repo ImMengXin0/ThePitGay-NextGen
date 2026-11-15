@@ -18,11 +18,11 @@ public class SuccessfullySound extends AbstractPitSound {
     @Override
     public void onSoundTick(Player player, int tick) {
         if (tick == 0 || tick == 1 || tick == 2) {
-            player.playSound(player.getLocation(), Sound.NOTE_PIANO, 1, 0.95F);
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HARP, 1, 0.95F);
         } else if (tick == 4 || tick == 5 || tick == 6) {
-            player.playSound(player.getLocation(), Sound.NOTE_PIANO, 1, 1.05F);
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HARP, 1, 1.05F);
         } else if (tick == 8 || tick == 9 || tick == 10) {
-            player.playSound(player.getLocation(), Sound.NOTE_PIANO, 1, 1.15F);
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HARP, 1, 1.15F);
         } else if (tick > 10) {
             this.end(player);
         }

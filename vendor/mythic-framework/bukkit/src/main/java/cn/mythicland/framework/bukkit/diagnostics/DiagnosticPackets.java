@@ -12,7 +12,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -40,7 +40,7 @@ final class DiagnosticPackets implements AutoCloseable {
             PacketType.Play.Server.ENTITY_HEAD_ROTATION, PacketType.Play.Server.ENTITY_METADATA, PacketType.Play.Server.UPDATE_ATTRIBUTES,
             PacketType.Play.Server.ENTITY_EFFECT, PacketType.Play.Server.REMOVE_ENTITY_EFFECT, PacketType.Play.Server.HELD_ITEM_SLOT,
             PacketType.Play.Server.ENTITY_EQUIPMENT, PacketType.Play.Server.KEEP_ALIVE, PacketType.Play.Server.TRANSACTION,
-            PacketType.Play.Server.NAMED_ENTITY_SPAWN, PacketType.Play.Server.ENTITY_DESTROY, PacketType.Play.Server.RESPAWN,
+            PacketType.Play.Server.SPAWN_ENTITY, PacketType.Play.Server.ENTITY_DESTROY, PacketType.Play.Server.RESPAWN,
             PacketType.Play.Server.SCOREBOARD_SCORE, PacketType.Play.Server.SCOREBOARD_OBJECTIVE,
             PacketType.Play.Server.SCOREBOARD_DISPLAY_OBJECTIVE, PacketType.Play.Server.SCOREBOARD_TEAM,
             PacketType.Play.Server.UPDATE_HEALTH, PacketType.Play.Server.PLAYER_INFO
@@ -75,7 +75,7 @@ final class DiagnosticPackets implements AutoCloseable {
         if (!options.includes(DiagnosticOptions.Detail.PROTOCOL)) return;
         try {
             for (ListenerPriority priority : new ListenerPriority[]{ListenerPriority.LOWEST, ListenerPriority.MONITOR}) {
-                PacketAdapter listener = new PacketAdapter(PacketAdapter.params(plugin, TYPES).listenerPriority(priority).optionAsync()) {
+                PacketAdapter listener = new PacketAdapter(PacketAdapter.params(plugin, java.util.Arrays.stream(TYPES).filter(PacketType::isSupported).toArray(PacketType[]::new)).listenerPriority(priority).optionAsync()) {
                     @Override
                     public void onPacketReceiving(PacketEvent event) {
                         capture(event, "receive", priority);
@@ -99,7 +99,7 @@ final class DiagnosticPackets implements AutoCloseable {
     void connect(Player player) {
         if (this.closed || (!this.targets.contains(player.getUniqueId()) && !this.observers.contains(player.getUniqueId()))) return;
         if (this.targets.contains(player.getUniqueId())) this.selection.track(player);
-        Channel channel = ((CraftPlayer) player).getHandle().playerConnection.networkManager.channel;
+        Channel channel = ((CraftPlayer) player).getHandle().connection.connection.channel;
         if (!channel.isActive()) return;
         Channel previous = this.channels.put(player.getUniqueId(), channel);
         if (previous == channel) return;

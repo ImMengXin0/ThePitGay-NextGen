@@ -128,7 +128,7 @@ public class FightOrFlightKillStreak extends AbstractPerk implements Listener, I
         if (Math.floor(event.getFrom()) % streak != 0 && Math.floor(event.getTo()) % streak == 0) {
             if (myself.getHealth() / myself.getMaxHealth() < 0.5) {
                 myself.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * 8, 0), true);
-                myself.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 20 * 8, 0), true);
+                myself.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 8, 0), true);
             } else {
                 strength.put(myself.getUniqueId(), new Cooldown(8, TimeUnit.SECONDS));
             }

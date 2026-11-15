@@ -4,10 +4,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.mizukilab.pit.util.callback.Callback;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -79,9 +75,15 @@ public final class TimeUtil {
     }
 
     public static void checkHoliday(Callback<Boolean> holiday) throws IOException {
-        CloseableHttpClient client = HttpClientBuilder.create().build();
-        final HttpGet get = new HttpGet("http://timor.tech/api/holiday/year");
-        final String result = EntityUtils.toString(client.execute(get).getEntity());
+        final String result;
+        try (var client = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(10)).build()) {
+            var request = java.net.http.HttpRequest.newBuilder(java.net.URI.create("https://timor.tech/api/holiday/year"))
+                    .timeout(java.time.Duration.ofSeconds(15)).GET().build();
+            result = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString()).body();
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Holiday lookup interrupted", interrupted);
+        }
 
         final JsonObject json = parse.parse(result).getAsJsonObject();
         final JsonObject holi = json.get("holiday").getAsJsonObject();

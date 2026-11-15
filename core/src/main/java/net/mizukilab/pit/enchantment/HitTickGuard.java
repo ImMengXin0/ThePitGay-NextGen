@@ -1,7 +1,7 @@
 package net.mizukilab.pit.enchantment;
 
 import cn.charlotte.pit.ThePit;
-import net.minecraft.server.v1_8_R3.MinecraftServer;
+import net.minecraft.server.MinecraftServer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;

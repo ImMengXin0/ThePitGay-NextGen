@@ -5,9 +5,9 @@ import cn.charlotte.pit.api.PitInternalHook;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.PlayerWarehouse;
 import cn.charlotte.pit.data.sub.PlayerEnderChest;
-import net.minecraft.server.v1_8_R3.DispenserRegistry;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.NBTTagCompound;
+import net.minecraft.server.Bootstrap;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.nbt.CompoundTag;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
 import net.mizukilab.pit.config.PitWorldConfig;
 import net.mizukilab.pit.impl.PitInternalImpl;
@@ -29,8 +29,8 @@ import net.mizukilab.pit.util.menu.Button;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Server;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemFactory;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -73,7 +73,7 @@ public class AngelBootsIntegrationTest {
         // Vanilla attribute initialization calls a removed commons-lang overload on the test classpath.
         // These item tests need the real item/NBT registry, but do not evaluate vanilla attributes.
         try (MockedConstruction<AttributeModifier> modifiers = mockConstruction(AttributeModifier.class)) {
-            DispenserRegistry.c();
+            net.mizukilab.pit.PaperTestBootstrap.initialize();
         }
         finally { System.setOut(out); System.setErr(err); }
     }
@@ -82,7 +82,7 @@ public class AngelBootsIntegrationTest {
     public void setUpCore() {
         warehouses = mockConstruction(PlayerWarehouse.class);
         enderChests = mockConstruction(PlayerEnderChest.class);
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getItemFactory).thenReturn(CraftItemFactory.instance());
         Server server = mock(Server.class, RETURNS_DEEP_STUBS);
         bukkit.when(Bukkit::getServer).thenReturn(server);
@@ -126,12 +126,12 @@ public class AngelBootsIntegrationTest {
         assertTrue(boots.getItemMeta().getLore().get(0).contains("100§7/100"));
         assertTrue(boots.getItemMeta().getLore().stream().anyMatch(line -> line.contains("-10%")));
         assertEquals("angel_boots", ItemUtil.getInternalName(boots));
-        NBTTagCompound extra = ItemUtil.getExtra(boots), chestExtra = ItemUtil.getExtra(chestplate);
+        CompoundTag extra = ItemUtil.getExtra(boots), chestExtra = ItemUtil.getExtra(chestplate);
         for (String key : List.of("deathDrop", "tradeAllow", "canTrade", "enderChest", "removeOnJoin")) {
-            assertTrue(key, extra.hasKey(key));
+            assertTrue(key, extra.contains(key));
             assertEquals(key, chestExtra.getBoolean(key), extra.getBoolean(key));
         }
-        assertTrue(Utils.toNMStackQuick(boots).getTag().getBoolean("Unbreakable"));
+        assertTrue(boots.getItemMeta().isUnbreakable());
         assertNotEquals(ItemUtil.getUUIDObj(chestplate), ItemUtil.getUUIDObj(boots));
     }
 
@@ -332,7 +332,7 @@ public class AngelBootsIntegrationTest {
                 assertNotNull("Slot " + entry.getKey(), item);
                 assertNotEquals(Material.AIR, item.getType());
                 if (entry.getKey() % 9 == 0) {
-                    assertEquals(Material.STAINED_GLASS_PANE, item.getType());
+                    assertEquals(Material.WHITE_STAINED_GLASS_PANE, item.getType());
                     PlayerInventory inventory = mock(PlayerInventory.class);
                     when(player.getInventory()).thenReturn(inventory);
                     entry.getValue().clicked(player, entry.getKey(), ClickType.LEFT, -1, item);
@@ -357,7 +357,7 @@ public class AngelBootsIntegrationTest {
                     "mythic_sword", "mythic_bow", "mythic_leggings", "armageddon_boots", "kings_helmet")));
             assertEquals(Material.OBSIDIAN, buttons.get(50).getButtonItem(player).getType());
             assertEquals(64, buttons.get(50).getButtonItem(player).getAmount());
-            assertEquals(Material.GOLD_PICKAXE, buttons.get(24).getButtonItem(player).getType());
+            assertEquals(Material.GOLDEN_PICKAXE, buttons.get(24).getButtonItem(player).getType());
         }
     }
 }

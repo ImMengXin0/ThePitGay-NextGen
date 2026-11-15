@@ -20,7 +20,7 @@ public class JumpBoostPotion {
                 .internalName("jump_boost_4_potion")
                 .canSaveToEnderChest(true)
                 .deathDrop(true)
-                .addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 30 * 20, 3), true)
+                .addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 30 * 20, 3), true)
                 .shiny()
                 .build();
     }

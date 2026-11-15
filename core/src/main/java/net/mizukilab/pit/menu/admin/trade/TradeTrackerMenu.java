@@ -92,10 +92,10 @@ public class TradeTrackerMenu extends Menu {
         buttonMap.put(47, new Button() {
             @Override
             public ItemStack getButtonItem(Player player) {
-                return recentOnly ? new ItemBuilder(Material.WATCH)
+                return recentOnly ? new ItemBuilder(Material.CLOCK)
                         .name("&a仅显示7天内交易记录")
                         .shiny()
-                        .build() : new ItemBuilder(Material.WATCH)
+                        .build() : new ItemBuilder(Material.CLOCK)
                         .name("&c仅显示7天内交易记录")
                         .build();
 

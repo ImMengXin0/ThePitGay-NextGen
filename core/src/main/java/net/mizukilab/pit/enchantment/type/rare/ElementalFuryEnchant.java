@@ -90,19 +90,19 @@ public class ElementalFuryEnchant extends AbstractEnchantment implements Listene
                 switch (elementType) {
                     case 0:
                         targetPlayer.setFireTicks((enchantLevel + 2) * 20);
-                        attacker.playSound(attacker.getLocation(), Sound.GHAST_FIREBALL, 0.8f, 1.2f);
+                        attacker.playSound(attacker.getLocation(), Sound.ENTITY_GHAST_SHOOT, 0.8f, 1.2f);
                         break;
                         
                     case 1:
-                        targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, (enchantLevel + 1) * 20, 1), true);
-                        attacker.playSound(attacker.getLocation(), Sound.GLASS, 1.0f, 0.8f);
+                        targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, (enchantLevel + 1) * 20, 1), true);
+                        attacker.playSound(attacker.getLocation(), Sound.BLOCK_GLASS_BREAK, 1.0f, 0.8f);
                         break;
                         
                     case 2:
                         targetPlayer.getWorld().strikeLightningEffect(targetPlayer.getLocation());
                         double lightningDamage = (enchantLevel * 0.5 + 1.5) * 2;
                         targetPlayer.damage(lightningDamage);
-                        attacker.playSound(attacker.getLocation(), Sound.AMBIENCE_THUNDER, 1.0f, 1.0f);
+                        attacker.playSound(attacker.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1.0f, 1.0f);
                         break;
                 }
                 

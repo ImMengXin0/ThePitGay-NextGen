@@ -36,7 +36,7 @@ public class BountyHunterPerk extends AbstractPerk implements IAttackEntity, IPl
 
     @Override
     public Material getIcon() {
-        return Material.GOLD_LEGGINGS;
+        return Material.GOLDEN_LEGGINGS;
     }
 
     @Override

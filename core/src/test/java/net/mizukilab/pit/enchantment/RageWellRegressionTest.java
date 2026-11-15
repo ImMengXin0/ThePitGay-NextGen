@@ -5,8 +5,8 @@ import cn.charlotte.pit.api.PitInternalHook;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.PlayerEnderChest;
 import cn.charlotte.pit.data.sub.PlayerWarehouse;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.DispenserRegistry;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.Bootstrap;
 import net.mizukilab.pit.enchantment.menu.MythicWellMenu;
 import net.mizukilab.pit.enchantment.menu.button.EnchantDisplayButton;
 import net.mizukilab.pit.enchantment.rarity.EnchantmentRarity;
@@ -27,8 +27,8 @@ import net.mizukilab.pit.util.random.RandomUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Server;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -73,7 +73,7 @@ public class RageWellRegressionTest {
     @BeforeClass
     public static void registerVanillaItems() {
         PrintStream out = System.out, err = System.err;
-        try (var attributes = mockConstruction(AttributeModifier.class)) { DispenserRegistry.c(); }
+        try (var attributes = mockConstruction(AttributeModifier.class)) { net.mizukilab.pit.PaperTestBootstrap.initialize(); }
         finally { System.setOut(out); System.setErr(err); }
     }
 
@@ -81,7 +81,7 @@ public class RageWellRegressionTest {
     public void setup() throws Exception {
         warehouses = mockConstruction(PlayerWarehouse.class);
         enderChests = mockConstruction(PlayerEnderChest.class);
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getItemFactory).thenReturn(CraftItemFactory.instance());
         Server server = mock(Server.class, RETURNS_DEEP_STUBS);
         bukkit.when(Bukkit::getServer).thenReturn(server);
@@ -247,7 +247,7 @@ public class RageWellRegressionTest {
     @Test
     public void factoryDoesNotChangeANormalUuidWhoseHashEqualsTheDefault() {
         UUID id = new UUID(2, 3);
-        ItemStack input = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(pants(id).toItemStack()).cloneItemStack());
+        ItemStack input = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(pants(id).toItemStack()).copy());
         assertEquals(id, items.getIMythicItem(input).getUuid());
         assertEquals(id, ItemUtil.getUUIDObj(input));
     }
@@ -256,7 +256,7 @@ public class RageWellRegressionTest {
     public void migratingIdentityCannotReturnThePreviousCachedResult() {
         UUID id = new UUID(0, 6758);
         primeOldResult(id);
-        ItemStack input = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(pants(id).toItemStack()).cloneItemStack());
+        ItemStack input = CraftItemStack.asCraftMirror(Utils.toNMStackQuick(pants(id).toItemStack()).copy());
         String previousVersion = PublicUtil.itemVersion;
         try {
             PublicUtil.itemVersion = "rage-review-uuid";

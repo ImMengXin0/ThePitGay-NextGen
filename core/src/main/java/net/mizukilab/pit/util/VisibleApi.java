@@ -1,12 +1,12 @@
 package net.mizukilab.pit.util;
 
-import net.minecraft.server.v1_8_R3.ItemStack;
-import net.minecraft.server.v1_8_R3.Packet;
-import net.minecraft.server.v1_8_R3.PacketPlayOutEntityEquipment;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.NameTagVisibility;
 import org.bukkit.scoreboard.Scoreboard;
@@ -20,15 +20,24 @@ import java.util.List;
  * @since 2025/1/17
  */
 public class VisibleApi {
+    private static final net.minecraft.world.entity.EquipmentSlot[] SLOTS = {
+        net.minecraft.world.entity.EquipmentSlot.MAINHAND, net.minecraft.world.entity.EquipmentSlot.FEET,
+        net.minecraft.world.entity.EquipmentSlot.LEGS, net.minecraft.world.entity.EquipmentSlot.CHEST,
+        net.minecraft.world.entity.EquipmentSlot.HEAD
+    };
+    private static ClientboundSetEquipmentPacket packet(Player player, int slot, ItemStack item) {
+        return new ClientboundSetEquipmentPacket(player.getEntityId(),
+                List.of(com.mojang.datafixers.util.Pair.of(SLOTS[slot], item)));
+    }
     private static void sendPacket(Player player, Packet<?> packet) {
-        ((CraftPlayer)player).getHandle().playerConnection.sendPacket(packet);
+        ((CraftPlayer)player).getHandle().connection.send(packet);
     }
 
     public static void hideArmor(Player player) {
         ItemStack nmsCopy = CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR));
         hideNameTag(player);
         for(int i = 1; i <= 4; ++i) {
-            PacketPlayOutEntityEquipment packet = new PacketPlayOutEntityEquipment(player.getEntityId(), i, nmsCopy);
+            ClientboundSetEquipmentPacket packet = packet(player, i, nmsCopy);
 
             for(Player target : Bukkit.getOnlinePlayers()) {
                 if (!target.equals(player)) {
@@ -76,15 +85,15 @@ public class VisibleApi {
         }
     }
     public static void showArmor(Player player) {
-        List<PacketPlayOutEntityEquipment> packets = new ArrayList();
-        packets.add(new PacketPlayOutEntityEquipment(player.getEntityId(), 1, CraftItemStack.asNMSCopy(player.getEquipment().getBoots())));
-        packets.add(new PacketPlayOutEntityEquipment(player.getEntityId(), 2, CraftItemStack.asNMSCopy(player.getEquipment().getLeggings())));
-        packets.add(new PacketPlayOutEntityEquipment(player.getEntityId(), 3, CraftItemStack.asNMSCopy(player.getEquipment().getChestplate())));
-        packets.add(new PacketPlayOutEntityEquipment(player.getEntityId(), 4, CraftItemStack.asNMSCopy(player.getEquipment().getHelmet())));
+        List<ClientboundSetEquipmentPacket> packets = new ArrayList();
+        packets.add(packet(player, 1, CraftItemStack.asNMSCopy(player.getEquipment().getBoots())));
+        packets.add(packet(player, 2, CraftItemStack.asNMSCopy(player.getEquipment().getLeggings())));
+        packets.add(packet(player, 3, CraftItemStack.asNMSCopy(player.getEquipment().getChestplate())));
+        packets.add(packet(player, 4, CraftItemStack.asNMSCopy(player.getEquipment().getHelmet())));
         showNameTag(player);
         for(Player target : Bukkit.getOnlinePlayers()) {
             if (!target.equals(player)) {
-                for(PacketPlayOutEntityEquipment packet : packets) {
+                for(ClientboundSetEquipmentPacket packet : packets) {
                     sendPacket(target, packet);
                 }
             }

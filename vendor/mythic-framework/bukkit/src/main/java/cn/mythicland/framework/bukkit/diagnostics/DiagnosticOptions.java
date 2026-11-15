@@ -63,50 +63,48 @@ public record DiagnosticOptions(Set<PacketGroup> packets, Set<Detail> details, i
 
     boolean inbound(String type) {
         return switch (type) {
-            case "PacketPlayInUseEntity", "PacketPlayInArmAnimation", "PacketPlayInBlockDig",
-                 "PacketPlayInBlockPlace" -> this.captures(PacketGroup.COMBAT);
-            case "PacketPlayInHeldItemSlot" -> this.captures(PacketGroup.COMBAT) || this.captures(PacketGroup.EQUIPMENT);
-            case "PacketPlayInFlying", "PacketPlayInPosition", "PacketPlayInPositionLook", "PacketPlayInLook" ->
+            case "ServerboundUseItemPacket", "ServerboundInteractPacket", "ServerboundSwingPacket", "ServerboundPlayerActionPacket",
+                 "ServerboundUseItemOnPacket" -> this.captures(PacketGroup.COMBAT);
+            case "ServerboundSetCarriedItemPacket" -> this.captures(PacketGroup.COMBAT) || this.captures(PacketGroup.EQUIPMENT);
+            case "StatusOnly", "Pos", "PosRot", "Rot" ->
                     this.captures(PacketGroup.MOVEMENT);
-            case "PacketPlayInEntityAction" -> this.captures(PacketGroup.COMBAT) || this.captures(PacketGroup.MOVEMENT);
-            case "PacketPlayInKeepAlive", "PacketPlayInTransaction" -> this.captures(PacketGroup.LATENCY);
+            case "ServerboundPlayerCommandPacket" -> this.captures(PacketGroup.COMBAT) || this.captures(PacketGroup.MOVEMENT);
+            case "ServerboundKeepAlivePacket", "ServerboundPongPacket" -> this.captures(PacketGroup.LATENCY);
             default -> false;
         };
     }
 
     boolean outbound(String type) {
         return switch (type) {
-            case "PacketPlayOutEntityVelocity", "PacketPlayOutEntityStatus", "PacketPlayOutAnimation",
-                 "PacketPlayOutExplosion" -> this.captures(PacketGroup.COMBAT);
-            case "PacketPlayOutPosition", "PacketPlayOutEntityTeleport", "PacketPlayOutRelEntityMove",
-                 "PacketPlayOutRelEntityMoveLook", "PacketPlayOutEntityLook", "PacketPlayOutEntityHeadRotation" ->
+            case "ClientboundSetEntityMotionPacket", "ClientboundEntityEventPacket", "ClientboundAnimatePacket",
+                 "ClientboundExplodePacket" -> this.captures(PacketGroup.COMBAT);
+            case "ClientboundPlayerPositionPacket", "ClientboundTeleportEntityPacket", "Pos",
+                 "PosRot", "Rot", "ClientboundRotateHeadPacket" ->
                     this.captures(PacketGroup.MOVEMENT);
-            case "PacketPlayOutEntityMetadata" -> this.captures(PacketGroup.HEALTH)
+            case "ClientboundSetEntityDataPacket" -> this.captures(PacketGroup.HEALTH)
                     || this.captures(PacketGroup.VISIBILITY) || this.captures(PacketGroup.COMBAT);
-            case "PacketPlayOutUpdateAttributes", "PacketPlayOutEntityEffect", "PacketPlayOutRemoveEntityEffect" ->
+            case "ClientboundUpdateAttributesPacket", "ClientboundUpdateMobEffectPacket", "ClientboundRemoveMobEffectPacket" ->
                     this.captures(PacketGroup.COMBAT) || this.captures(PacketGroup.HEALTH);
-            case "PacketPlayOutHeldItemSlot", "PacketPlayOutEntityEquipment" ->
+            case "ClientboundSetHeldSlotPacket", "ClientboundSetEquipmentPacket" ->
                     this.captures(PacketGroup.EQUIPMENT) || this.captures(PacketGroup.COMBAT);
-            case "PacketPlayOutUpdateHealth", "PacketPlayOutScoreboardScore", "PacketPlayOutScoreboardObjective",
-                 "PacketPlayOutScoreboardDisplayObjective" -> this.captures(PacketGroup.HEALTH);
-            case "PacketPlayOutNamedEntitySpawn", "PacketPlayOutEntityDestroy", "PacketPlayOutRespawn" ->
+            case "ClientboundSetHealthPacket", "ClientboundSetScorePacket", "ClientboundSetObjectivePacket",
+                 "ClientboundSetDisplayObjectivePacket" -> this.captures(PacketGroup.HEALTH);
+            case "ClientboundAddEntityPacket", "ClientboundRemoveEntitiesPacket", "ClientboundRespawnPacket" ->
                     this.captures(PacketGroup.VISIBILITY) || this.captures(PacketGroup.EQUIPMENT)
                             || this.captures(PacketGroup.HEALTH);
-            case "PacketPlayOutPlayerInfo", "PacketPlayOutScoreboardTeam" -> this.captures(PacketGroup.VISIBILITY);
-            case "PacketPlayOutKeepAlive", "PacketPlayOutTransaction" -> this.captures(PacketGroup.LATENCY);
+            case "ClientboundPlayerInfoUpdatePacket", "ClientboundPlayerInfoRemovePacket", "ClientboundSetPlayerTeamPacket" -> this.captures(PacketGroup.VISIBILITY);
+            case "ClientboundKeepAlivePacket", "ClientboundPingPacket" -> this.captures(PacketGroup.LATENCY);
             default -> false;
         };
     }
 
     boolean frame(int protocolId) {
-        return switch (protocolId) {
-            case 0, 15 -> this.captures(PacketGroup.LATENCY);
-            case 2, 7, 8, 10 -> this.captures(PacketGroup.COMBAT);
-            case 9 -> this.captures(PacketGroup.COMBAT) || this.captures(PacketGroup.EQUIPMENT);
-            case 3, 4, 5, 6 -> this.captures(PacketGroup.MOVEMENT);
-            case 11 -> this.captures(PacketGroup.COMBAT) || this.captures(PacketGroup.MOVEMENT);
-            default -> false;
-        };
+        try {
+            var type = com.comphenix.protocol.PacketType.findCurrent(
+                    com.comphenix.protocol.PacketType.Protocol.PLAY,
+                    com.comphenix.protocol.PacketType.Sender.CLIENT, protocolId);
+            return type != null && type.getPacketClass() != null && inbound(type.getPacketClass().getSimpleName());
+        } catch (IllegalArgumentException unknown) { return false; }
     }
 
     boolean event(String name) {

@@ -5,7 +5,11 @@ import cn.charlotte.pit.api.PitInternalHook;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.PlayerEnderChest;
 import cn.charlotte.pit.data.sub.PlayerWarehouse;
-import net.minecraft.server.v1_8_R3.*;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.server.Bootstrap;
 import net.mizukilab.pit.enchantment.*;
 import net.mizukilab.pit.enchantment.info.EnchantRequest;
 import net.mizukilab.pit.enchantment.param.item.WeaponOnly;
@@ -27,7 +31,7 @@ import net.mizukilab.pit.util.menu.Menu;
 import org.bukkit.*;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.inventory.CraftItemFactory;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.Inventory;
@@ -64,15 +68,15 @@ public class AddonWorkshopIntegrationTest {
 
     @BeforeClass public static void vanilla() {
         PrintStream out = System.out, err = System.err;
-        try (var attributes = mockConstruction(AttributeModifier.class)) { DispenserRegistry.c(); }
+        try (var attributes = mockConstruction(AttributeModifier.class)) { net.mizukilab.pit.PaperTestBootstrap.initialize(); }
         finally { System.setOut(out); System.setErr(err); }
     }
 
     @Before public void setup() throws Exception {
         loader = new URLClassLoader(new URL[]{Path.of(System.getProperty("pitAddonJar")).toUri().toURL(),
                 Path.of(System.getProperty("pitAddonLoaderJar")).toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
-        bukkit = mockStatic(Bukkit.class);
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getItemFactory).thenReturn(CraftItemFactory.instance());
         bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
         bukkit.when(Bukkit::getScheduler).thenReturn(mock(BukkitScheduler.class));
@@ -103,11 +107,11 @@ public class AddonWorkshopIntegrationTest {
         doAnswer(c -> { contents[c.getArgument(0)] = c.getArgument(1); return null; })
                 .when(inventory).setItem(anyInt(), nullable(ItemStack.class));
         doAnswer(c -> {
-            int material = c.getArgument(0);
+            org.bukkit.Material material = c.getArgument(0);
             for (int i = 0; i < contents.length; i++)
-                if (contents[i] != null && contents[i].getTypeId() == material) contents[i] = null;
+                if (contents[i] != null && contents[i].getType() == material) contents[i] = null;
             return null;
-        }).when(inventory).remove(anyInt());
+        }).when(inventory).remove(any(org.bukkit.Material.class));
         Inventory menuInventory = mock(Inventory.class);
         when(menuInventory.getSize()).thenReturn(27);
         bukkit.when(() -> Bukkit.createInventory(player, 27, "附魔升级")).thenReturn(menuInventory);
@@ -120,6 +124,7 @@ public class AddonWorkshopIntegrationTest {
         profiles = mockStatic(PlayerProfile.class);
         profiles.when(() -> PlayerProfile.getRawCache(player.getUniqueId())).thenReturn(profile);
         profiles.when(() -> PlayerProfile.getPlayerProfileByUuid(player.getUniqueId())).thenReturn(profile);
+        net.mizukilab.pit.OptionalTestFixtures.require("pitAddonJar", "pitAddonLoaderJar");
         Class<? extends JavaPlugin> loaderType = loader.loadClass("cn.apnf.mistral.Loader").asSubclass(JavaPlugin.class);
         JavaPlugin addon = mock(loaderType);
         when(addon.getConfig()).thenReturn(new YamlConfiguration());
@@ -231,14 +236,14 @@ public class AddonWorkshopIntegrationTest {
         scrollEnchant();
         contents[1] = MythicBook.toItemStack(); contents[1].setAmount(4);
         // Parsing may repair the legacy derived UUID tags, but no gameplay data may change.
-        NBTTagCompound before = (NBTTagCompound) Utils.toNMStackQuick(contents[0]).getTag().clone();
+        CompoundTag before = (CompoundTag) cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(contents[0])).copy();
         UUID id = ItemUtil.getUUIDObj(contents[0]);
-        ItemUtil.updateMagic(before.getCompound("extra"), id);
+        ItemUtil.updateMagic(before.getCompoundOrEmpty("extra"), id);
         click("EnchantUpgradeMenu", "UpgradeButton", normal, 2);
-        assertEquals(before, Utils.toNMStackQuick(contents[0]).getTag());
+        assertEquals(before, cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(contents[0])));
         assertEquals(4, contents[1].getAmount());
         click("EnchantUpgradeMenu", "UpgradeButton", rare, 3);
-        assertEquals(before, Utils.toNMStackQuick(contents[0]).getTag());
+        assertEquals(before, cn.mythicland.framework.bukkit.item.PaperItemData.custom(Utils.toNMStackQuick(contents[0])));
         assertEquals(4, contents[1].getAmount()); assertEquals(10000, profile.getCoins(), 0);
     }
 
@@ -281,8 +286,8 @@ public class AddonWorkshopIntegrationTest {
         IMythicItem refreshed = factory.getIMythicItem(edited);
         assertEquals(3, refreshed.getEnchantments().getInt(rare));
         assertSame(refreshed, factory.getIMythicItem(refreshed.toItemStack()));
-        NBTTagList list = new NBTTagList(); list.add(new NBTTagString(normal.getNbtName() + ":3"));
-        list.add(new NBTTagString(rare.getNbtName() + ":2"));
+        ListTag list = new ListTag(); list.add(StringTag.valueOf(normal.getNbtName() + ":3"));
+        list.add(StringTag.valueOf(rare.getNbtName() + ":2"));
         edited = new ItemBuilder(edited).changeNbtList("ench", list).build();
         assertEquals(2, factory.getIMythicItem(edited).getEnchantments().getInt(rare));
     }

@@ -33,7 +33,7 @@ public class EnchantmentTransactionTest extends net.mizukilab.pit.BukkitDataTest
     }
 
     private void runTransaction(boolean fail) throws Exception {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
              MockedStatic<ThePit> pit = mockStatic(ThePit.class);
              MockedStatic<Utils> utils = mockStatic(Utils.class);
              MockedStatic<InventoryUtil> inventory = mockStatic(InventoryUtil.class)) {
@@ -97,7 +97,7 @@ public class EnchantmentTransactionTest extends net.mizukilab.pit.BukkitDataTest
 
     @Test
     public void busyRequestFailsWithoutUnlockingAnotherOperation() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             Player player = mock(Player.class);
             when(player.isOnline()).thenReturn(true);

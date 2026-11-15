@@ -79,12 +79,12 @@ public class GuardianAngelEnchant extends AbstractEnchantment implements Listene
             double threshold = (15 + enchantLevel * 5) / 100.0;
             
             if (healthPercentage <= threshold) {
-                myself.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 100, 2), true);
+                myself.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 100, 2), true);
                 myself.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 160, 1), true);
                 myself.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 1), true);
                 PlayerUtil.heal(myself, enchantLevel * 1.0);
 
-                myself.playSound(myself.getLocation(), Sound.LEVEL_UP, 1.0f, 1.5f);
+                myself.playSound(myself.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
 
                 int cooldownSeconds = 45 - enchantLevel * 5;
                 cooldown.put(myself.getUniqueId(), new Cooldown(cooldownSeconds, TimeUnit.SECONDS));

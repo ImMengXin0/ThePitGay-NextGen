@@ -37,7 +37,7 @@ public class RepairExtendBinaryIntegrationTest {
         Path jar = Path.of(System.getProperty("repairExtendJar",
                 "../../ThePitRepairExTend/build/libs/ThePitRepairExTend-3.5.2.jar"));
         Assume.assumeTrue("Local extension fixture not available: " + jar.toAbsolutePath(), Files.isRegularFile(jar));
-        return new URLClassLoader(new URL[]{jar.toUri().toURL(), Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()},
+        return new URLClassLoader(new URL[]{jar.toUri().toURL(), Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()},
                 getClass().getClassLoader());
     }
 
@@ -92,7 +92,7 @@ public class RepairExtendBinaryIntegrationTest {
 
     @Test
     public void extensionNormalAndGiftMultipliersChangeActualCoreDeposits() throws Exception {
-        try (URLClassLoader loader = extension(); MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (URLClassLoader loader = extension(); MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             Class<?> mainType = loader.loadClass("cn.mx.thepitaddon.main.Main");
             Class<?> settingsType = loader.loadClass("cn.mx.thepitaddon.config.EnhancementSettings");
             Class<?> giftType = loader.loadClass("cn.mx.thepitaddon.feature.reward.GiftEventManager");

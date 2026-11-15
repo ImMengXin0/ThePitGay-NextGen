@@ -3,7 +3,7 @@ package net.mizukilab.pit.listener;
 import cn.charlotte.pit.ThePit;
 import cn.charlotte.pit.data.PlayerProfile;
 import com.google.common.util.concurrent.AtomicDouble;
-import net.minecraft.server.v1_8_R3.MinecraftServer;
+import net.minecraft.server.MinecraftServer;
 import net.mizukilab.pit.BukkitDataTestSupport;
 import net.mizukilab.pit.enchantment.*;
 import net.mizukilab.pit.enchantment.type.dark_rare.ComboDustEnchant;
@@ -67,8 +67,8 @@ public class HitTickCompatibilityTest extends BukkitDataTestSupport {
         extensions = new URLClassLoader(new URL[]{Path.of(System.getProperty("pitAddonJar")).toUri().toURL(),
                 Path.of(System.getProperty("pitAddonLoaderJar")).toUri().toURL(),
                 Path.of(System.getProperty("repairExtendJar")).toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
-        bukkit = mockStatic(Bukkit.class); bukkit.when(Bukkit::getServer).thenReturn(mock(Server.class, RETURNS_DEEP_STUBS));
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit(); bukkit.when(Bukkit::getServer).thenReturn(mock(Server.class, RETURNS_DEEP_STUBS));
         PluginManager manager = mock(PluginManager.class); bukkit.when(Bukkit::getPluginManager).thenReturn(manager);
         pit = mockStatic(ThePit.class); plugin = mock(ThePit.class); pit.when(ThePit::getInstance).thenReturn(plugin);
         when(plugin.isEnabled()).thenReturn(true);
@@ -126,6 +126,7 @@ public class HitTickCompatibilityTest extends BukkitDataTestSupport {
         for (RegisteredListener listener : event.getHandlers().getRegisteredListeners()) listener.callEvent(event);
     }
     private AbstractEnchantment addon(String name) throws Exception {
+        net.mizukilab.pit.OptionalTestFixtures.require("pitAddonJar", "pitAddonLoaderJar");
         return (AbstractEnchantment) extensions.loadClass("cn.apnf.mistral.enchantments." + name).getConstructor().newInstance();
     }
     private double attack(IAttackEntity enchant, Player owner, Entity target, boolean cancelled) throws Exception {
@@ -204,10 +205,7 @@ public class HitTickCompatibilityTest extends BukkitDataTestSupport {
     }
 
     @Test public void localCoreHitCounterRequiresFourSeparateTicks() throws Exception {
-        try (MockedStatic<Potion> potion = mockStatic(Potion.class)) {
-            PotionBrewer brewer = mock(PotionBrewer.class); potion.when(Potion::getBrewer).thenReturn(brewer);
-            when(brewer.createEffect(any(PotionEffectType.class), anyInt(), anyInt())).thenAnswer(call ->
-                    new PotionEffect(call.getArgument(0), call.getArgument(1), call.getArgument(2)));
+        {
             ComboDustEnchant dust = new ComboDustEnchant();
             for (int tick = 0; tick < 4; tick++) {
                 for (int i = 0; i < 30; i++) attack(dust, attacker, victim, false);
@@ -226,13 +224,14 @@ public class HitTickCompatibilityTest extends BukkitDataTestSupport {
             }
             MinecraftServer.currentTick++;
         }
-        verify(attacker, times(1)).playSound(any(Location.class), eq(Sound.WITHER_SHOOT), anyFloat(), anyFloat());
+        verify(attacker, times(1)).playSound(any(Location.class), eq(Sound.ENTITY_WITHER_SHOOT), anyFloat(), anyFloat());
     }
 
     @Test public void actualAddonComboAndRepairSpeedForceAreGuarded() throws Exception {
         AbstractEnchantment chaos = addon("normal.ComboChaosEnchant"); melee.get(attacker.getUniqueId()).set(4);
         for (int i = 0; i < 30; i++) attack((IAttackEntity) chaos, attacker, victim, false);
         verify(victim, times(2)).addPotionEffect(any(PotionEffect.class));
+        net.mizukilab.pit.OptionalTestFixtures.require("repairExtendJar");
         AbstractEnchantment speed = (AbstractEnchantment) extensions.loadClass("cn.mx.thepitaddon.enchantment.SpeedForceEnchant").getConstructor().newInstance();
         melee.get(attacker.getUniqueId()).set(2);
         for (int i = 0; i < 30; i++) attack((IAttackEntity) speed, attacker, victim, false);
@@ -275,12 +274,12 @@ public class HitTickCompatibilityTest extends BukkitDataTestSupport {
 
     @Test public void realAddonRawListenerIsReplacedAndOnlyGainsOneHasteStack() throws Exception {
         AbstractEnchantment frenzy = addon("normal.FrenzyStrikeEnchant");
-        ItemStack stack = new ItemStack(Material.GOLD_SWORD); when(attacker.getItemInHand()).thenReturn(stack);
+        ItemStack stack = new ItemStack(Material.GOLDEN_SWORD); when(attacker.getItemInHand()).thenReturn(stack);
         MythicSwordItem item = new MythicSwordItem(); item.getEnchantments().put(frenzy, 3);
         when(items.getItemFromStack(stack)).thenReturn(item);
         register((Listener) frenzy, addonPlugin); factor.registerEnchantment(frenzy);
         for (int i = 0; i < 30; i++) fire(new EntityDamageByEntityEvent(attacker, victim, EntityDamageEvent.DamageCause.ENTITY_ATTACK, 4D));
-        verify(attacker, times(1)).addPotionEffect(argThat(e -> e.getAmplifier() == 0 && e.getType().equals(PotionEffectType.FAST_DIGGING)), eq(true));
+        verify(attacker, times(1)).addPotionEffect(argThat(e -> e.getAmplifier() == 0 && e.getType().equals(PotionEffectType.HASTE)), eq(true));
         MinecraftServer.currentTick++;
         fire(new EntityDamageByEntityEvent(attacker, victim, EntityDamageEvent.DamageCause.ENTITY_ATTACK, 4D));
         verify(attacker, times(1)).addPotionEffect(argThat(e -> e.getAmplifier() == 1), eq(true));

@@ -5,7 +5,7 @@ import cn.charlotte.pit.api.PitInternalHook;
 import cn.charlotte.pit.event.PitPlayerSpawnEvent;
 import com.google.common.util.concurrent.AtomicDouble;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import net.minecraft.server.v1_8_R3.EntityArrow;
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.mizukilab.pit.BukkitDataTestSupport;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
@@ -15,7 +15,7 @@ import net.mizukilab.pit.item.type.mythic.MythicBowItem;
 import net.mizukilab.pit.parm.listener.IPlayerShootEntity;
 import net.mizukilab.pit.util.PlayerUtil;
 import org.bukkit.*;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftArrow;
+import org.bukkit.craftbukkit.entity.CraftArrow;
 import org.bukkit.entity.*;
 import org.bukkit.event.*;
 import org.bukkit.event.entity.*;
@@ -37,10 +37,14 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 /** Real Addon registration and Repair metadata/checker, with Bukkit event ordering and tick scheduling. */
+@org.junit.runner.RunWith(org.junit.runners.Parameterized.class)
 public class BowComboVolleyCompatibilityTest extends BukkitDataTestSupport {
+    @org.junit.runners.Parameterized.Parameters(name = "{0}")
+    public static List<Object[]> variants() { return List.of(new Object[]{"core"}, new Object[]{"addon"}); }
+    private final String variant;
+    public BowComboVolleyCompatibilityTest(String variant) { this.variant = variant; }
     private abstract static class TestArrow extends CraftArrow {
         TestArrow() { super(null, null); }
-        @Override public abstract org.bukkit.projectiles.ProjectileSource getShooter();
     }
     private record Scheduled(Runnable action, BukkitTask task) { }
     private URLClassLoader extensions;
@@ -61,8 +65,8 @@ public class BowComboVolleyCompatibilityTest extends BukkitDataTestSupport {
         extensions = new URLClassLoader(new URL[]{Path.of(System.getProperty("pitAddonJar")).toUri().toURL(),
                 Path.of(System.getProperty("pitAddonLoaderJar")).toUri().toURL(),
                 Path.of(System.getProperty("repairExtendJar")).toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
-        bukkit = mockStatic(Bukkit.class);
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getServer).thenReturn(mock(Server.class, RETURNS_DEEP_STUBS));
         PluginManager manager = mock(PluginManager.class);
         bukkit.when(Bukkit::getPluginManager).thenReturn(manager);
@@ -90,9 +94,13 @@ public class BowComboVolleyCompatibilityTest extends BukkitDataTestSupport {
         when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(call -> enqueue(call.getArgument(1)));
         doAnswer(call -> { register(call.getArgument(0), call.getArgument(1)); return null; })
                 .when(manager).registerEvents(any(Listener.class), any(Plugin.class));
-        source = (AbstractEnchantment) extensions.loadClass("cn.apnf.mistral.enchantments.normal.BowComboEnchant").getConstructor().newInstance();
-        // Addon first registers a separate listener, then installs its enchantment instance.
-        register((Listener) source.getClass().getConstructor().newInstance(), addonPlugin);
+        if (variant.equals("addon")) {
+            net.mizukilab.pit.OptionalTestFixtures.require("pitAddonJar", "pitAddonLoaderJar");
+            source = (AbstractEnchantment) extensions.loadClass("cn.apnf.mistral.enchantments.normal.BowComboEnchant").getConstructor().newInstance();
+            register((Listener) source.getClass().getConstructor().newInstance(), addonPlugin);
+        } else {
+            source = new net.mizukilab.pit.enchantment.type.normal.BowComboEnchant();
+        }
         factor.registerEnchantment(source);
         enchant = factor.getEnchantmentMap().get("bow_combo_enchant");
     }
@@ -121,7 +129,7 @@ public class BowComboVolleyCompatibilityTest extends BukkitDataTestSupport {
     private TestArrow arrow() {
         TestArrow arrow = mock(TestArrow.class);
         when(arrow.getUniqueId()).thenReturn(UUID.randomUUID()); when(arrow.getShooter()).thenReturn(shooter);
-        when(arrow.getHandle()).thenReturn(mock(EntityArrow.class));
+        when(arrow.getHandle()).thenReturn(mock(net.minecraft.world.entity.projectile.arrow.Arrow.class));
         Map<String, List<MetadataValue>> metadata = new HashMap<>();
         when(arrow.getMetadata(anyString())).thenAnswer(call -> metadata.getOrDefault(call.getArgument(0), List.of()));
         when(arrow.hasMetadata(anyString())).thenAnswer(call -> metadata.containsKey(call.getArgument(0)));
@@ -244,9 +252,9 @@ public class BowComboVolleyCompatibilityTest extends BukkitDataTestSupport {
 
     @Test public void quitDeathAndReplacementCancelPendingActivation() throws Exception {
         collide(shot(3), false); tick(); TestArrow arrow = shot(3); collide(arrow, false);
-        fire(new PlayerQuitEvent(shooter, null)); tick(); speed(3, 0); assertEquals("&e&l0/2", count(3));
+        fire(new PlayerQuitEvent(shooter, (String) null)); tick(); speed(3, 0); assertEquals("&e&l0/2", count(3));
         collide(shot(3), false); tick(); collide(shot(3), false);
-        fire(new PlayerDeathEvent(shooter, List.of(), 0, null)); tick(); speed(3, 0);
+        fire(new PlayerDeathEvent(shooter, mock(org.bukkit.damage.DamageSource.class), List.of(), 0, null)); tick(); speed(3, 0);
         collide(shot(3), false); tick(); collide(shot(3), false);
         BukkitTask pendingTask = scheduled.get(0).task(); factor.removeEnchantment(source); verify(pendingTask).cancel(); tick(); speed(3, 0);
     }
@@ -269,6 +277,7 @@ public class BowComboVolleyCompatibilityTest extends BukkitDataTestSupport {
     }
 
     @Test public void realRepairBridgeExtraArrowsAndDelayedCheckerDoNotDoubleCount() throws Exception {
+        net.mizukilab.pit.OptionalTestFixtures.require("repairExtendJar");
         Class<?> mainType = extensions.loadClass("cn.mx.thepitaddon.main.Main"); repairPlugin = (Plugin) mock(mainType);
         when(repairPlugin.isEnabled()).thenReturn(true);
         Class<?> managerType = extensions.loadClass("cn.mx.thepitaddon.enchantment.CoreEnchantRepairManager");

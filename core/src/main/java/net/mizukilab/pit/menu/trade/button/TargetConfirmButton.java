@@ -39,13 +39,13 @@ public class TargetConfirmButton extends Button {
         }
 
         if (confirm) {
-            return new ItemBuilder(Material.INK_SACK)
+            return new ItemBuilder(Material.INK_SAC)
                     .durability(10)
                     .name("&a对方已确认!")
                     .lore("&7你正在与玩家 " + display_name + " &7进行交易.", "&7正在等待你确认交易内容...")
                     .build();
         } else {
-            return new ItemBuilder(Material.INK_SACK)
+            return new ItemBuilder(Material.INK_SAC)
                     .durability(8)
                     .name("&e对方暂未确认..")
                     .lore("&7你正在与玩家 " + display_name + " &7进行交易.", "&7对方当前没有确认交易内容...")

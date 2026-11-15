@@ -40,8 +40,9 @@ public class PlayerInv {
 
     public void applyItemToPlayer(Player player) {
         PlayerInventory inventory = player.getInventory();
-        inventory.setArmorContents(armorContents);
         inventory.setContents(contents);
+        // Paper's setContents also clears armor slots absent from a legacy 36-slot save.
+        inventory.setArmorContents(armorContents);
         player.setItemOnCursor(null);
     }
 
@@ -85,4 +86,3 @@ public class PlayerInv {
         return "PlayerInv(contents=" + java.util.Arrays.deepToString(this.getContents()) + ", armorContents=" + java.util.Arrays.deepToString(this.getArmorContents()) + ")";
     }
 }
-

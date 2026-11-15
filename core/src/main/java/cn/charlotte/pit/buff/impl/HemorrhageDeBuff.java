@@ -5,7 +5,7 @@ import cn.charlotte.pit.buff.AbstractPitBuff;
 import cn.charlotte.pit.event.PitStackBuffEvent;
 import net.mizukilab.pit.UtilKt;
 import net.mizukilab.pit.parm.AutoRegister;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -48,7 +48,7 @@ public class HemorrhageDeBuff extends AbstractPitBuff implements Listener {
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    ((CraftPlayer) event.getPlayer()).getHandle().setAbsorptionHearts(0F);
+                    ((CraftPlayer) event.getPlayer()).getHandle().setAbsorptionAmount(0F);
                     event.getPlayer().removePotionEffect(PotionEffectType.ABSORPTION);
                     if (getPlayerBuffData(event.getPlayer()).getTier() < 1) {
                         this.cancel();

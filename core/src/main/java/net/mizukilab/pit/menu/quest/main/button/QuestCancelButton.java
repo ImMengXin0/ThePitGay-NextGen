@@ -36,7 +36,7 @@ public class QuestCancelButton extends Button {
                     .get(currentQuest.getInternalName())
                     .onInactive(player, currentQuest.getLevel());
 
-            player.playSound(player.getLocation(), Sound.WITHER_DEATH, 1, 1);
+            player.playSound(player.getLocation(), Sound.ENTITY_WITHER_DEATH, 1, 1);
             player.sendMessage(CC.translate("&c任务已取消!"));
         }
     }

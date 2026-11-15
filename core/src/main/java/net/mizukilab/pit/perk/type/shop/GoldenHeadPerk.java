@@ -36,7 +36,7 @@ public class GoldenHeadPerk extends AbstractPerk implements IPlayerKilledEntity 
 
     @Override
     public Material getIcon() {
-        return Material.SKULL_ITEM;
+        return Material.PLAYER_HEAD;
     }
 
     @Override
@@ -102,12 +102,12 @@ public class GoldenHeadPerk extends AbstractPerk implements IPlayerKilledEntity 
 
         if (PlayerUtil.getPlayerHealItemAmount(myself) < PlayerUtil.getPlayerHealItemLimit(myself)) {
             for (ItemStack itemStack : myself.getInventory()) {
-                if (itemStack != null && itemStack.getType() == Material.SKULL_ITEM && ItemUtil.getInternalName(itemStack).equals("golden_head")) {
+                if (itemStack != null && itemStack.getType() == Material.PLAYER_HEAD && ItemUtil.getInternalName(itemStack).equals("golden_head")) {
                     itemStack.setAmount(itemStack.getAmount() + 1);
                     return;
                 }
             }
-            myself.getInventory().addItem(new ItemBuilder(Material.SKULL_ITEM)
+            myself.getInventory().addItem(new ItemBuilder(Material.PLAYER_HEAD)
                     .setSkullProperty("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDUyZGNhNjhjOGY4YWY1MzNmYjczN2ZhZWVhY2JlNzE3Yjk2ODc2N2ZjMTg4MjRkYzJkMzdhYzc4OWZjNzcifX19")
                     .durability(3)
                     .name("&6金头")
@@ -124,7 +124,7 @@ public class GoldenHeadPerk extends AbstractPerk implements IPlayerKilledEntity 
 
     @Override
     public ItemStack getIconWithNameAndLore(String name, List<String> lore, int durability, int amount) {
-        return new ItemBuilder(Material.SKULL_ITEM)
+        return new ItemBuilder(Material.PLAYER_HEAD)
                 .setSkullProperty("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDUyZGNhNjhjOGY4YWY1MzNmYjczN2ZhZWVhY2JlNzE3Yjk2ODc2N2ZjMTg4MjRkYzJkMzdhYzc4OWZjNzcifX19")
                 .durability(3)
                 .name(name)

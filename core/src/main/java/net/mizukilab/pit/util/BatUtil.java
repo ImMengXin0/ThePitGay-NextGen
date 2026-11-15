@@ -2,10 +2,9 @@ package net.mizukilab.pit.util;
 
 import cn.charlotte.pit.ThePit;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.server.v1_8_R3.EntityBat;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_8_R3.CraftWorld;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.*;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -83,15 +82,11 @@ public class BatUtil {
                             y * distance + 0.5 + randomOffset(),
                             z * distance + randomOffset()
                     );
-                    CraftWorld world = (CraftWorld) player.getWorld();
-                    EntityBat entityBat = new EntityBat(world.getHandle());
-                    entityBat.setPosition(batLoc.getX(), batLoc.getY(), batLoc.getZ());
-                    entityBat.noDamageTicks =  100000;
-                    entityBat.setHealth(20000);
-
-                    world.addEntity(entityBat, CreatureSpawnEvent.SpawnReason.DEFAULT);
-
-                    bats.add((LivingEntity) entityBat.getBukkitEntity());
+                    Bat bat = player.getWorld().spawn(batLoc, Bat.class, spawned -> {
+                        spawned.setInvulnerable(true);
+                        spawned.setPersistent(false);
+                    });
+                    bats.add(bat);
                 }
             }
         }

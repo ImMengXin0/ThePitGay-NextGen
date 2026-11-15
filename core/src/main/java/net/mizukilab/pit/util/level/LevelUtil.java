@@ -5,7 +5,6 @@ import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.config.PitGlobalConfig;
 import net.mizukilab.pit.menu.prestige.button.PrestigeStatusButton;
 import net.mizukilab.pit.util.chat.RomanUtil;
-import net.royawesome.jlibnoise.Utils;
 
 /**
  * @Author: Misoryan

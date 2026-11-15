@@ -3,7 +3,7 @@ package net.mizukilab.pit.enchantment.type.rare;
 import cn.charlotte.pit.data.PlayerProfile;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import lombok.SneakyThrows;
-import net.minecraft.server.v1_8_R3.PacketPlayInFlying;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.IActionDisplayEnchant;
 import net.mizukilab.pit.enchantment.param.item.ArmorOnly;
@@ -108,7 +108,7 @@ public class DoubleJumpEnchant extends AbstractEnchantment implements Listener, 
     }
 
     @Override
-    public void handleUpdateLocation(Player player, Location location, Location location1, PacketPlayInFlying packetPlayInFlying) {
+    public void handleUpdateLocation(Player player, Location location, Location location1, ServerboundMovePlayerPacket packetPlayInFlying) {
         GameMode gameMode = player.getGameMode();
         if (gameMode != GameMode.CREATIVE && gameMode != GameMode.SPECTATOR) {
             if (cooldown.getOrDefault(player.getUniqueId(), new Cooldown(0)).hasExpired()) {
@@ -128,6 +128,6 @@ public class DoubleJumpEnchant extends AbstractEnchantment implements Listener, 
     }
 
     @Override
-    public void handleUpdateRotation(Player player, Location location, Location location1, PacketPlayInFlying packetPlayInFlying) {
+    public void handleUpdateRotation(Player player, Location location, Location location1, ServerboundMovePlayerPacket packetPlayInFlying) {
     }
 }

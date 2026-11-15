@@ -76,10 +76,10 @@ public class EscapeEnchant extends AbstractEnchantment implements Listener,IPlay
         this.Cooldown.putIfAbsent(myself.getUniqueId(), new Cooldown(0L));
         if (myself.getHealth() <= 8.0D && Cooldown.get((myself.getUniqueId())).hasExpired()) {
             this.Cooldown.put(myself.getUniqueId(), getCooldown());
-            myself.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE);
+            myself.removePotionEffect(PotionEffectType.RESISTANCE);
             myself.removePotionEffect(PotionEffectType.REGENERATION);
             myself.removePotionEffect(PotionEffectType.SPEED);
-            myself.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 60, enchantLevel - 1), true);
+            myself.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 60, enchantLevel - 1), true);
         }
     }
 }

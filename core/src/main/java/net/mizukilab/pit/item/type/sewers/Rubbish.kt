@@ -19,11 +19,11 @@ class Rubbish : AbstractPitItem() {
     }
 
     override fun getItemDisplayMaterial(): Material {
-        return Material.INK_SACK
+        return Material.INK_SAC
     }
 
     override fun toItemStack(): ItemStack {
-        return ItemBuilder(Material.INK_SACK).durability(15)
+        return ItemBuilder(Material.INK_SAC).durability(15)
             .deathDrop(false)
             .canSaveToEnderChest(true)
             .canTrade(true)

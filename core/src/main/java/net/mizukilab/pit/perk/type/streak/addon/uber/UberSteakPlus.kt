@@ -136,7 +136,7 @@ class UberSteakPlus : AbstractPerk(), MegaStreak, Listener, IPlayerKilledEntity,
                 MessageType.COMBAT,
                 "&c&l超级连杀! ${event.playerProfile.formattedNameWithRoman} &7激活了 ${this.displayName} &7!"
             )
-            Bukkit.getOnlinePlayers().forEach { it.playSound(it.location, Sound.WITHER_SPAWN, 0.8f, 1.5f) }
+            Bukkit.getOnlinePlayers().forEach { it.playSound(it.location, Sound.ENTITY_WITHER_SPAWN, 0.8f, 1.5f) }
         }
     }
 
@@ -170,7 +170,7 @@ class UberSteakPlus : AbstractPerk(), MegaStreak, Listener, IPlayerKilledEntity,
         }
 
         if (profile.streakKills >= 4000) {
-            PlayerUtil.addPotionEffect(myself, PotionEffect(PotionEffectType.CONFUSION, 100000, 0, false))
+            PlayerUtil.addPotionEffect(myself, PotionEffect(PotionEffectType.NAUSEA, 100000, 0, false))
         }
     }
 

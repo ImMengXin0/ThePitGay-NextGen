@@ -206,7 +206,7 @@ public class PerkBuyButton extends Button {
                 } else {
                     player.sendMessage(CC.translate("&c你在其他栏位装备了本%type%!".replace("%type%", perkType.getDisplayName())));
                 }
-                player.playSound(player.getLocation(), Sound.ENDERMAN_TELEPORT, 1, 1);
+                player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
                 return;
             }
         }
@@ -221,7 +221,7 @@ public class PerkBuyButton extends Button {
             }
             profile.getChosePerk().put(page, new PerkData(perkData1.getPerkInternalName(), perkData1.getLevel()));
             player.sendMessage(CC.translate("&a&l装备成功! &7成功在 &f#" + page + " &7%type%栏装备%type% &a".replace("%type%", perkType.getDisplayName()) + perk.getDisplayName() + " &7."));
-            player.playSound(player.getLocation(), Sound.NOTE_PLING, 1, 1);
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
             perk.onPerkActive(player);
         } else {
             if (profile.getPrestige() >= perk.requirePrestige()) {
@@ -257,7 +257,7 @@ public class PerkBuyButton extends Button {
                 }
                 if (profile.getCoins() < perk.requireCoins()) {
                     player.sendMessage(CC.translate("&c你的硬币不足!"));
-                    player.playSound(player.getLocation(), Sound.ENDERMAN_TELEPORT, 1, 1);
+                    player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
                 } else {
                     if (profile.getChosePerk().get(page) != null) {
                         ThePit.getInstance().getPerkFactory().getPerks().stream().filter(perk -> perk.getInternalPerkName().equals(profile.getChosePerk().get(page).getPerkInternalName())).findFirst().ifPresent(abstractPerk -> abstractPerk.onPerkInactive(player));
@@ -267,7 +267,7 @@ public class PerkBuyButton extends Button {
                     profile.getBoughtPerkMap().put(perkData.getPerkInternalName(), perkData);
                     profile.getChosePerk().put(page, perkData);
                     player.sendMessage(CC.translate("&a&l装备成功! &7成功在 &f#" + page + " &7%type%栏装备%type% &a".replace("%type%", perkType.getDisplayName()) + perk.getDisplayName() + " &7."));
-                    player.playSound(player.getLocation(), Sound.NOTE_PLING, 1, 1);
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
                     perk.onPerkActive(player);
                 }
             }

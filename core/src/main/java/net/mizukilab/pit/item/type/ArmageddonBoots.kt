@@ -37,14 +37,12 @@ class ArmageddonBoots : IMythicItem() {
     override fun loadFromItemStack(item: ItemStack?) {
         item ?: return
 
-        val nmsItem = Utils.toNMStackQuick(item)
-        val tag = nmsItem?.tag ?: return
-        val extra = tag.getCompound("extra") ?: return
+        val extra = ItemUtil.getExtra(item) ?: return
 
 
         this.uuid = ItemUtil.getUUIDObj(item);
-        this.maxLive = extra.getInt("maxLive")
-        this.live = extra.getInt("live")
+        this.maxLive = extra.getIntOr("maxLive", 0)
+        this.live = extra.getIntOr("live", 0)
         loadNameData(item, extra)
 
     }

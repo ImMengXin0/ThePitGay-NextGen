@@ -16,24 +16,24 @@ object CrystalChimeSound : AbstractPitSound() {
 
     override fun onSoundTick(player: Player, tick: Int) {
         when (tick) {
-            0 -> player.playSound(player.location, Sound.NOTE_PLING, 1.0f, 2.0f)
-            1 -> player.playSound(player.location, Sound.NOTE_PLING, 0.8f, 1.8f)
-            2 -> player.playSound(player.location, Sound.NOTE_PLING, 0.6f, 1.6f)
+            0 -> player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 2.0f)
+            1 -> player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f, 1.8f)
+            2 -> player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.6f)
             4 -> {
-                player.playSound(player.location, Sound.NOTE_PLING, 1.2f, 1.9f)
-                player.playSound(player.location, Sound.ORB_PICKUP, 0.3f, 2.0f)
+                player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1.2f, 1.9f)
+                player.playSound(player.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.3f, 2.0f)
             }
-            6 -> player.playSound(player.location, Sound.NOTE_PLING, 1.0f, 1.7f)
+            6 -> player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.7f)
             8 -> {
-                player.playSound(player.location, Sound.NOTE_PLING, 1.5f, 2.0f)
-                player.playSound(player.location, Sound.GLASS, 0.4f, 2.0f)
+                player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1.5f, 2.0f)
+                player.playSound(player.location, Sound.BLOCK_GLASS_BREAK, 0.4f, 2.0f)
             }
-            10 -> player.playSound(player.location, Sound.NOTE_PLING, 0.9f, 1.5f)
-            12 -> player.playSound(player.location, Sound.FIZZ, 0.3f, 2.0f)
+            10 -> player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 0.9f, 1.5f)
+            12 -> player.playSound(player.location, Sound.BLOCK_FIRE_EXTINGUISH, 0.3f, 2.0f)
         }
 
         if (tick > 15) {
             end(player)
         }
     }
-} 
+}

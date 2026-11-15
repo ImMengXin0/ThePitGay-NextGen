@@ -1,9 +1,11 @@
 package net.mizukilab.pit.util.inventory;
 
+import net.mizukilab.pit.util.item.ItemKinds;
+
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.PlayerInv;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.server.v1_8_R3.*;
+import net.minecraft.nbt.*;
 import net.mizukilab.pit.util.PlayerUtil;
 import net.mizukilab.pit.util.PublicUtil;
 import net.mizukilab.pit.util.chat.CC;
@@ -11,7 +13,7 @@ import net.mizukilab.pit.util.item.ItemBuilder;
 import net.mizukilab.pit.util.item.ItemUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -182,18 +184,30 @@ public class InventoryUtil {
 
     public static ItemStack[] stringToItems(String in) {
         if (in == null || in.equals("unset") || in.equals("null") || in.equals("'null'")) return null;
-        ItemStack[] contents = new ItemStack[in.split(";").length];
+        return parseSlots(in, 1_048_576);
+    }
 
-        for (String s : PublicUtil.splitByCharAt(in, ';')) {
-            int slot = Integer.parseInt(s.split("#")[0]);
-
-            if (s.split("#").length == 1) {
-                contents[slot] = null;
-            } else {
-                contents[slot] = deserializeItemStack(s.split("#")[1]);
-            }
+    private static ItemStack[] parseSlots(String encoded, int maximum) {
+        if (encoded.length() > 64 * 1024 * 1024) throw new IllegalArgumentException("Inventory payload exceeds limit");
+        if (encoded.isEmpty()) return new ItemStack[0];
+        String[] entries = encoded.split(";", -1);
+        if (entries.length > maximum) throw new IllegalArgumentException("Too many inventory slots");
+        ItemStack[] result = new ItemStack[entries.length];
+        boolean[] seen = new boolean[entries.length];
+        for (String entry : entries) {
+            int separator = entry.indexOf('#');
+            if (separator < 1 || separator != entry.lastIndexOf('#'))
+                throw new IllegalArgumentException("Invalid inventory entry");
+            int slot;
+            try { slot = Integer.parseInt(entry.substring(0, separator)); }
+            catch (NumberFormatException e) { throw new IllegalArgumentException("Invalid inventory slot", e); }
+            if (slot < 0 || slot >= result.length || seen[slot])
+                throw new IllegalArgumentException("Duplicate or out-of-range inventory slot: " + slot);
+            seen[slot] = true;
+            String item = entry.substring(separator + 1);
+            result[slot] = item.isEmpty() ? null : deserializeItemStack(item);
         }
-        return contents;
+        return result;
     }
 
     public static String playerInvToString(PlayerInv inv) {
@@ -258,31 +272,17 @@ public class InventoryUtil {
             return null;
         }
 
+        String[] data = in.split("\\|", -1);
+        if (data.length != 2) throw new IllegalArgumentException("Invalid player inventory sections");
+        String[] entries = data[0].split(";", -1);
+        if (entries.length != 4) throw new IllegalArgumentException("Player inventory requires four armor slots");
+        ItemStack[] armor = new ItemStack[4];
+        for (int i = 0; i < armor.length; i++) armor[i] = deserializeItemStack(entries[i]);
+        ItemStack[] contents = parseSlots(data[1], 43);
+        if (contents.length != 36 && contents.length != 40 && contents.length != 41 && contents.length != 43)
+            throw new IllegalArgumentException("Invalid player inventory size: " + contents.length);
         PlayerInv inv = new PlayerInv();
-
-        String[] data = in.split("\\|");
-        String[] split = data[0].split(";");
-        ItemStack[] armor = new ItemStack[split.length];
-
-        for (int i = 0; i < split.length; ++i) {
-            armor[i] = deserializeItemStack(split[i]);
-        }
-
         inv.setArmorContents(armor);
-        String[] split1 = data[1].split(";");
-        ItemStack[] contents = new ItemStack[split1.length];
-
-        for (String s : split1) {
-            String[] split2 = s.split("#");
-            int slot = Integer.parseInt(split2[0]);
-
-            if (split2.length == 1) {
-                contents[slot] = null;
-            } else {
-                contents[slot] = deserializeItemStack(split2[1]);
-            }
-        }
-
         inv.setContents(contents);
         return inv;
     }
@@ -301,55 +301,30 @@ public class InventoryUtil {
     }
 
     public static Inventory inventoryFromString(String in) {
+        ItemStack[] contents = parseSlots(in, 54);
         Inventory inv = Bukkit.createInventory(null, 54);
-        String[] split;
-        @SuppressWarnings("unused")
-        String[] data = split = in.split(";");
-
-        for (String s : split) {
-            String[] info = s.split("#");
-            inv.setItem(Integer.parseInt(info[0]), (info.length > 1) ? deserializeItemStack(info[1]) : null);
-        }
-
+        inv.setContents(contents);
         return inv;
     }
 
     public static String serializeItemStack(ItemStack itemStack) {
         if (itemStack == null || itemStack.getType().equals(Material.AIR)) return "null";
 
-        ByteArrayOutputStream outputStream = null;
-        try {
-            net.minecraft.server.v1_8_R3.ItemStack nmsStack = PublicUtil.toNMStackQuick(itemStack);
-            NBTTagCompound nbtTagCompound = new NBTTagCompound();
-            nmsStack.save(nbtTagCompound);
-            outputStream = new ByteArrayOutputStream();
-            NBTCompressedStreamTools.a(nbtTagCompound, outputStream);
-        } catch (SecurityException | IllegalArgumentException | IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-
-        return java.util.Base64.getEncoder().encodeToString(outputStream.toByteArray());
+        return java.util.Base64.getEncoder().encodeToString(itemStack.serializeAsBytes());
     }
-
 
     public static ItemStack deserializeItemStack(String itemStackString) {
         if (itemStackString == null || "null".equals(itemStackString)) return null;
-
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(java.util.Base64.getDecoder().decode(itemStackString));
-
-        NBTTagCompound nbtTagCompound = null;
-        ItemStack itemStack = null;
-        try {
-            nbtTagCompound = NBTCompressedStreamTools.a(inputStream);
-            net.minecraft.server.v1_8_R3.ItemStack nmsStack = net.minecraft.server.v1_8_R3.ItemStack.createStack(nbtTagCompound);
-            itemStack = CraftItemStack.asBukkitCopy(nmsStack);
-        } catch (IllegalArgumentException | SecurityException | IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-
-        return itemStack;
+        // Paper applies the full item DataFixer chain for pre-DataVersion 1.8 NBT.
+        // Propagate malformed data so callers cannot silently replace a saved item with air.
+        if (itemStackString.length() > 11_184_812) throw new IllegalArgumentException("Item payload exceeds limit");
+        byte[] bytes = java.util.Base64.getDecoder().decode(itemStackString);
+        if (bytes.length > 8 * 1024 * 1024) throw new IllegalArgumentException("Item payload exceeds limit");
+        ItemStack item;
+        try { item = ItemStack.deserializeBytes(bytes); }
+        catch (RuntimeException failure) { throw new IllegalArgumentException("Invalid saved item", failure); }
+        if (item == null || item.getType().isAir()) throw new IllegalArgumentException("Saved item decoded as air");
+        return item;
     }
 
     public static boolean isInvFull(Player player) {
@@ -404,15 +379,15 @@ public class InventoryUtil {
 
             if (ItemUtil.isDefaultItem(item) && ItemUtil.canReplace(item)) {
                 //player.getInventory().remove(item);
-                net.minecraft.server.v1_8_R3.ItemStack nmStackQuick = PublicUtil.toNMStackQuick(item);
-                if (nmStackQuick.getItem() instanceof ItemArmor) {
+                net.minecraft.world.item.ItemStack nmStackQuick = PublicUtil.toNMStackQuick(item);
+                if (ItemKinds.isArmor(nmStackQuick)) {
                     inventory.remove(item);
                 }
-                if (nmStackQuick.getItem() instanceof ItemSword && swordFound) {
+                if (ItemKinds.isSword(nmStackQuick) && swordFound) {
                     inventory.remove(item);
                     swordFound = false;
                 }
-                if (nmStackQuick.getItem() instanceof ItemBow && bowFound) {
+                if (ItemKinds.isBow(nmStackQuick) && bowFound) {
                     inventory.remove(item);
                     swordFound = false;
                 }

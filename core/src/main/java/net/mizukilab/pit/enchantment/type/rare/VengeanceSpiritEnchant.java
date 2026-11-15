@@ -54,7 +54,7 @@ public class VengeanceSpiritEnchant extends AbstractEnchantment implements IPlay
         double damage = (enchantLevel * 1.5 + 2.5) * 2;
         int radius = enchantLevel + 3;
 
-        deathLocation.getWorld().playSound(deathLocation, Sound.EXPLODE, 2.0f, 0.8f);
+        deathLocation.getWorld().playSound(deathLocation, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.8f);
 
         for (Player nearbyPlayer : PlayerUtil.getNearbyPlayers(myself.getLocation(), radius)) {
             if (nearbyPlayer.equals(myself)) continue;
@@ -63,7 +63,7 @@ public class VengeanceSpiritEnchant extends AbstractEnchantment implements IPlay
             Vector knockback = nearbyPlayer.getLocation().toVector().subtract(deathLocation.toVector()).normalize();
             knockback.multiply(0.8).setY(0.3);
             nearbyPlayer.setVelocity(knockback);
-            nearbyPlayer.playSound(nearbyPlayer.getLocation(), Sound.HURT_FLESH, 1.0f, 0.8f);
+            nearbyPlayer.playSound(nearbyPlayer.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 0.8f);
         }
     }
 } 

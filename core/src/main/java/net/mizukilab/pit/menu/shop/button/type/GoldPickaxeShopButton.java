@@ -39,9 +39,9 @@ public class GoldPickaxeShopButton extends AbstractShopButton {
         }
 
         if (PlayerUtil.isPlayerUnlockedPerk(player, "GoldPickaxeShopUnlock")) {
-            return new ItemBuilder(Material.GOLD_PICKAXE)
+            return new ItemBuilder(Material.GOLDEN_PICKAXE)
                     .lore(lines)
-                    .enchant(Enchantment.DIG_SPEED, 7)
+                    .enchant(Enchantment.EFFICIENCY, 7)
                     .buildWithUnbreakable();
         } else {
             return new ItemBuilder(Material.AIR).build();
@@ -55,11 +55,11 @@ public class GoldPickaxeShopButton extends AbstractShopButton {
 
     @Override
     public ItemStack[] getResultItem(Player player) {
-        return new ItemStack[]{new ItemBuilder(Material.GOLD_PICKAXE)
+        return new ItemStack[]{new ItemBuilder(Material.GOLDEN_PICKAXE)
                 .deathDrop(true)
                 .canSaveToEnderChest(true)
                 .canDrop(true)
-                .enchant(Enchantment.DIG_SPEED, 7)
+                .enchant(Enchantment.EFFICIENCY, 7)
                 .internalName("shopItem")
                 .build()};
     }

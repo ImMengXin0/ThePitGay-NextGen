@@ -1,8 +1,8 @@
 package net.mizukilab.pit.enchantment.type.rare
 
 import com.google.common.util.concurrent.AtomicDouble
-import net.minecraft.server.v1_8_R3.BlockPosition
-import net.minecraft.server.v1_8_R3.PacketPlayOutWorldEvent
+
+
 import net.mizukilab.pit.enchantment.AbstractEnchantment
 import net.mizukilab.pit.enchantment.param.event.PlayerOnly
 import net.mizukilab.pit.enchantment.param.item.WeaponOnly
@@ -12,7 +12,7 @@ import net.mizukilab.pit.parm.listener.IAttackEntity
 import net.mizukilab.pit.util.PlayerUtil
 import net.mizukilab.pit.util.cooldown.Cooldown
 import org.bukkit.Sound
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer
+import org.bukkit.craftbukkit.entity.CraftPlayer
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import java.util.concurrent.atomic.AtomicBoolean
@@ -71,23 +71,10 @@ class ExecutionerEnchant : AbstractEnchantment(), IAttackEntity {
         if (targetPlayer.health - damage * boostDamage.get() < enchantLevel + 1) {
             targetPlayer.noDamageTicks = 0
             PlayerUtil.damage(targetPlayer, PlayerUtil.DamageType.TRUE, 2 * (0.5 * enchantLevel + 0.5), false)
-            attacker.playSound(attacker.location, Sound.VILLAGER_DEATH, 1f, 0.5f)
+            attacker.playSound(attacker.location, Sound.ENTITY_VILLAGER_DEATH, 1f, 0.5f)
             val deathLoc = target.getLocation()
-            val packetA = PacketPlayOutWorldEvent(
-                2001,
-                BlockPosition(deathLoc.blockX, deathLoc.blockY, deathLoc.blockZ),
-                152,
-                false
-            )
-            val packetB = PacketPlayOutWorldEvent(
-                2001,
-                BlockPosition(deathLoc.blockX, deathLoc.blockY - 1, deathLoc.blockZ),
-                152,
-                false
-            )
-            val connection = (attacker as CraftPlayer).handle.playerConnection
-            connection.sendPacket(packetA)
-            connection.sendPacket(packetB)
+            attacker.playEffect(deathLoc, org.bukkit.Effect.STEP_SOUND, org.bukkit.Material.REDSTONE_BLOCK)
+            attacker.playEffect(deathLoc.clone().subtract(0.0, 1.0, 0.0), org.bukkit.Effect.STEP_SOUND, org.bukkit.Material.REDSTONE_BLOCK)
         }
     }
 

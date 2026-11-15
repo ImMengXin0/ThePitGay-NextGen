@@ -1,11 +1,23 @@
 package cn.mythicland.npclib.bot.v1_8_R3;
 
 import cn.mythicland.framework.task.StaggeredDeadline;
-import net.minecraft.server.v1_8_R3.*;
+import cn.charlotte.pit.ThePit;
+import net.mizukilab.pit.platform.paper.FancyTextService.TextHandle;
+import com.mojang.datafixers.util.Pair;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.*;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Team;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -17,7 +29,7 @@ public class BotVisibility {
     private final Map<UUID, BotVisibilitySettings> configurations = new HashMap<>();
     private final Map<UUID, Viewer> viewers = new LinkedHashMap<>();
     private final Map<UUID, Activity> activity = new HashMap<>();
-    private final Map<UUID, EntityArmorStand> nameplates = new HashMap<>();
+    private final Map<UUID, TextHandle> nameplates = new HashMap<>();
     private final Set<UUID> online = new HashSet<>();
     private long currentTick;
     private long revealTick = Long.MIN_VALUE;
@@ -53,7 +65,7 @@ public class BotVisibility {
                 viewer.pending.clear();
                 viewer.retiredTeams.entrySet().removeIf(entry -> {
                     if (tick < entry.getValue()) return false;
-                    send(player, new PacketPlayOutScoreboardTeam(new Scoreboard().createTeam(entry.getKey()), 1));
+                    send(player, ClientboundSetPlayerTeamPacket.createRemovePacket(new PlayerTeam(new Scoreboard(), entry.getKey())));
                     return true;
                 });
             }
@@ -72,7 +84,7 @@ public class BotVisibility {
     }
 
     public void update(
-            EntityPlayer bot,
+            ServerPlayer bot,
             Collection<? extends Player> players,
             long tick,
             UUID opponent,
@@ -81,27 +93,24 @@ public class BotVisibility {
             String name,
             boolean hasEquipment
     ) {
-        configure(bot.getUniqueID(), config);
-        EntityArmorStand nameplate = null;
+        configure(bot.getUUID(), config);
+        TextHandle nameplate = nameplates.get(bot.getUUID());
         if (name != null) {
-            nameplate = nameplates.computeIfAbsent(bot.getUniqueID(), id -> {
-                EntityArmorStand stand = new EntityArmorStand(bot.world);
-                stand.setInvisible(true);
-                stand.setGravity(false);
-                ((ArmorStand) stand.getBukkitEntity()).setMarker(true);
-                stand.setCustomName(name);
-                stand.setCustomNameVisible(true);
-                return stand;
-            });
-        }
-        if (nameplate != null) {
-            nameplate.setPosition(bot.locX, bot.locY + 1.8, bot.locZ);
+            if (nameplate == null) {
+                nameplate = ThePit.getInstance().getFancyTexts().create(
+                        bot.getBukkitEntity().getLocation().add(0, 2.1, 0), List.of(name));
+                nameplates.put(bot.getUUID(), nameplate);
+            }
+            nameplate.setText(List.of(name));
+            nameplate.setLocation(bot.getBukkitEntity().getLocation().add(0, 2.1, 0));
+        } else if (nameplate != null) {
+            nameplate.close(); nameplates.remove(bot.getUUID()); nameplate = null;
         }
         Update update = new Update(bot, nameplate, tick, config, hasEquipment);
         for (Player player : players) {
             Viewer viewer = viewers.computeIfAbsent(player.getUniqueId(), id -> new Viewer());
             boolean fighting = player.getUniqueId().equals(opponent) || combatViewers.contains(player.getUniqueId());
-            Display display = viewer.entities.get(bot.getUniqueID());
+            Display display = viewer.entities.get(bot.getUUID());
             boolean shouldCheckVisibility = fighting || display == null || !display.spawned
                     || tick - display.checkedAt >= config.visibilityCheckTicks();
             boolean visible;
@@ -122,17 +131,17 @@ public class BotVisibility {
             }
             if (display == null) {
                 display = new Display(tick);
-                viewer.entities.put(bot.getUniqueID(), display);
+                viewer.entities.put(bot.getUUID(), display);
             }
             if (!display.spawned && tick - display.revealedAt < config.spawnDelayTicks()) continue;
             if (!display.spawned && !fighting) {
                 Display pending = display;
                 double distance = player.getEyeLocation().distanceSquared(bot.getBukkitEntity().getLocation());
-                viewer.pending.put(bot.getUniqueID(), new Reveal(bot.getUniqueID(), display, tick,
+                viewer.pending.put(bot.getUUID(), new Reveal(bot.getUUID(), display, tick,
                         config.maxRevealsPerTick(), distance, () -> update.sync(player, viewer, pending)));
                 continue;
             }
-            viewer.pending.remove(bot.getUniqueID());
+            viewer.pending.remove(bot.getUUID());
             update.sync(player, viewer, display);
         }
     }
@@ -176,26 +185,24 @@ public class BotVisibility {
 
     private boolean visible(
             Player player,
-            EntityPlayer bot,
+            ServerPlayer bot,
             long tick,
             boolean fighting,
             BotVisibilitySettings config
     ) {
         if (!player.getWorld().equals(bot.getBukkitEntity().getWorld())) return false;
-        if (!player.getWorld().isChunkLoaded((int) Math.floor(bot.locX) >> 4, (int) Math.floor(bot.locZ) >> 4)) {
+        if (!player.getWorld().isChunkLoaded((int) Math.floor(bot.getX()) >> 4, (int) Math.floor(bot.getZ()) >> 4)) {
             return false;
         }
         if (!player.canSee(bot.getBukkitEntity())) return false;
         Location eye = player.getEyeLocation();
-        double dx = bot.locX - eye.getX();
-        double dy = bot.locY + bot.getHeadHeight() - eye.getY();
-        double dz = bot.locZ - eye.getZ();
+        double dx = bot.getX() - eye.getX();
+        double dy = bot.getY() + bot.getEyeHeight() - eye.getY();
+        double dz = bot.getZ() - eye.getZ();
         double distanceSquared = dx * dx + dy * dy + dz * dz;
         if (distanceSquared > config.viewDistance() * config.viewDistance()) return false;
-        EntityPlayer viewer = ((CraftPlayer) player).getHandle();
-        if (!viewer.u().getPlayerChunkMap().a(
-                viewer, (int) Math.floor(bot.locX) >> 4, (int) Math.floor(bot.locZ) >> 4
-        )) return false;
+        if (!((net.minecraft.server.level.ServerLevel) ((CraftPlayer) player).getHandle().level()).getChunkSource().chunkMap.isChunkTracked(
+                ((CraftPlayer) player).getHandle(), (int) Math.floor(bot.getX()) >> 4, (int) Math.floor(bot.getZ()) >> 4)) return false;
         if (fighting) return true;
         Activity current = activity.get(player.getUniqueId());
         if (eye.getY() > config.maxViewerY()) return false;
@@ -213,9 +220,9 @@ public class BotVisibility {
         return player.hasLineOfSight(bot.getBukkitEntity());
     }
 
-    public void equipment(Player player, EntityPlayer bot) {
+    public void equipment(Player player, ServerPlayer bot) {
         for (int slot = 0; slot < 5; slot++)
-            send(player, new PacketPlayOutEntityEquipment(bot.getId(), slot, bot.getEquipment(slot)));
+            send(player, equipmentPacket(bot, slot, equipmentItem(bot, slot)));
     }
 
     public boolean muteCombatSounds(UUID player, UUID bot, long tick) {
@@ -241,35 +248,36 @@ public class BotVisibility {
         activity.put(player.getUniqueId(), new Activity(player.getLocation(), tick - idleTicks));
     }
 
-    public void action(EntityPlayer bot, int action) {
+    public void action(ServerPlayer bot, int action) {
         for (Map.Entry<UUID, Viewer> entry : viewers.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
-            if (player != null && isVisible(entry.getKey(), bot.getUniqueID())) {
-                send(player, new PacketPlayOutAnimation(bot, action));
+            if (player != null && isVisible(entry.getKey(), bot.getUUID())) {
+                send(player, new ClientboundAnimatePacket(bot, action));
             }
         }
     }
 
-    public void destroy(EntityPlayer bot) {
+    public void destroy(ServerPlayer bot) {
         for (Map.Entry<UUID, Viewer> entry : viewers.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
-            if (player != null && entry.getValue().entities.containsKey(bot.getUniqueID())) {
+            if (player != null && entry.getValue().entities.containsKey(bot.getUUID())) {
                 hide(player, bot, entry.getValue());
             }
         }
-        nameplates.remove(bot.getUniqueID());
-        configurations.remove(bot.getUniqueID());
+        TextHandle plate = nameplates.remove(bot.getUUID());
+        if (plate != null) plate.close();
+        configurations.remove(bot.getUUID());
     }
 
-    private void hide(Player player, EntityPlayer bot, Viewer viewer) {
-        Display display = viewer.entities.remove(bot.getUniqueID());
-        viewer.pending.remove(bot.getUniqueID());
+    private void hide(Player player, ServerPlayer bot, Viewer viewer) {
+        Display display = viewer.entities.remove(bot.getUUID());
+        viewer.pending.remove(bot.getUUID());
         if (!display.spawned) return;
-        EntityArmorStand nameplate = nameplates.get(bot.getUniqueID());
-        send(player, new PacketPlayOutEntityDestroy(nameplate == null
-                ? new int[]{bot.getId()} : new int[]{bot.getId(), nameplate.getId()}));
+        TextHandle nameplate = nameplates.get(bot.getUUID());
+        send(player, new ClientboundRemoveEntitiesPacket(bot.getId()));
+        if (nameplate != null) nameplate.hide(player);
         if (display.profileRemoveAt > 0) {
-            send(player, new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.REMOVE_PLAYER, bot));
+            send(player, new ClientboundPlayerInfoRemovePacket(List.of(bot.getUUID())));
         }
         if (display.team != null) {
             viewer.retiredTeams.put(display.team, currentTick + 2);
@@ -277,7 +285,7 @@ public class BotVisibility {
     }
 
     private void send(Player player, Packet<?> packet) {
-        ((CraftPlayer) player).getHandle().playerConnection.sendPacket(packet);
+        ((CraftPlayer) player).getHandle().connection.send(packet);
     }
 
     public void clear() {
@@ -285,16 +293,25 @@ public class BotVisibility {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null) continue;
             for (String team : entry.getValue().retiredTeams.keySet()) {
-                send(player, new PacketPlayOutScoreboardTeam(new Scoreboard().createTeam(team), 1));
+                send(player, ClientboundSetPlayerTeamPacket.createRemovePacket(new PlayerTeam(new Scoreboard(), team)));
             }
         }
         configurations.clear();
         viewers.clear();
         activity.clear();
         online.clear();
+        nameplates.values().forEach(TextHandle::close);
         nameplates.clear();
         revealTick = Long.MIN_VALUE;
         reveals = revealCursor = 0;
+    }
+
+    private static final EquipmentSlot[] SLOTS = { EquipmentSlot.MAINHAND, EquipmentSlot.FEET,
+            EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD };
+
+    private static ItemStack equipmentItem(ServerPlayer bot, int slot) { return bot.getItemBySlot(SLOTS[slot]); }
+    private static ClientboundSetEquipmentPacket equipmentPacket(ServerPlayer bot, int slot, ItemStack item) {
+        return new ClientboundSetEquipmentPacket(bot.getId(), List.of(Pair.of(SLOTS[slot], item)));
     }
 
     private record Reveal(
@@ -320,7 +337,7 @@ public class BotVisibility {
         private long checkedAt;
         private boolean visible = true, spawned;
         private String team;
-        private Movement location, nameplate;
+        private Movement location;
         private long lastTeleportTick;
         private ItemStack[] equipment;
         private int hurtTicks;
@@ -334,21 +351,24 @@ public class BotVisibility {
     }
 
     private static final class Movement {
-        private final int entityId, x, y, z;
+        private final int entityId;
+        private final long x, y, z;
+        private final PositionMoveRotation position;
         private final byte yaw, pitch;
         private final boolean onGround;
         private Packet<?> teleport, look, relative;
-        private int relativeX, relativeY, relativeZ;
+        private long relativeX, relativeY, relativeZ;
         private boolean relativeLook;
 
         private Movement(Entity entity) {
             entityId = entity.getId();
-            x = MathHelper.floor(entity.locX * 32.0D);
-            y = MathHelper.floor(entity.locY * 32.0D);
-            z = MathHelper.floor(entity.locZ * 32.0D);
-            yaw = (byte) (int) (entity.yaw * 256.0F / 360.0F);
-            pitch = (byte) (int) (entity.pitch * 256.0F / 360.0F);
-            onGround = entity.onGround;
+            position = PositionMoveRotation.of(entity);
+            x = (long) Math.floor(entity.getX() * 4096.0D);
+            y = (long) Math.floor(entity.getY() * 4096.0D);
+            z = (long) Math.floor(entity.getZ() * 4096.0D);
+            yaw = (byte) (int) (entity.getYRot() * 256.0F / 360.0F);
+            pitch = (byte) (int) (entity.getXRot() * 256.0F / 360.0F);
+            onGround = entity.onGround();
         }
 
         private Packet<?> packet(Movement previous, boolean absolute) {
@@ -357,11 +377,11 @@ public class BotVisibility {
             boolean moved = dx != 0 || dy != 0 || dz != 0;
             boolean turned = yaw != previous.yaw || pitch != previous.pitch;
             if (!moved && !turned && onGround == previous.onGround) return null;
-            if (absolute || onGround != previous.onGround || dx < -128 || dx > 127
-                    || dy < -128 || dy > 127 || dz < -128 || dz > 127) return teleport();
+            if (absolute || onGround != previous.onGround || dx < Short.MIN_VALUE || dx > Short.MAX_VALUE
+                    || dy < Short.MIN_VALUE || dy > Short.MAX_VALUE || dz < Short.MIN_VALUE || dz > Short.MAX_VALUE) return teleport();
             if (!moved) {
                 if (look == null) {
-                    look = new PacketPlayOutEntity.PacketPlayOutEntityLook(entityId, yaw, pitch, onGround);
+                    look = new ClientboundMoveEntityPacket.Rot(entityId, yaw, pitch, onGround);
                 }
                 return look;
             }
@@ -372,20 +392,20 @@ public class BotVisibility {
                 relativeZ = previous.z;
                 relativeLook = turned;
                 relative = turned
-                        ? new PacketPlayOutEntity.PacketPlayOutRelEntityMoveLook(
+                        ? new ClientboundMoveEntityPacket.PosRot(
                         entityId,
-                        (byte) dx,
-                        (byte) dy,
-                        (byte) dz,
+                        (short) dx,
+                        (short) dy,
+                        (short) dz,
                         yaw,
                         pitch,
                         onGround
                 )
-                        : new PacketPlayOutEntity.PacketPlayOutRelEntityMove(
+                        : new ClientboundMoveEntityPacket.Pos(
                         entityId,
-                        (byte) dx,
-                        (byte) dy,
-                        (byte) dz,
+                        (short) dx,
+                        (short) dy,
+                        (short) dz,
                         onGround
                 );
             }
@@ -394,7 +414,7 @@ public class BotVisibility {
 
         private Packet<?> teleport() {
             if (teleport == null) {
-                teleport = new PacketPlayOutEntityTeleport(entityId, x, y, z, yaw, pitch, onGround);
+                teleport = ClientboundTeleportEntityPacket.teleport(entityId, position, Set.of(), onGround);
             }
             return teleport;
         }
@@ -404,21 +424,21 @@ public class BotVisibility {
     }
 
     private final class Update {
-        private final EntityPlayer bot;
-        private final EntityArmorStand nameplate;
+        private final ServerPlayer bot;
+        private final TextHandle nameplate;
         private final long tick;
         private final BotVisibilitySettings config;
         private final boolean hasEquipment;
-        private final Movement movement, plateMovement;
-        private final PacketPlayOutEntityMetadata metadata;
-        private PacketPlayOutEntityHeadRotation rotation;
-        private PacketPlayOutEntityStatus hurt;
+        private final Movement movement;
+        private final ClientboundSetEntityDataPacket metadata;
+        private ClientboundRotateHeadPacket rotation;
+        private ClientboundHurtAnimationPacket hurt;
         private ItemStack[] equipment;
-        private PacketPlayOutEntityEquipment[] equipmentPackets;
+        private ClientboundSetEquipmentPacket[] equipmentPackets;
 
         private Update(
-                EntityPlayer bot,
-                EntityArmorStand nameplate,
+                ServerPlayer bot,
+                TextHandle nameplate,
                 long tick,
                 BotVisibilitySettings config,
                 boolean hasEquipment
@@ -429,30 +449,31 @@ public class BotVisibility {
             this.config = config;
             this.hasEquipment = hasEquipment;
             movement = new Movement(bot);
-            plateMovement = nameplate == null ? null : new Movement(nameplate);
-            metadata = bot.getDataWatcher().a()
-                    ? new PacketPlayOutEntityMetadata(bot.getId(), bot.getDataWatcher(), false) : null;
+            var dirty = bot.getEntityData().packDirty();
+            metadata = dirty == null || dirty.isEmpty() ? null : new ClientboundSetEntityDataPacket(bot.getId(), dirty);
         }
 
         private void sync(Player player, Viewer viewer, Display display) {
             boolean initial = !display.spawned;
             if (!display.spawned) {
-                send(player, new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.ADD_PLAYER, bot));
-                display.team = "b" + bot.getUniqueID().toString().replace("-", "").substring(0, 15);
+                send(player, ClientboundPlayerInfoUpdatePacket.createSinglePlayerInitializing(bot, false));
+                display.team = "b" + bot.getUUID().toString().replace("-", "").substring(0, 15);
                 viewer.retiredTeams.remove(display.team);
                 Scoreboard scoreboard = new Scoreboard();
-                ScoreboardTeam team = scoreboard.createTeam(display.team);
-                team.setNameTagVisibility(ScoreboardTeamBase.EnumNameTagVisibility.NEVER);
-                scoreboard.addPlayerToTeam(bot.getProfile().getName(), display.team);
-                send(player, new PacketPlayOutScoreboardTeam(team, 0));
-                send(player, new PacketPlayOutNamedEntitySpawn(bot));
+                PlayerTeam team = scoreboard.addPlayerTeam(display.team);
+                team.setNameTagVisibility(Team.Visibility.NEVER);
+                scoreboard.addPlayerToTeam(bot.getGameProfile().name(), team);
+                send(player, ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true));
+                send(player, new ClientboundAddEntityPacket(bot.getId(), bot.getUUID(), bot.getX(), bot.getY(), bot.getZ(),
+                        bot.getXRot(), bot.getYRot(), bot.getType(), 0, bot.getDeltaMovement(), bot.getYHeadRot()));
+                var fullData = bot.getEntityData().getNonDefaultValues();
+                if (fullData != null && !fullData.isEmpty()) send(player, new ClientboundSetEntityDataPacket(bot.getId(), fullData));
                 if (nameplate != null) {
-                    send(player, new PacketPlayOutSpawnEntityLiving(nameplate));
+                    nameplate.show(player);
                 }
                 display.spawned = true;
                 display.profileRemoveAt = tick + PROFILE_REMOVE_DELAY_TICKS;
                 display.location = movement;
-                display.nameplate = plateMovement;
                 display.lastTeleportTick = tick;
                 if (hasEquipment) {
                     ItemStack[] snapshot = equipment();
@@ -466,9 +487,10 @@ public class BotVisibility {
                             StaggeredDeadline.after(tick, -bot.getId(), config.equipmentCheckTicks());
                 }
             }
+            if (nameplate != null) nameplate.show(player);
             if (display.profileRemoveAt > 0 && tick >= display.profileRemoveAt) {
                 send(player,
-                        new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.REMOVE_PLAYER, bot));
+                        new ClientboundPlayerInfoRemovePacket(List.of(bot.getUUID())));
                 display.profileRemoveAt = 0;
             }
             if (metadata != null && !initial) {
@@ -478,32 +500,25 @@ public class BotVisibility {
             Packet<?> packet = movement.packet(display.location, absolute);
             if (packet != null) {
                 send(player, packet);
-                if (packet instanceof PacketPlayOutEntityTeleport) {
+                if (packet instanceof ClientboundTeleportEntityPacket) {
                     display.lastTeleportTick = tick;
                 }
             }
             if (initial || display.location.yaw != movement.yaw) {
                 if (rotation == null) {
-                    rotation = new PacketPlayOutEntityHeadRotation(bot, movement.yaw);
+                    rotation = new ClientboundRotateHeadPacket(bot, movement.yaw);
                 }
                 send(player, rotation);
             }
             if (packet != null) {
                 display.location = movement;
             }
-            if (plateMovement != null) {
-                Packet<?> platePacket = plateMovement.packet(display.nameplate, absolute);
-                if (platePacket != null) {
-                    send(player, platePacket);
-                    display.nameplate = plateMovement;
-                }
-            }
             if (hasEquipment && tick >= display.nextEquipmentCheck) {
                 display.nextEquipmentCheck = StaggeredDeadline.after(tick, -bot.getId(), config.equipmentCheckTicks());
                 boolean changed = false;
                 for (int slot = 0; slot < 5; slot++) {
-                    ItemStack current = equipment == null ? bot.getEquipment(slot) : equipment[slot];
-                    if (ItemStack.matches(display.equipment == null ? null : display.equipment[slot], current)) {
+                    ItemStack current = equipment == null ? equipmentItem(bot, slot) : equipment[slot];
+                    if (display.equipment != null && ItemStack.matches(display.equipment[slot], current)) {
                         continue;
                     }
                     send(player, equipmentPacket(slot));
@@ -513,31 +528,31 @@ public class BotVisibility {
                     display.equipment = equipment();
                 }
             }
-            if (bot.hurtTicks > display.hurtTicks) {
+            if (bot.hurtTime > display.hurtTicks) {
                 if (hurt == null) {
-                    hurt = new PacketPlayOutEntityStatus(bot, (byte) 2);
+                    hurt = new ClientboundHurtAnimationPacket(bot.getId(), 0f);
                 }
                 send(player, hurt);
             }
-            display.hurtTicks = bot.hurtTicks;
+            display.hurtTicks = bot.hurtTime;
         }
 
         private ItemStack[] equipment() {
             if (equipment != null) return equipment;
             equipment = new ItemStack[5];
             for (int slot = 0; slot < equipment.length; slot++) {
-                ItemStack item = bot.getEquipment(slot);
-                equipment[slot] = item == null ? null : item.cloneItemStack();
+                ItemStack item = equipmentItem(bot, slot);
+                equipment[slot] = item == null ? null : item.copy();
             }
             return equipment;
         }
 
-        private PacketPlayOutEntityEquipment equipmentPacket(int slot) {
+        private ClientboundSetEquipmentPacket equipmentPacket(int slot) {
             if (equipmentPackets == null) {
-                equipmentPackets = new PacketPlayOutEntityEquipment[5];
+                equipmentPackets = new ClientboundSetEquipmentPacket[5];
             }
             if (equipmentPackets[slot] == null) {
-                equipmentPackets[slot] = new PacketPlayOutEntityEquipment(bot.getId(), slot, equipment()[slot]);
+                equipmentPackets[slot] = BotVisibility.equipmentPacket(bot, slot, equipment()[slot]);
             }
             return equipmentPackets[slot];
         }

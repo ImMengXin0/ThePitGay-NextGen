@@ -19,7 +19,7 @@ public class BackButton extends Button {
 
     @Override
     public ItemStack getButtonItem(Player player) {
-        ItemStack itemStack = new ItemStack(Material.BED);
+        ItemStack itemStack = new ItemStack(Material.RED_BED);
         ItemMeta itemMeta = itemStack.getItemMeta();
 
         itemMeta.setDisplayName(CC.RED + "返回上一级菜单");

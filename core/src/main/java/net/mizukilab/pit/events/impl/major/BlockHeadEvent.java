@@ -14,7 +14,7 @@ import com.mojang.authlib.properties.Property;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import net.minecraft.server.v1_8_R3.PacketPlayOutEntityEquipment;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.util.PlayerUtil;
 import net.mizukilab.pit.util.chat.CC;
@@ -23,8 +23,8 @@ import net.mizukilab.pit.util.inventory.InventoryUtil;
 import net.mizukilab.pit.util.item.ItemUtil;
 import net.mizukilab.pit.util.time.TimeUtil;
 import org.bukkit.*;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
@@ -50,15 +50,15 @@ import java.util.stream.Collectors;
 public class BlockHeadEvent extends AbstractEvent implements IEpicEvent, Listener, IPreparative, IScoreBoardInsert {
     private final Map<UUID, PlayerBlockHeadData> dataMap = new HashMap<>();
     public final Map<UUID, PowerUP> pup = new HashMap<>();
-    private static final List<Material> canBeUsed = Arrays.asList(Material.STONE, Material.GRASS, Material.DIRT, Material.COBBLESTONE, Material.WOOD, Material.BEDROCK
+    private static final List<Material> canBeUsed = Arrays.asList(Material.STONE, Material.GRASS_BLOCK, Material.DIRT, Material.COBBLESTONE, Material.OAK_PLANKS, Material.BEDROCK
             , Material.GOLD_ORE, Material.IRON_ORE, Material.COAL_ORE
-            , Material.LOG, Material.LAPIS_ORE,
-            Material.LAPIS_BLOCK, Material.SANDSTONE, Material.NOTE_BLOCK, Material.BED_BLOCK, Material.PISTON_STICKY_BASE
-            , Material.WOOL, Material.GOLD_BLOCK, Material.IRON_BLOCK, Material.BRICK, Material.TNT, Material.BOOKSHELF, Material.MOSSY_COBBLESTONE, Material.OBSIDIAN,
-            Material.DIAMOND_ORE, Material.DIAMOND_BLOCK, Material.FURNACE, Material.BURNING_FURNACE, Material.REDSTONE_ORE, Material.ICE, Material.GLOWSTONE, Material.SMOOTH_BRICK, Material.MELON_BLOCK
+            , Material.OAK_LOG, Material.LAPIS_ORE,
+            Material.LAPIS_BLOCK, Material.SANDSTONE, Material.NOTE_BLOCK, Material.RED_BED, Material.STICKY_PISTON
+            , Material.WHITE_WOOL, Material.GOLD_BLOCK, Material.IRON_BLOCK, Material.BRICK, Material.TNT, Material.BOOKSHELF, Material.MOSSY_COBBLESTONE, Material.OBSIDIAN,
+            Material.DIAMOND_ORE, Material.DIAMOND_BLOCK, Material.FURNACE, Material.FURNACE, Material.REDSTONE_ORE, Material.ICE, Material.GLOWSTONE, Material.STONE_BRICKS, Material.MELON
             , Material.PUMPKIN_STEM, Material.MELON_STEM,
-            Material.NETHER_BRICK, Material.ENDER_STONE, Material.EMERALD_ORE, Material.OBSIDIAN).stream()
-            .filter(material -> material.isSolid() && material != Material.FURNACE && material != Material.BURNING_FURNACE)
+            Material.NETHER_BRICK, Material.END_STONE, Material.EMERALD_ORE, Material.OBSIDIAN).stream()
+            .filter(material -> material.isSolid() && material != Material.FURNACE && material != Material.FURNACE)
             .distinct().collect(Collectors.toList());
     private final Map<String, BlockData> oriBlock = new HashMap<>();
     private final List<Material> selectedMaterials = new ArrayList<>();
@@ -116,14 +116,14 @@ public class BlockHeadEvent extends AbstractEvent implements IEpicEvent, Listene
             if (stand.getCustomName().contains("快速染径") && (System.currentTimeMillis() - get(player, "trail") > 15000)) {
                 refresh(player, "trail");
                 player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 15 * 20, 1));
-                player.playSound(player.getLocation(), Sound.ORB_PICKUP, 100.0f, 1.0f);
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 100.0f, 1.0f);
                 player.sendMessage(CC.translate("&9&l快速染径！ &7你获得了15秒的 &f速度II&7,以及你经过的地方将被你染色！"));
             }
             if (stand.getCustomName().contains("超级恢复") && (System.currentTimeMillis() - get(player, "heal") > 15000)) {
                 refresh(player, "heal");
                 player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 99999, 1));
                 player.setHealth(player.getMaxHealth());
-                player.playSound(player.getLocation(), Sound.ORB_PICKUP, 100.0f, 1.0f);
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 100.0f, 1.0f);
                 player.sendMessage(CC.translate("&9&l超级恢复！ &7你获得了4颗心的额外生命!并且你的血量已恢复最大值"));
             }
             if (stand.getCustomName().contains("钻石套装") && (System.currentTimeMillis() - get(player, "diamond") > 15000)) {
@@ -157,12 +157,12 @@ public class BlockHeadEvent extends AbstractEvent implements IEpicEvent, Listene
                         inventory.setBoots(boot);
                     }
                 }
-                player.playSound(player.getLocation(), Sound.ORB_PICKUP, 100.0f, 1.0f);
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 100.0f, 1.0f);
                 player.sendMessage(CC.translate("&9&l钻石套装！ &7你已装备钻石套装！"));
             }
             if (stand.getCustomName().contains("战斗加成") && (System.currentTimeMillis() - get(player, "combat") > 15000)) {
                 refresh(player, "combat");
-                player.playSound(player.getLocation(), Sound.ORB_PICKUP, 100.0f, 1.0f);
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 100.0f, 1.0f);
                 player.sendMessage(CC.translate("&9&l战斗加成！ &7击杀玩家后,方块爆炸的半径增加！"));
             }
             stand.remove();
@@ -240,15 +240,15 @@ public class BlockHeadEvent extends AbstractEvent implements IEpicEvent, Listene
     }
 
     private void sendPacket(Player player) {
-        PacketPlayOutEntityEquipment packet;
-        packet = new PacketPlayOutEntityEquipment(player.getEntityId(), 4, CraftItemStack.asNMSCopy(new ItemStack(dataMap.get(player.getUniqueId()).block)));
+        ClientboundSetEquipmentPacket packet;
+        packet = net.mizukilab.pit.util.PaperPackets.equipment(player.getEntityId(), 4, CraftItemStack.asNMSCopy(new ItemStack(dataMap.get(player.getUniqueId()).block)));
         for (Player target : Bukkit.getOnlinePlayers()) {
             if (target.equals(player)) {
                 continue;
             }
             ((CraftPlayer) target).getHandle()
-                    .playerConnection
-                    .sendPacket(packet);
+                    .connection
+                    .send(packet);
         }
         //player.getInventory().setHelmet(new ItemStack(dataMap.get(player.getUniqueId()).block));
     }
@@ -624,30 +624,24 @@ public class BlockHeadEvent extends AbstractEvent implements IEpicEvent, Listene
         }
         stand.setCustomNameVisible(true);
         stand.setGravity(false);
-        ItemStack is = new ItemStack(Material.SKULL_ITEM, 1, (short) 3);
+        ItemStack is = new ItemStack(Material.PLAYER_HEAD, 1, (short) 3);
         SkullMeta sm = (SkullMeta) is.getItemMeta();
-        GameProfile profile = new GameProfile(UUID.randomUUID(), "");
+        var profile = Bukkit.createProfile(UUID.randomUUID());
         switch (type) {
             case "quicktrail":
-                profile.getProperties().put("textures", new Property("texture", "e3RleHR1cmVzOntTS0lOOnt1cmw6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjBlMDFiYTI4MTNkYWJlNTVjMWM1OGYyNThiNDNlOTMxNWViYjFiZTlhZTI1NmRiZmFhYjY2YWVhZjdhODA0ZSJ9fX0="));
+                profile.setProperty(new com.destroystokyo.paper.profile.ProfileProperty("textures", "e3RleHR1cmVzOntTS0lOOnt1cmw6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjBlMDFiYTI4MTNkYWJlNTVjMWM1OGYyNThiNDNlOTMxNWViYjFiZTlhZTI1NmRiZmFhYjY2YWVhZjdhODA0ZSJ9fX0="));
                 break;
             case "combatboost":
-                profile.getProperties().put("textures", new Property("texture", "e3RleHR1cmVzOntTS0lOOnt1cmw6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMWIxODY4ZmFjZjQ5MTk1YWQzM2I4MTBlZDgwNmI0MTUwZmYwY2IxOTUzNDI4NTIxYTZhYzg3NjM3Y2M4NDViIn19fQ=="));
+                profile.setProperty(new com.destroystokyo.paper.profile.ProfileProperty("textures", "e3RleHR1cmVzOntTS0lOOnt1cmw6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMWIxODY4ZmFjZjQ5MTk1YWQzM2I4MTBlZDgwNmI0MTUwZmYwY2IxOTUzNDI4NTIxYTZhYzg3NjM3Y2M4NDViIn19fQ=="));
                 break;
             case "superheal":
-                profile.getProperties().put("textures", new Property("texture", "ewogICJ0aW1lc3RhbXAiIDogMTY3MDY3MzA1NjI1NSwKICAicHJvZmlsZUlkIiA6ICI5ZTI3MGUwNzc1ZDg0OWI5Yjk2OTlmMzU3YjVlZjc4NiIsCiAgInByb2ZpbGVOYW1lIiA6ICJBcHBsaW5ncyIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS8zZTg0MDg4OWRjODM3NTc3ZjI1YTM2OWNkZmU4OTU2ZDI4ODgzYzk2NzIzYWM5OTQ5ZmMyZGExZjUwZjJhMWNhIgogICAgfQogIH0KfQ=="));
+                profile.setProperty(new com.destroystokyo.paper.profile.ProfileProperty("textures", "ewogICJ0aW1lc3RhbXAiIDogMTY3MDY3MzA1NjI1NSwKICAicHJvZmlsZUlkIiA6ICI5ZTI3MGUwNzc1ZDg0OWI5Yjk2OTlmMzU3YjVlZjc4NiIsCiAgInByb2ZpbGVOYW1lIiA6ICJBcHBsaW5ncyIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS8zZTg0MDg4OWRjODM3NTc3ZjI1YTM2OWNkZmU4OTU2ZDI4ODgzYzk2NzIzYWM5OTQ5ZmMyZGExZjUwZjJhMWNhIgogICAgfQogIH0KfQ=="));
                 break;
             case "diamondarmor":
-                profile.getProperties().put("textures", new Property("texture", "e3RleHR1cmVzOntTS0lOOnt1cmw6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDM0M2Q2NGQ3YjYwNWQ1MWM1ZWE3Y2I0Y2M2N2NiOTQwNGM4YmU0ZGNiMjk3OWI0MmVlZDExOGFjMjg2NDJkMSJ9fX0="));
+                profile.setProperty(new com.destroystokyo.paper.profile.ProfileProperty("textures", "e3RleHR1cmVzOntTS0lOOnt1cmw6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDM0M2Q2NGQ3YjYwNWQ1MWM1ZWE3Y2I0Y2M2N2NiOTQwNGM4YmU0ZGNiMjk3OWI0MmVlZDExOGFjMjg2NDJkMSJ9fX0="));
                 break;
         }
-        try {
-            Field profileField = sm.getClass().getDeclaredField("profile");
-            profileField.setAccessible(true);
-            profileField.set(sm, profile);
-        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
-            e.printStackTrace();
-        }
+        sm.setPlayerProfile(profile);
         is.setItemMeta(sm);
         if (!"diamondarmor".equals(type)) {
             stand.setHelmet(is);

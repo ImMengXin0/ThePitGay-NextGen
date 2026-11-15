@@ -31,7 +31,7 @@ class KungFuKnowledgePerk : AbstractPerk(), Listener, IAttackEntity {
     }
 
     override fun getIcon(): Material {
-        return Material.RAW_BEEF
+        return Material.BEEF
     }
 
     override fun requireCoins(): Double {
@@ -78,7 +78,7 @@ class KungFuKnowledgePerk : AbstractPerk(), Listener, IAttackEntity {
             return
         }
 
-        val hand = damager.itemInHand
+        val hand = damager.inventory.itemInMainHand
         if (hand != null && hand.type != Material.AIR) {
             event.damage = 0.0
             return

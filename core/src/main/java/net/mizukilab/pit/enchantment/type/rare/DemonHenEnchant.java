@@ -4,7 +4,7 @@ import cn.charlotte.pit.ThePit;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AtomicDouble;
 
-import net.minecraft.server.v1_8_R3.MathHelper;
+import net.minecraft.util.Mth;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.IActionDisplayEnchant;
 import net.mizukilab.pit.enchantment.param.event.PlayerOnly;
@@ -18,8 +18,8 @@ import net.mizukilab.pit.util.time.TimeUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_8_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftEntity;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
@@ -71,8 +71,7 @@ public class DemonHenEnchant extends AbstractEnchantment implements IActionDispl
 
                 masters.add(s.getKey());
                 try {
-                    ((CraftWorld) world).getHandle().createExplosion(((CraftEntity) s.getKey()).getHandle(), location.getX(), location.getY(), location.getZ(),
-                            (1.25F * healthScaled), false, false);
+                    world.createExplosion(location, (1.25F * healthScaled), false, false, s.getKey());
                     float xyz = (float) ((Math.random() - 0.5) * 2);
                     nearbyEntities.forEach(a -> {
                         if (a.isValid()) a.setVelocity(new Vector(xyz, Math.abs(xyz), xyz));
@@ -178,8 +177,8 @@ public class DemonHenEnchant extends AbstractEnchantment implements IActionDispl
         float rad = (float) Math.toRadians(current.nextInt(360) % 360 - 180);
         float rad2 = (float) Math.toRadians(current.nextInt(360) % 360 - 180);
         float range = 2;
-        float x = MathHelper.sin(rad) * range;
-        float z = MathHelper.cos(rad2) * range;
+        float x = Mth.sin(rad) * range;
+        float z = Mth.cos(rad2) * range;
         return clone.subtract(x, -1, z);
     }
 

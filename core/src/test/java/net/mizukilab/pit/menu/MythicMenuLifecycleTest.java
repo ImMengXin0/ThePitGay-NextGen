@@ -29,7 +29,7 @@ import static org.mockito.Mockito.*;
 public class MythicMenuLifecycleTest extends BukkitDataTestSupport {
     @Test
     public void openingAndRefreshingWellDoNotFinishAnimationWhenBukkitClosesOldContainer() throws Exception {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
              MockedStatic<ThePit> pit = mockStatic(ThePit.class);
              var swords = mockConstruction(MythicSwordItem.class);
              var bows = mockConstruction(MythicBowItem.class);
@@ -63,7 +63,7 @@ public class MythicMenuLifecycleTest extends BukkitDataTestSupport {
             when(view.getTopInventory()).thenAnswer(call -> top.get());
             when(player.getOpenInventory()).thenReturn(view);
             when(well.getSize()).thenReturn(45);
-            when(well.getTitle()).thenReturn("神话之井");
+            when(view.getTitle()).thenReturn("神话之井");
             bukkit.when(() -> Bukkit.createInventory(player, 45, "神话之井")).thenReturn(well);
             ButtonListener listener = new ButtonListener();
             doAnswer(call -> {

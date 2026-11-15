@@ -84,8 +84,8 @@ public class ComboStunEnchant extends AbstractEnchantment implements Listener, I
             if (cooldown.getOrDefault(attacker.getUniqueId(), new Cooldown(0)).hasExpired() && PlayerProfile.getPlayerProfileByUuid(attacker.getUniqueId()).getMeleeHit() % 5 == 0) {
                 cooldown.put(attacker.getUniqueId(), new Cooldown(8, TimeUnit.SECONDS));
                 victim.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 8 * enchantLevel, 20));
-                victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 8 * enchantLevel, 20));
-                victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_DIGGING, 8 * enchantLevel, 20));
+                victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 8 * enchantLevel, 20));
+                victim.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 8 * enchantLevel, 20));
                 victim.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 8 * enchantLevel, 20));
             }
         }

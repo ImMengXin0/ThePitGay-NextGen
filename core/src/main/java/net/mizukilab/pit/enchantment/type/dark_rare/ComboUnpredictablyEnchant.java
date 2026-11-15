@@ -73,8 +73,8 @@ public class ComboUnpredictablyEnchant extends AbstractEnchantment implements IA
     public void handleAttackEntity(int enchantLevel, Player attacker, Entity target, double damage, AtomicDouble finalDamage, AtomicDouble boostDamage, AtomicBoolean cancel) {
         if (PlayerProfile.getPlayerProfileByUuid(attacker.getUniqueId()).getMeleeHit() % 5 == 0) {
             Player targetPlayer = (Player) target;
-            targetPlayer.removePotionEffect(PotionEffectType.SLOW);
-            targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 140, 1, true));
+            targetPlayer.removePotionEffect(PotionEffectType.SLOWNESS);
+            targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 140, 1, true));
             targetPlayer.removePotionEffect(PotionEffectType.WEAKNESS);
             targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 280, 3), true);
         }
@@ -88,8 +88,8 @@ public class ComboUnpredictablyEnchant extends AbstractEnchantment implements IA
     public void handleShootEntity(int enchantLevel, Player attacker, Entity target, double damage, AtomicDouble finalDamage, AtomicDouble boostDamage, AtomicBoolean cancel) {
         if (PlayerProfile.getPlayerProfileByUuid(attacker.getUniqueId()).getMeleeHit() % 5 == 0) {
             Player targetPlayer = (Player) target;
-            targetPlayer.removePotionEffect(PotionEffectType.SLOW);
-            targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 140, 1, true));
+            targetPlayer.removePotionEffect(PotionEffectType.SLOWNESS);
+            targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 140, 1, true));
             targetPlayer.removePotionEffect(PotionEffectType.WEAKNESS);
             targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 280, 3), true);
         }

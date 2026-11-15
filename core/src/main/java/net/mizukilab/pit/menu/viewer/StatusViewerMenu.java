@@ -150,7 +150,7 @@ public class StatusViewerMenu extends Menu {
             button.put(8, new Button() {
                 @Override
                 public ItemStack getButtonItem(Player player) {
-                    return adminVersion ? new ItemBuilder(Material.WATCH)
+                    return adminVersion ? new ItemBuilder(Material.CLOCK)
                             .name("&a返回普通版")
                             .build() : new ItemBuilder(Material.COMPASS)
                             .name("&c切换管理员版")
@@ -290,12 +290,12 @@ public class StatusViewerMenu extends Menu {
             @Override
             public ItemStack getButtonItem(Player player) {
                 if (!profile.getPlayerOption().isEnderChestVisibility() && !PlayerUtil.isStaff(player)) {
-                    return new ItemBuilder(Material.ENDER_PORTAL_FRAME)
+                    return new ItemBuilder(Material.END_PORTAL_FRAME)
                             .name("&6寄存箱")
                             .lore("&7查看这名玩家的寄存所的物品.", " ", "&e点击查看!", " ", "&c此玩家选择隐藏了寄存信息,你无法查看!")
                             .build();
                 }
-                return new ItemBuilder(Material.ENDER_PORTAL_FRAME)
+                return new ItemBuilder(Material.END_PORTAL_FRAME)
                         .name("&6寄存箱")
                         .lore("&7查看这名玩家的寄存所的物品.", " ", "&e点击查看!")
                         .build();

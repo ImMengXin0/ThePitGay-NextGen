@@ -37,13 +37,13 @@ public class EffectUtil {
         HashMap<String, String> effectMap = new HashMap<>();
         effectMap.put(PotionEffectType.SPEED.getName(), "&b速度");
         effectMap.put(PotionEffectType.REGENERATION.getName(), "&c生命恢复");
-        effectMap.put(PotionEffectType.DAMAGE_RESISTANCE.getName(), "&3抗性提升");
-        effectMap.put(PotionEffectType.SLOW_DIGGING.getName(), "&7挖掘疲劳");
-        effectMap.put(PotionEffectType.SLOW.getName(), "&7缓慢");
-        effectMap.put(PotionEffectType.JUMP.getName(), "&a跳跃提升");
+        effectMap.put(PotionEffectType.RESISTANCE.getName(), "&3抗性提升");
+        effectMap.put(PotionEffectType.MINING_FATIGUE.getName(), "&7挖掘疲劳");
+        effectMap.put(PotionEffectType.SLOWNESS.getName(), "&7缓慢");
+        effectMap.put(PotionEffectType.JUMP_BOOST.getName(), "&a跳跃提升");
         effectMap.put(PotionEffectType.WITHER.getName(), "&4凋零");
         effectMap.put(PotionEffectType.ABSORPTION.getName(), "&6生命吸收");
-        effectMap.put(PotionEffectType.INCREASE_DAMAGE.getName(), "&c力量");
+        effectMap.put(PotionEffectType.STRENGTH.getName(), "&c力量");
         effectMap.put(PotionEffectType.BLINDNESS.getName(), "&7失明");
         effectMap.put(PotionEffectType.WEAKNESS.getName(), "&4虚弱");
 

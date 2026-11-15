@@ -39,7 +39,7 @@ public class TastySoupPerk extends AbstractPerk implements IPlayerKilledEntity, 
 
     @Override
     public Material getIcon() {
-        return Material.MUSHROOM_SOUP;
+        return Material.MUSHROOM_STEW;
     }
 
     @Override
@@ -113,7 +113,7 @@ public class TastySoupPerk extends AbstractPerk implements IPlayerKilledEntity, 
         }
 
         if (PlayerUtil.getPlayerHealItemAmount(myself) < PlayerUtil.getPlayerHealItemLimit(myself)) {
-            myself.getInventory().addItem(new ItemBuilder(Material.MUSHROOM_SOUP)
+            myself.getInventory().addItem(new ItemBuilder(Material.MUSHROOM_STEW)
                     .name("&a可口浓汤")
                     .deathDrop(true)
                     .removeOnJoin(true)
@@ -137,7 +137,7 @@ public class TastySoupPerk extends AbstractPerk implements IPlayerKilledEntity, 
             return;
         }
         if (PlayerUtil.getPlayerHealItemAmount(myself) < PlayerUtil.getPlayerHealItemLimit(myself)) {
-            myself.getInventory().addItem(new ItemBuilder(Material.MUSHROOM_SOUP)
+            myself.getInventory().addItem(new ItemBuilder(Material.MUSHROOM_STEW)
                     .name("&a助攻浓汤")
                     .deathDrop(true)
                     .removeOnJoin(true)

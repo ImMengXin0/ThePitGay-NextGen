@@ -4,9 +4,9 @@ import cn.charlotte.pit.ThePit;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import lombok.experimental.UtilityClass;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
+import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
@@ -48,11 +48,9 @@ public class Einstein {
     }
     public void noVelocity(Player player){
         if(player instanceof CraftPlayer h) {
-            EntityPlayer handle = h.getHandle();
-            handle.velocityChanged = false;
-            handle.motX = 0;
-            handle.motY = 0;
-            handle.motZ = 0;
+            ServerPlayer handle = h.getHandle();
+            handle.hurtMarked = false;
+            handle.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
             return;
         }
         player.setVelocity(vector);

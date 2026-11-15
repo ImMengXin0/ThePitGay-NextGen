@@ -11,7 +11,7 @@ import net.mizukilab.pit.util.cooldown.Cooldown
 class ClubRodEnchant : AbstractEnchantment() {
     companion object {
         init {
-//            Bukkit.getScheduler().runTaskTimer(ThePit.getInstance(), {
+//            Bukkit.getScheduler().runTaskTimer(ThePit.getInstance(), Runnable {
 //                for (player in Bukkit.getOnlinePlayers()) {
 //                    if (player.inventory.leggings == null || ItemUtil.getEnchantLevel(player.inventory.leggings, "club_rod") == -1) {
 //                        InventoryUtil.removeItemWithInternalName(player,"fishing_rod_aqua")

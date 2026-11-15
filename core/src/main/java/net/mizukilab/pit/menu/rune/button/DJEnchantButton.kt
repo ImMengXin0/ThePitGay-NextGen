@@ -45,7 +45,7 @@ class DJEnchantButton(
         if (applied || (clickType != ClickType.LEFT && clickType != ClickType.RIGHT)) return
         val inventory = player.inventory
         if (index !in 0 until inventory.size || index == inventory.heldItemSlot) return
-        val rune = inventory.itemInHand ?: return
+        val rune = inventory.itemInMainHand ?: return
         if (rune.amount < 1 || ItemUtil.getInternalName(rune) != "musical_rune") return
         val current = inventory.getItem(index) ?: return
         if (current.amount != 1 || !current.isSimilar(expectedItem) ||
@@ -61,7 +61,7 @@ class DJEnchantButton(
         applied = true
         inventory.setItem(index, result)
         inventory.setItem(inventory.heldItemSlot, remaining)
-        player.playSound(player.location, Sound.ANVIL_USE, 1f, 99f)
+        player.playSound(player.location, Sound.BLOCK_ANVIL_USE, 1f, 99f)
         player.sendMessage(CC.translate("&6&l铸造！ &7成功为你的神话之裤增加了${active.enchantName}附魔"))
         player.closeInventory()
     }

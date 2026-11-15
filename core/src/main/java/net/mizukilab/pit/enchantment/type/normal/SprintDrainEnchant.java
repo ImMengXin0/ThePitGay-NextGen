@@ -64,8 +64,8 @@ public class SprintDrainEnchant extends AbstractEnchantment implements IPlayerSh
         attacker.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * (enchantLevel * 2 + 1), enchantLevel >= 3 ? 1 : 0), true);
         if (enchantLevel >= 2) {
             Player targetPlayer = (Player) target;
-            targetPlayer.removePotionEffect(PotionEffectType.SLOW);
-            targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 20 * 3, 0, true));
+            targetPlayer.removePotionEffect(PotionEffectType.SLOWNESS);
+            targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20 * 3, 0, true));
         }
     }
 }

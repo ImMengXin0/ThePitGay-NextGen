@@ -45,8 +45,8 @@ public class FourInARowMenu extends Menu {
         Player other = white ? game.getBlackPlayer() : game.getWhitePlayer();
 
         final Map<Integer, Button> buttonMap = new HashMap<>(28);
-        buttonMap.put(2, new DisplayButton(new ItemBuilder(Material.SKULL_ITEM).durability(3).name(RankUtil.getPlayerRankColor(player.getUniqueId())).setSkullOwner(player.getName()).build(), true));
-        buttonMap.put(6, new DisplayButton(new ItemBuilder(Material.SKULL_ITEM).durability(3).name(RankUtil.getPlayerRankColor(other.getUniqueId())).setSkullOwner(other.getName()).build(), true));
+        buttonMap.put(2, new DisplayButton(new ItemBuilder(Material.PLAYER_HEAD).durability(3).name(RankUtil.getPlayerRankColor(player.getUniqueId())).setSkullOwner(player.getName()).build(), true));
+        buttonMap.put(6, new DisplayButton(new ItemBuilder(Material.PLAYER_HEAD).durability(3).name(RankUtil.getPlayerRankColor(other.getUniqueId())).setSkullOwner(other.getName()).build(), true));
 
         final int seconds = (int) (game.getTimer().getRemaining() / 1000);
         buttonMap.put(4, new DisplayButton(new ItemBuilder(Material.COMPASS).name("&a剩余时间: " + seconds).amount(seconds).build(), true));
@@ -67,7 +67,7 @@ public class FourInARowMenu extends Menu {
         if (game.getCurrentState() == FourInARow.GameState.END) {
             for (FourInARow.PosInfo info : game.getWinsInfo()) {
                 final int slot = this.getSlot(info.getX(), info.getY() + 1);
-                buttonMap.put(slot, new DisplayButton(new ItemBuilder(Material.SKULL_ITEM).name(" ").durability(3).setSkullProperty("eyJ0aW1lc3RhbXAiOjE1MzE5NjU0NjA5MzAsInByb2ZpbGVJZCI6ImUzYjQ0NWM4NDdmNTQ4ZmI4YzhmYTNmMWY3ZWZiYThlIiwicHJvZmlsZU5hbWUiOiJNaW5pRGlnZ2VyVGVzdCIsInNpZ25hdHVyZVJlcXVpcmVkIjp0cnVlLCJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTQ5NzMxYTg1M2ZhZjIwOWE4ZWI0MTM0YzkwYzllYzA5ZTBiN2I4ZTJhYjMwNWIxODg3MzZjMzJlOTJhYTYifX19").build(), true));
+                buttonMap.put(slot, new DisplayButton(new ItemBuilder(Material.PLAYER_HEAD).name(" ").durability(3).setSkullProperty("eyJ0aW1lc3RhbXAiOjE1MzE5NjU0NjA5MzAsInByb2ZpbGVJZCI6ImUzYjQ0NWM4NDdmNTQ4ZmI4YzhmYTNmMWY3ZWZiYThlIiwicHJvZmlsZU5hbWUiOiJNaW5pRGlnZ2VyVGVzdCIsInNpZ25hdHVyZVJlcXVpcmVkIjp0cnVlLCJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTQ5NzMxYTg1M2ZhZjIwOWE4ZWI0MTM0YzkwYzllYzA5ZTBiN2I4ZTJhYjMwNWIxODg3MzZjMzJlOTJhYTYifX19").build(), true));
             }
         }
 

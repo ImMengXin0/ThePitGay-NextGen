@@ -138,7 +138,7 @@ public class AuraOfProtectionKillStreak extends AbstractPerk implements Listener
         }
         if ("aura_of_protection".equals(ItemUtil.getInternalName(item))) {
             PlayerUtil.takeOneItemInHand(player);
-            player.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 4 * 20, 1), true);
+            player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 4 * 20, 1), true);
             player.setMetadata("true_damage_immune", new FixedMetadataValue(ThePit.getInstance(), System.currentTimeMillis() + 15 * 1000L));
             //effect goes here
         }

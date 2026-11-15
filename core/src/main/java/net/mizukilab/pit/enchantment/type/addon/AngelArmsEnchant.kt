@@ -91,8 +91,8 @@ class AngelArmsEnchant : AbstractEnchantment(), IAttackEntity, IActionDisplayEnc
                 cooldown[attacker.uniqueId] = Cooldown(5, TimeUnit.SECONDS)
                 boostDamage.getAndAdd((get(enchantLevel) / 100).toDouble())
                 PlayerUtil.heal(attacker, getHeath(enchantLevel) * 2)
-                if (player.hasPotionEffect(PotionEffectType.DAMAGE_RESISTANCE)) {
-                    player.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE)
+                if (player.hasPotionEffect(PotionEffectType.RESISTANCE)) {
+                    player.removePotionEffect(PotionEffectType.RESISTANCE)
                 }
             }
         }

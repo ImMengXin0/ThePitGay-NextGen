@@ -97,7 +97,7 @@ public class SwordBundleShopButton extends AbstractShopButton implements Listene
             return;
         }
         Player player = e.getPlayer();
-        if (e.getClickedBlock() != null && (e.getClickedBlock().getType() == Material.WORKBENCH
+        if (e.getClickedBlock() != null && (e.getClickedBlock().getType() == Material.CRAFTING_TABLE
                 || e.getClickedBlock().getType() == Material.ANVIL || e.getClickedBlock().getType() == Material.CHEST || e.getClickedBlock().getType() == Material.TRAPPED_CHEST)) {
             e.setCancelled(true);
             return;
@@ -140,7 +140,7 @@ public class SwordBundleShopButton extends AbstractShopButton implements Listene
                 player.sendMessage(CC.translate("&c你的背包内需要有10条及以上的未附魔神话之剑才能使用此物品!"));
             } else {
                 int count = 0;
-                ItemBuilder itemBuilder = new ItemBuilder(Material.STORAGE_MINECART)
+                ItemBuilder itemBuilder = new ItemBuilder(Material.CHEST_MINECART)
                         .name("&b神话之剑收纳箱")
                         .canSaveToEnderChest(true)
                         .canTrade(true)

@@ -8,7 +8,13 @@ import cn.charlotte.pit.event.PitRegainHealthEvent;
 import cn.charlotte.pit.events.trigger.type.IEpicEvent;
 import cn.charlotte.pit.perk.AbstractPerk;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.server.v1_8_R3.*;
+import net.minecraft.server.level.ServerPlayer;
+import org.bukkit.Particle;
+import org.bukkit.entity.Entity;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LightningBolt;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.mizukilab.pit.UtilKt;
 import net.mizukilab.pit.event.CanImmuneEvent;
 import net.mizukilab.pit.event.TrueDamageByEntityEvent;
@@ -19,9 +25,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftEntity;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.entity.CraftEntity;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Chicken;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -58,9 +64,9 @@ public class PlayerUtil {
     public static void addAbsorptionHearts(Player player, float extraHearts) {
         if (player instanceof CraftPlayer) {
             CraftPlayer craftPlayer = (CraftPlayer) player;
-            float currentHearts = craftPlayer.getHandle().getAbsorptionHearts();
+            float currentHearts = craftPlayer.getHandle().getAbsorptionAmount();
             if (currentHearts < 40) {
-                craftPlayer.getHandle().setAbsorptionHearts(currentHearts + extraHearts);
+                craftPlayer.getHandle().setAbsorptionAmount(currentHearts + extraHearts);
             }
         }
     }
@@ -68,7 +74,7 @@ public class PlayerUtil {
     public static void clearAbsorptionHearts(Player player) {
         if (player instanceof CraftPlayer) {
             CraftPlayer craftPlayer = (CraftPlayer) player;
-            craftPlayer.getHandle().setAbsorptionHearts(0);
+            craftPlayer.getHandle().setAbsorptionAmount(0);
         }
     }
 
@@ -78,8 +84,8 @@ public class PlayerUtil {
     }
 
     public static boolean critical(Player player) {
-        final EntityPlayer entityPlayer = ((CraftPlayer) player).getHandle();
-        return entityPlayer.fallDistance > 0.0F && !entityPlayer.onGround && !entityPlayer.k_() && !entityPlayer.V() && !entityPlayer.hasEffect(MobEffectList.BLINDNESS) && entityPlayer.vehicle == null;
+        final ServerPlayer entityPlayer = ((CraftPlayer) player).getHandle();
+        return entityPlayer.fallDistance > 0.0F && !entityPlayer.onGround() && !entityPlayer.onClimbable() && !entityPlayer.isInWater() && !entityPlayer.hasEffect(MobEffects.BLINDNESS) && !entityPlayer.isPassenger();
     }
 
     /** Legacy API name used by already compiled addons. */
@@ -385,19 +391,19 @@ public class PlayerUtil {
         ItemStack[] is = player.getInventory().getArmorContents();
         for (ItemStack i : is) {
             Material type = i.getType();
-            if (type == Material.LEATHER_HELMET || type == Material.LEATHER_BOOTS || type == Material.GOLD_BOOTS || type == Material.CHAINMAIL_BOOTS) {
+            if (type == Material.LEATHER_HELMET || type == Material.LEATHER_BOOTS || type == Material.GOLDEN_BOOTS || type == Material.CHAINMAIL_BOOTS) {
                 defense += 1;
             }
-            if (type == Material.LEATHER_LEGGINGS || type == Material.GOLD_HELMET || type == Material.CHAINMAIL_HELMET || type == Material.IRON_HELMET) {
+            if (type == Material.LEATHER_LEGGINGS || type == Material.GOLDEN_HELMET || type == Material.CHAINMAIL_HELMET || type == Material.IRON_HELMET) {
                 defense += 2;
             }
-            if (type == Material.LEATHER_CHESTPLATE || type == Material.GOLD_LEGGINGS || type == Material.DIAMOND_HELMET || type == Material.DIAMOND_BOOTS) {
+            if (type == Material.LEATHER_CHESTPLATE || type == Material.GOLDEN_LEGGINGS || type == Material.DIAMOND_HELMET || type == Material.DIAMOND_BOOTS) {
                 defense += 3;
             }
             if (type == Material.CHAINMAIL_LEGGINGS) {
                 defense += 4;
             }
-            if (type == Material.GOLD_CHESTPLATE || type == Material.CHAINMAIL_CHESTPLATE || type == Material.IRON_LEGGINGS) {
+            if (type == Material.GOLDEN_CHESTPLATE || type == Material.CHAINMAIL_CHESTPLATE || type == Material.IRON_LEGGINGS) {
                 defense += 5;
             }
             if (type == Material.IRON_CHESTPLATE || type == Material.DIAMOND_LEGGINGS) {
@@ -456,10 +462,10 @@ public class PlayerUtil {
         }
         player.setGameMode(GameMode.SURVIVAL);
 
-        EntityPlayer entityPlayer = ((CraftPlayer) player).getHandle();
-        entityPlayer.getDataWatcher().watch(9, (byte) 0);
-        entityPlayer.removeAllEffects();
-        entityPlayer.setAbsorptionHearts(0.0F);
+        ServerPlayer entityPlayer = ((CraftPlayer) player).getHandle();
+        player.setArrowsInBody(0);
+        player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
+        entityPlayer.setAbsorptionAmount(0.0F);
         //temp disable
         player.setWalkSpeed(0.2F);
 
@@ -548,13 +554,12 @@ public class PlayerUtil {
     }
 
     public static void playThunderEffect(Location thunderLocation) {
-        EntityLightning lightning = new EntityLightning(
-                ((CraftWorld) thunderLocation.getWorld()).getHandle(), thunderLocation.getX(), thunderLocation.getY(), thunderLocation.getZ(), true, true
-        );
-
-        PacketPlayOutSpawnEntityWeather packet = new PacketPlayOutSpawnEntityWeather(lightning);
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            ((CraftPlayer) player).getHandle().playerConnection.sendPacket(packet);
+        LightningBolt lightning = new LightningBolt(EntityType.LIGHTNING_BOLT,
+                ((CraftWorld) thunderLocation.getWorld()).getHandle());
+        lightning.setPos(thunderLocation.getX(), thunderLocation.getY(), thunderLocation.getZ());
+        ClientboundAddEntityPacket packet = new ClientboundAddEntityPacket(lightning, 0, lightning.blockPosition());
+        for (Player player : thunderLocation.getWorld().getPlayers()) {
+            ((CraftPlayer) player).getHandle().connection.send(packet);
         }
     }
 
@@ -571,7 +576,7 @@ public class PlayerUtil {
         event.getPlayer().addPotionEffect(event.getPotionEffect(), force);
     }
 
-    public static void sendParticle(Location location, EnumParticle particle, int count) {
+    public static void sendParticle(Location location, Particle particle, int count) {
         new ParticleBuilder(location, particle).setCount(count).play();
     }
 

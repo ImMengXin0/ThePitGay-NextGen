@@ -5,10 +5,10 @@ import cn.charlotte.pit.api.PitInternalHook;
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.PlayerEnderChest;
 import cn.charlotte.pit.data.sub.PlayerWarehouse;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
-import net.minecraft.server.v1_8_R3.DispenserRegistry;
-import net.minecraft.server.v1_8_R3.DataWatcher;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.server.Bootstrap;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerPlayer;
 import net.mizukilab.pit.enchantment.info.EnchantRequest;
 import net.mizukilab.pit.enchantment.menu.MythicWellMenu;
 import net.mizukilab.pit.enchantment.menu.button.EnchantBookButton;
@@ -29,8 +29,8 @@ import net.mizukilab.pit.util.menu.Button;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Server;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemFactory;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
@@ -74,7 +74,7 @@ public class SpawnScrollRegressionTest {
     @BeforeClass
     public static void registerVanillaItems() {
         PrintStream out = System.out, err = System.err;
-        try (var attributes = mockConstruction(AttributeModifier.class)) { DispenserRegistry.c(); }
+        try (var attributes = mockConstruction(AttributeModifier.class)) { net.mizukilab.pit.PaperTestBootstrap.initialize(); }
         finally { System.setOut(out); System.setErr(err); }
     }
 
@@ -82,7 +82,7 @@ public class SpawnScrollRegressionTest {
     public void setUp() throws Exception {
         warehouses = mockConstruction(PlayerWarehouse.class);
         enderChests = mockConstruction(PlayerEnderChest.class);
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         bukkit.when(Bukkit::getItemFactory).thenReturn(CraftItemFactory.instance());
         Server server = mock(Server.class, RETURNS_DEEP_STUBS);
         bukkit.when(Bukkit::getServer).thenReturn(server);
@@ -154,12 +154,14 @@ public class SpawnScrollRegressionTest {
     }
 
     // Vanilla reset internals need a running world; isolate only those calls.
-    public static class ResetHandle extends EntityPlayer {
-        DataWatcher watcher;
+    public static class ResetHandle extends ServerPlayer {
+        SynchedEntityData watcher;
         public ResetHandle() { super(null, null, null, null); }
-        @Override public DataWatcher getDataWatcher() { return watcher; }
-        @Override public void removeAllEffects() { }
-        @Override public void setAbsorptionHearts(float hearts) { }
+        @Override public SynchedEntityData getEntityData() { return watcher; }
+        @Override public net.minecraft.world.entity.ai.attributes.AttributeMap getAttributes() {
+            return mock(net.minecraft.world.entity.ai.attributes.AttributeMap.class);
+        }
+        @Override public boolean removeAllEffects() { return true; }
     }
 
     private ItemStack scrolls(int count) {
@@ -197,7 +199,7 @@ public class SpawnScrollRegressionTest {
             handle = (ResetHandle) allocatorType.getMethod("newInstance", Class.class)
                     .invoke(allocator, ResetHandle.class);
         }
-        handle.watcher = mock(DataWatcher.class);
+        handle.watcher = mock(SynchedEntityData.class);
         when(craft.getHandle()).thenReturn(handle);
         when(craft.getInventory()).thenReturn(inventory);
         when(craft.getEnderChest()).thenReturn(mock(Inventory.class));
@@ -217,10 +219,10 @@ public class SpawnScrollRegressionTest {
     @Test
     public void newAndLegacyScrollsCannotBeDroppedAsSingleItemsOrStacks() {
         ItemStack fresh = scrolls(1);
-        assertFalse(ItemUtil.getExtra(fresh).getBoolean("tradeAllow"));
+        assertFalse(ItemUtil.getExtra(fresh).getBooleanOr("tradeAllow", false));
         for (int count : new int[]{1, 64}) {
             ItemStack legacy = new ItemBuilder(scrolls(count)).canDrop(true).build();
-            assertTrue(ItemUtil.getExtra(legacy).getBoolean("tradeAllow"));
+            assertTrue(ItemUtil.getExtra(legacy).getBooleanOr("tradeAllow", false));
             Item dropped = mock(Item.class);
             when(dropped.getItemStack()).thenReturn(legacy);
             PlayerDropItemEvent event = new PlayerDropItemEvent(player, dropped);

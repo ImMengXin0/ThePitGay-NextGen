@@ -76,7 +76,7 @@ public class CricketEnchant extends AbstractEnchantment implements ITickTask, IP
     public void handle(int enchantLevel, Player player) {
         UUID uniqueId = player.getUniqueId();
 
-        if (player.getLocation().clone().add(0, -1, 0).getBlock().getType() == Material.GRASS) {
+        if (player.getLocation().clone().add(0, -1, 0).getBlock().getType() == Material.GRASS_BLOCK) {
             player.addPotionEffect(L1, true);
             crickets.add(uniqueId);
         } else {

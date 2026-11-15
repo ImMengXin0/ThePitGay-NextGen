@@ -1,44 +1,55 @@
 package cn.mythicland.npclib.bot.v1_8_R3;
 
 import cn.mythicland.npclib.api.skin.Skin;
+import com.google.common.collect.ImmutableMultimap;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
-import net.minecraft.server.v1_8_R3.*;
+import com.mojang.authlib.properties.PropertyMap;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.embedded.EmbeddedChannel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.Connection;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ClientInformation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.stats.Stat;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Avatar;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_8_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftEntity;
-import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.entity.CraftEntity;
 
-import java.lang.reflect.Field;
-import java.util.List;
-import java.util.Map;
+import java.net.InetSocketAddress;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
-public class BotEntity extends EntityPlayer {
-    private static final IChatBaseComponent TAB_NAME = new ChatComponentText("");
-    private static final Field WORLD_ACCESSES = field(World.class, "u");
-    private static final Field PLAYER_STATISTICS = field(PlayerList.class, "o");
-    private static final Field GAME_MODE = field(PlayerInteractManager.class, "gamemode");
+/** A real server player for combat; visibility is owned by BotVisibility. */
+public class BotEntity extends ServerPlayer {
     private final boolean walking;
     private final String sourceName;
     private final BiConsumer<BotEntity, DamageSource> deathHandler;
     private final BiConsumer<BotEntity, Runnable> stepHandler;
+    private final EmbeddedChannel botChannel;
 
-    public record Options(
-            String name,
-            String displayName,
-            Skin skin,
-            boolean walking,
-            BiConsumer<BotEntity, DamageSource> deathHandler,
-            BiConsumer<BotEntity, Runnable> stepHandler
-    ) {
+    public record Options(String name, String displayName, Skin skin, boolean walking,
+                          BiConsumer<BotEntity, DamageSource> deathHandler,
+                          BiConsumer<BotEntity, Runnable> stepHandler) {
         public Options {
-            Objects.requireNonNull(name, "name");
-            Objects.requireNonNull(displayName, "displayName");
-            Objects.requireNonNull(deathHandler, "deathHandler");
-            Objects.requireNonNull(stepHandler, "stepHandler");
+            Objects.requireNonNull(name); Objects.requireNonNull(displayName);
+            Objects.requireNonNull(deathHandler); Objects.requireNonNull(stepHandler);
         }
     }
 
@@ -50,330 +61,105 @@ public class BotEntity extends EntityPlayer {
 
     private static GameProfile profile(Skin skin) {
         UUID id = UUID.randomUUID();
-        GameProfile profile = new GameProfile(id, "b" + id.toString().replace("-", "").substring(0, 15));
-        if (skin != null) {
-            profile.getProperties().put("textures", new Property("textures", skin.value(), skin.signature()));
-        }
-        return profile;
+        PropertyMap properties = skin == null ? PropertyMap.EMPTY : new PropertyMap(
+                ImmutableMultimap.of("textures", new Property("textures", skin.value(), skin.signature())));
+        return new GameProfile(id, "b" + id.toString().replace("-", "").substring(0, 15), properties);
     }
 
     private BotEntity(Location location, GameProfile profile, Options options) {
-        super(
-                prepareServer(profile), ((CraftWorld) location.getWorld()).getHandle(),
-                profile, new PlayerInteractManager(((CraftWorld) location.getWorld()).getHandle())
-        );
-        releaseStatistics(server.getPlayerList(), getUniqueID(), super.getStatisticManager());
-        this.walking = options.walking();
-        this.sourceName = options.name();
-        this.deathHandler = options.deathHandler();
-        this.stepHandler = options.stepHandler();
-        NetworkManager network = new NetworkManager(EnumProtocolDirection.CLIENTBOUND);
-        this.playerConnection = new PlayerConnection(server, network, this) {
-            @Override
-            public void sendPacket(Packet packet) {
-            }
+        super(MinecraftServer.getServer(), ((CraftWorld) location.getWorld()).getHandle(),
+                profile, ClientInformation.createDefault());
+        walking = options.walking(); sourceName = options.name();
+        deathHandler = options.deathHandler(); stepHandler = options.stepHandler();
+        botChannel = new EmbeddedChannel();
+        net.minecraft.network.Connection network = new net.minecraft.network.Connection(PacketFlow.SERVERBOUND);
+        network.channel = botChannel;
+        network.address = new InetSocketAddress("127.0.0.1", 0);
+        connection = new ServerGamePacketListenerImpl(MinecraftServer.getServer(), network, this,
+                CommonListenerCookie.createInitial(profile, false)) {
+            @Override public void send(Packet<?> packet) { }
+            @Override public void send(Packet<?> packet, ChannelFutureListener listener) { }
         };
-        network.a(playerConnection);
-        initializeGameMode(this.playerInteractManager);
-        this.invulnerableTicks = 0;
-        this.joining = false;
-        this.getDataWatcher().watch(10, (byte) 127);
-        this.setSprinting(!this.walking);
-        this.setPositionRotation(location.getX(), location.getY(), location.getZ(), 0, 0);
-        this.getBukkitEntity().setDisplayName(options.displayName());
+        gameMode.changeGameModeForPlayer(GameType.SURVIVAL);
+        invulnerableTime = 0;
+        suppressTrackerForLogin = true;
+        getEntityData().set(Avatar.DATA_PLAYER_MODE_CUSTOMISATION, (byte) 127);
+        setSprinting(!walking);
+        setPos(location.getX(), location.getY(), location.getZ());
+        setRot(location.getYaw(), location.getPitch());
+        getBukkitEntity().setDisplayName(options.displayName());
+        getBukkitEntity().setPersistent(false);
     }
 
     protected final void spawn() {
-        if (!addUntracked()) {
-            throw new IllegalStateException("Cannot add bot entity at " + getBukkitEntity().getLocation());
-        }
-        world.players.remove(this);
-        ((WorldServer) world).getTracker().untrackEntity(this);
+        ((ServerLevel) level()).addNewPlayer(this);
+        ((ServerLevel) level()).players().remove(this);
+        if (!valid) throw new IllegalStateException("Cannot add bot at " + getBukkitEntity().getLocation());
     }
 
-    private static Field field(Class<?> type, String name) {
-        try {
-            Field field = type.getDeclaredField(name);
-            field.setAccessible(true);
-            return field;
-        } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException("Cannot access bot runtime field " + type.getName() + "." + name, failure);
-        }
-    }
-
-    private static MinecraftServer prepareServer(GameProfile profile) {
-        MinecraftServer server = MinecraftServer.getServer();
-        prepareStatistics(server.getPlayerList(), profile.getId(), server);
-        return server;
-    }
-
-    static void prepareStatistics(PlayerList players, UUID id, MinecraftServer server) {
-        try {
-            @SuppressWarnings("unchecked")
-            Map<UUID, ServerStatisticManager> cached =
-                    (Map<UUID, ServerStatisticManager>) PLAYER_STATISTICS.get(players);
-            cached.computeIfAbsent(id, ignored -> new ServerStatisticManager(server, null) {
-                @Override
-                public void a() {
-                }
-
-                @Override
-                public void b() {
-                }
-            });
-        } catch (IllegalAccessException failure) {
-            throw new IllegalStateException("Cannot prepare server statistics for bot " + id, failure);
-        }
-    }
-
-    static void initializeGameMode(PlayerInteractManager manager) {
-        try {
-            GAME_MODE.set(manager, WorldSettings.EnumGamemode.SURVIVAL);
-            WorldSettings.EnumGamemode.SURVIVAL.a(manager.player.abilities);
-        } catch (IllegalAccessException failure) {
-            throw new IllegalStateException("Cannot initialize bot game mode", failure);
-        }
-    }
-
-    static void releaseStatistics(PlayerList players, UUID id, ServerStatisticManager statistics) {
-        try {
-            @SuppressWarnings("unchecked")
-            Map<UUID, ServerStatisticManager> cached =
-                    (Map<UUID, ServerStatisticManager>) PLAYER_STATISTICS.get(players);
-            cached.remove(id, statistics);
-        } catch (IllegalAccessException failure) {
-            throw new IllegalStateException("Cannot release server statistics for bot " + id, failure);
-        }
-    }
-
-    private boolean addUntracked() {
-        try {
-            @SuppressWarnings("unchecked")
-            List<IWorldAccess> accesses = (List<IWorldAccess>) WORLD_ACCESSES.get(world);
-            IWorldAccess[] original = accesses.toArray(IWorldAccess[]::new);
-            for (int index = 0; index < original.length; index++) {
-                if (original[index] instanceof WorldManager) {
-                    accesses.set(index, new UntrackedWorldAccess(original[index], this));
-                }
-            }
-            try {
-                return world.addEntity(this, CreatureSpawnEvent.SpawnReason.CUSTOM);
-            } finally {
-                for (int index = 0; index < original.length; index++) {
-                    if (original[index] instanceof WorldManager) {
-                        accesses.set(index, original[index]);
-                    }
-                }
-            }
-        } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException("Cannot register untracked bot entity", failure);
-        }
-    }
-
-    static final class UntrackedWorldAccess implements IWorldAccess {
-        private final IWorldAccess delegate;
-        private final Entity bot;
-
-        UntrackedWorldAccess(IWorldAccess delegate, Entity bot) {
-            this.delegate = delegate;
-            this.bot = bot;
-        }
-
-        @Override
-        public void a(BlockPosition position) {
-            delegate.a(position);
-        }
-
-        @Override
-        public void b(BlockPosition position) {
-            delegate.b(position);
-        }
-
-        @Override
-        public void a(int x1, int y1, int z1, int x2, int y2, int z2) {
-            delegate.a(x1, y1, z1, x2, y2, z2);
-        }
-
-        @Override
-        public void a(String sound, double x, double y, double z, float volume, float pitch) {
-            delegate.a(sound, x, y, z, volume, pitch);
-        }
-
-        @Override
-        public void a(
-                EntityHuman player,
-                String sound,
-                double x,
-                double y,
-                double z,
-                float volume,
-                float pitch
-        ) {
-            delegate.a(player, sound, x, y, z, volume, pitch);
-        }
-
-        @Override
-        public void a(
-                int particle,
-                boolean longDistance,
-                double x,
-                double y,
-                double z,
-                double dx,
-                double dy,
-                double dz,
-                int... data
-        ) {
-            delegate.a(particle, longDistance, x, y, z, dx, dy, dz, data);
-        }
-
-        @Override
-        public void a(Entity entity) {
-            if (entity == bot) return;
-            delegate.a(entity);
-        }
-
-        @Override
-        public void b(Entity entity) {
-            delegate.b(entity);
-        }
-
-        @Override
-        public void a(String sound, BlockPosition position) {
-            delegate.a(sound, position);
-        }
-
-        @Override
-        public void a(int effect, BlockPosition position, int data) {
-            delegate.a(effect, position, data);
-        }
-
-        @Override
-        public void a(EntityHuman player, int effect, BlockPosition position, int data) {
-            delegate.a(player, effect, position, data);
-        }
-
-        @Override
-        public void b(int breaker, BlockPosition position, int stage) {
-            delegate.b(breaker, position, stage);
-        }
-    }
-
-    @Override
-    public IChatBaseComponent getPlayerListName() {
-        return TAB_NAME;
-    }
-
-    @Override
-    public void t_() {
-    }
-
-    @Override
-    public void l() {
-    }
-
-    @Override
-    public void a(Statistic statistic, int amount) {
-    }
+    public UUID getUniqueID() { return getUUID(); }
+    @Override public Component getTabListDisplayName() { return Component.empty(); }
+    @Override public void tick() { }
+    @Override public void doTick() { }
+    @Override public void awardStat(Stat<?> stat, int amount) { }
 
     public void tickState() {
-        if (noDamageTicks > 0) {
-            noDamageTicks--;
-        }
-        if (invulnerableTicks > 0) {
-            invulnerableTicks--;
-        }
-        super.K();
-    }
-
-    @Override
-    public boolean ad() {
-        return !dead;
-    }
-
-    @Override
-    public void collide(Entity entity) {
-        if (collidesWithEntities) {
-            super.collide(entity);
-        }
+        ++tickCount;
+        super.baseTick();
+        if (invulnerableTime > 0) --invulnerableTime;
+        ++attackStrengthTicker;
     }
 
     public void step(float strafe, float forward, double speed, boolean jump) {
-        if (dead) return;
-        S = 0.6F;
+        if (!isAlive() || isRemoved()) return;
         updateSprinting();
-        AttributeInstance movement = getAttributeInstance(GenericAttributes.MOVEMENT_SPEED);
-        movement.setValue(0.1D * speed * (getBukkitEntity().getWalkSpeed() / 0.2D));
-        k((float) movement.getValue());
-        if (jump && onGround) {
-            bF();
-        }
-        g(strafe, forward);
-        aI = yaw;
-        aK = yaw;
-        f(yaw);
-        world.players.remove(this);
-    }
-
-    @Override
-    public void bF() {
-        updateSprinting();
-        super.bF();
+        var movement = getAttribute(Attributes.MOVEMENT_SPEED);
+        movement.setBaseValue(.1 * speed * (getBukkitEntity().getWalkSpeed() / .2));
+        setSpeed((float) movement.getValue());
+        if (jump && onGround()) jumpFromGround();
+        travel(new Vec3(strafe, 0, forward));
+        setYBodyRot(getYRot());
+        setYHeadRot(getYRot());
     }
 
     public void hit(org.bukkit.entity.Entity target) {
-        bw();
+        swing(InteractionHand.MAIN_HAND);
         attack(((CraftEntity) target).getHandle());
         updateSprinting();
     }
 
     private void updateSprinting() {
-        if (isSprinting() == walking) {
-            setSprinting(!walking);
-        }
+        if (isSprinting() == walking) setSprinting(!walking);
     }
 
-    @Override
-    protected void a(double distance, boolean ground, Block block, BlockPosition position) {
+    @Override protected void checkFallDamage(double distance, boolean ground, BlockState block, BlockPos pos) {
         fallDistance = 0;
     }
-
-    @Override
-    public void e(float distance, float multiplier) {
-        fallDistance = 0;
+    @Override public boolean causeFallDamage(double distance, float multiplier, DamageSource source) {
+        fallDistance = 0; return false;
     }
-
-    @Override
-    public void die(DamageSource source) {
-        this.deathHandler.accept(this, source);
+    @Override public void die(DamageSource source) { deathHandler.accept(this, source); }
+    @Override public String getPlainTextName() {
+        return sourceName == null ? super.getPlainTextName() : sourceName;
     }
-
-    @Override
-    public String getName() {
-        return this.sourceName == null ? super.getName() : this.sourceName;
-    }
-
-    @Override
-    protected void a(BlockPosition position, Block block) {
-        this.stepHandler.accept(this, () -> super.a(position, block));
+    @Override protected void playStepSound(BlockPos pos, BlockState block) {
+        if (stepHandler != null) stepHandler.accept(this, () -> super.playStepSound(pos, block));
     }
 
     public void transfer(Location location) {
-        destroy();
-        WorldServer target = ((CraftWorld) location.getWorld()).getHandle();
-        spawnIn(target);
-        dimension = target.worldProvider.getDimension();
-        playerInteractManager.a(target);
-        dead = false;
-        motX = motY = motZ = 0;
-        setPositionRotation(location.getX(), location.getY(), location.getZ(), yaw, pitch);
-        if (!addUntracked()) throw new IllegalStateException("Cannot transfer bot entity to " + location);
-        world.players.remove(this);
-        target.getTracker().untrackEntity(this);
+        ((ServerLevel) level()).removePlayerImmediately(this, Entity.RemovalReason.CHANGED_DIMENSION);
+        ServerLevel target = ((CraftWorld) location.getWorld()).getHandle();
+        unsetRemoved();
+        setServerLevel(target);
+        gameMode.setLevel(target);
+        setDeltaMovement(Vec3.ZERO);
+        setPos(location.getX(), location.getY(), location.getZ());
+        setRot(location.getYaw(), location.getPitch());
+        spawn();
     }
 
     public void destroy() {
-        world.removeEntity(this);
-        ((WorldServer) world).getTracker().untrackEntity(this);
+        if (!isRemoved()) ((ServerLevel) level()).removePlayerImmediately(this, Entity.RemovalReason.DISCARDED);
+        botChannel.finishAndReleaseAll();
     }
 }

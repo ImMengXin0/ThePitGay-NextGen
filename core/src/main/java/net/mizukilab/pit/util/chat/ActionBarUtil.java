@@ -1,10 +1,8 @@
 package net.mizukilab.pit.util.chat;
 
 import cn.charlotte.pit.ThePit;
-import net.minecraft.server.v1_8_R3.ChatComponentText;
-import net.minecraft.server.v1_8_R3.PacketPlayOutChat;
 import net.mizukilab.pit.actionbar.IActionBarManager;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -31,10 +29,8 @@ public class ActionBarUtil {
     }
 
     public static void sendActionBar0(Player player, String message) {
-        ChatComponentText components = new ChatComponentText(CC.translate(message));
-        PacketPlayOutChat packet = new PacketPlayOutChat(components, (byte) 2);
-
-        ((CraftPlayer) player).getHandle().playerConnection.sendPacket(packet);
+        player.sendActionBar(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+                .deserialize(CC.translate(message)));
     }
 
 

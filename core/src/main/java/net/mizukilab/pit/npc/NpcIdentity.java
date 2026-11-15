@@ -23,7 +23,7 @@ public final class NpcIdentity {
     };
 
     public static boolean isMythicBot(Entity entity) {
-        return entity instanceof org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer player
+        return entity instanceof org.bukkit.craftbukkit.entity.CraftPlayer player
                 && player.getHandle() != null && isMythicBotType(player.getHandle().getClass());
     }
 
@@ -33,9 +33,9 @@ public final class NpcIdentity {
         if (entity == null) return false;
         if (isMythicBot(entity)) return true;
         // Keep recognition of legacy EntityPlayer subclasses used by older bots.
-        if (entity instanceof org.bukkit.craftbukkit.v1_8_R3.entity.CraftEntity craft
+        if (entity instanceof org.bukkit.craftbukkit.entity.CraftEntity craft
                 && craft.getHandle() != null
-                && craft.getHandle().getClass().getSuperclass() == net.minecraft.server.v1_8_R3.EntityPlayer.class) return true;
+                && craft.getHandle().getClass().getSuperclass() == net.minecraft.server.level.ServerPlayer.class) return true;
         if (NPCManager.getByEntityId(entity.getEntityId()) != null
                 || entity.hasMetadata("NPC") || entity.hasMetadata("Bot")) return true;
         ThePit core = ThePit.getInstance();

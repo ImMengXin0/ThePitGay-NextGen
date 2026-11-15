@@ -71,7 +71,7 @@ public class SacredShieldEnchant extends AbstractEnchantment implements ITickTas
             int shieldAmount = enchantLevel * 2;
             player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, Integer.MAX_VALUE, shieldAmount - 1), true);
 
-            player.playSound(player.getLocation(), Sound.ENDERDRAGON_WINGS, 0.8f, 1.5f);
+            player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 0.8f, 1.5f);
 
             int cooldownSeconds = 35 - enchantLevel * 5;
             cooldown.put(player.getUniqueId(), new Cooldown(cooldownSeconds, TimeUnit.SECONDS));

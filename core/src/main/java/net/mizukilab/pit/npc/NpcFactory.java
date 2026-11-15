@@ -79,6 +79,8 @@ public class NpcFactory implements Listener {
         NPC npc = npcLib.createNPC();
         try {
             npc.setLocation(location);
+            ((NPCBase) npc).setEntityType(model.getNpcEntityType());
+            ((NPCBase) npc).setProfession(model.getNpcProfession());
             ((NPCBase) npc).disableFOV();
             if (model.getNpcHeldItem() != null) npc.setItem(NPCSlot.MAINHAND, model.getNpcHeldItem());
             model.setNpc(npc);

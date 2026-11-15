@@ -79,7 +79,7 @@ public class AuctionBidButton extends Button {
         } else {
             return new ItemStack(Material.AIR);
         }
-        return new ItemBuilder(Material.GOLD_BARDING)
+        return new ItemBuilder(Material.GOLDEN_HORSE_ARMOR)
                 .name("&6参与竞拍")
                 .lore(lines)
                 .build();

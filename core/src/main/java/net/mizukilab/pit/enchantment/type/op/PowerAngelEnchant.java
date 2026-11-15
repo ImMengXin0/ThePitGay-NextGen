@@ -56,7 +56,7 @@ public class PowerAngelEnchant extends AbstractEnchantment implements IPlayerSho
     @Override
     @net.mizukilab.pit.parm.type.BowOnly
     public void handleShootEntity(int enchantLevel, Player attacker, Entity target, double damage, AtomicDouble finalDamage, AtomicDouble boostDamage, AtomicBoolean cancel) {
-        attacker.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE);
-        attacker.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 20 * 4, enchantLevel - 1), false);
+        attacker.removePotionEffect(PotionEffectType.RESISTANCE);
+        attacker.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 4, enchantLevel - 1), false);
     }
 }

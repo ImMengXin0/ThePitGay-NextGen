@@ -112,7 +112,7 @@ public class TabPerformanceTest {
 
     @Test
     public void placeholderAndPacketWorkRunsOnMainThread() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class); MockedStatic<ThePit> pit = mockStatic(ThePit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit(); MockedStatic<ThePit> pit = mockStatic(ThePit.class)) {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);
             BukkitScheduler scheduler = mock(BukkitScheduler.class);

@@ -19,7 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.bukkit.Sound.BURP;
+import static org.bukkit.Sound.ENTITY_PLAYER_BURP;
 
 /**
  * @Author: EmptyIrony
@@ -330,7 +330,7 @@ public class EventFactory {
         try { iEvent.onInactive(); }
         catch (Throwable failure) { ThePit.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Activity cleanup failed", failure); }
         finally { clearBar(); }
-        if (!closing) Bukkit.getOnlinePlayers().forEach(player -> player.playSound(player.getLocation(), BURP, 1, 0.72F));
+        if (!closing) Bukkit.getOnlinePlayers().forEach(player -> player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_BURP, 1, 0.72F));
     }
 
     public List<INormalEvent> getNormalEvents() {

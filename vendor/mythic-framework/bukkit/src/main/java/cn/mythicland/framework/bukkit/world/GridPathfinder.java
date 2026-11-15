@@ -114,14 +114,16 @@ public final class GridPathfinder {
     }
 
     private boolean walkable(World world, int x, int y, int z, boolean cached) {
-        if (y < 1 || y + 1 >= world.getMaxHeight()) return false;
+        if (y <= world.getMinHeight() || y + 1 >= world.getMaxHeight()) return false;
         long key = key(x, y, z);
         byte known = cached ? this.walkability.get(key) : 0;
         if (known != 0) return known == 1;
-        Material ground = Material.getMaterial(world.getBlockTypeIdAt(x, y - 1, z));
-        Material feet = Material.getMaterial(world.getBlockTypeIdAt(x, y, z));
-        boolean walkable = ground.isSolid() && ground != Material.CARPET
-                && (feet == Material.CARPET || !feet.isSolid())
+        var groundBlock = world.getBlockAt(x, y - 1, z);
+        Material ground = groundBlock.getType();
+        var feetBlock = world.getBlockAt(x, y, z);
+        Material feet = feetBlock.getType();
+        boolean walkable = groundBlock.isSolid() && !ground.name().endsWith("_CARPET")
+                && (feet.name().endsWith("_CARPET") || !feetBlock.isSolid())
                 && !BlockMaterials.isSolid(world, x, y + 1, z);
         if (cached) this.walkability.put(key, (byte) (walkable ? 1 : 2));
         return walkable;

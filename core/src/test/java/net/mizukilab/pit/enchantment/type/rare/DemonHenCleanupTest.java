@@ -19,7 +19,7 @@ import static org.mockito.Mockito.*;
 public class DemonHenCleanupTest {
     @Test
     public void expiresAndCleansDeathAndDisableOnServerTimer() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class); MockedStatic<ThePit> pit = mockStatic(ThePit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit(); MockedStatic<ThePit> pit = mockStatic(ThePit.class)) {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);
             BukkitScheduler scheduler = mock(BukkitScheduler.class);
@@ -42,7 +42,7 @@ public class DemonHenCleanupTest {
             enchant.entitySet.add(Map.entry(owner, killed));
             ArrayList<ItemStack> drops = new ArrayList<>();
             drops.add(mock(ItemStack.class));
-            EntityDeathEvent death = new EntityDeathEvent(killed, drops, 5);
+            EntityDeathEvent death = new EntityDeathEvent(killed, mock(org.bukkit.damage.DamageSource.class), drops, 5);
             enchant.onHenDeath(death);
             assertTrue(drops.isEmpty());
             assertEquals(0, death.getDroppedExp());

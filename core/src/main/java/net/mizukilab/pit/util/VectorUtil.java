@@ -1,7 +1,7 @@
 package net.mizukilab.pit.util;
 
 
-import net.minecraft.server.v1_8_R3.MathHelper;
+import net.minecraft.util.Mth;
 import net.mizukilab.pit.util.random.RandomUtil;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -31,10 +31,10 @@ public class VectorUtil {
         double x;
         double y;
         double z;
-        float cos = MathHelper.cos(pitch);
-        float sin = MathHelper.sin(pitch);
-        float sin1 = MathHelper.sin(yaw);
-        float cos1 = MathHelper.cos(yaw);
+        float cos = Mth.cos(pitch);
+        float sin = Mth.sin(pitch);
+        float sin1 = Mth.sin(yaw);
+        float cos1 = Mth.cos(yaw);
         if (bulletSpread > 0.0D) {
             double[] spread = new double[]{1.0D, 1.0D, 1.0D};
             for (int i =0; i < spread.length; ++i) {
@@ -77,12 +77,12 @@ public class VectorUtil {
 
     public static Location calculateBackwardVector(World world, double x, double y, double z, float yaw, float pitch) {
         // 计算方向向量的分量
-        float dx = MathHelper.cos((float) Math.toRadians(pitch)) * MathHelper.sin((float) Math.toRadians(MathHelper.g(yaw + 90)));
-        float dy = MathHelper.sin((float) Math.toRadians(30));
-        float dz = MathHelper.cos((float) Math.toRadians(pitch)) * MathHelper.sin((float) Math.toRadians(MathHelper.g(yaw + 90)));
+        float dx = Mth.cos((float) Math.toRadians(pitch)) * Mth.sin((float) Math.toRadians(Mth.wrapDegrees(yaw + 90)));
+        float dy = Mth.sin((float) Math.toRadians(30));
+        float dz = Mth.cos((float) Math.toRadians(pitch)) * Mth.sin((float) Math.toRadians(Mth.wrapDegrees(yaw + 90)));
 
         // 归一化方向向量
-        float magnitude = MathHelper.sqrt(dx * dx + dy * dy + dz * dz);
+        float magnitude = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
         dx /= magnitude;
         dy /= magnitude;
         dz /= magnitude;
@@ -92,14 +92,14 @@ public class VectorUtil {
         double backwardY = -dy * 1.24;
         double backwardZ = (-dz) * 6.28;
 
-        return new Location(world, x + backwardX, y - backwardY, z + backwardZ, MathHelper.g(yaw + 180F), -30);
+        return new Location(world, x + backwardX, y - backwardY, z + backwardZ, Mth.wrapDegrees(yaw + 180F), -30);
     }
     public static void knock(Player vic, float y, float buffer){
         float yaw = (vic.getLocation().getYaw() + 180);
         vic.setVelocity(new Vector(
-                -MathHelper.sin(yaw * 3.1415927F / 180.0F) * (float) buffer,
+                -Mth.sin(yaw * 3.1415927F / 180.0F) * (float) buffer,
                 y,
-                MathHelper.cos(yaw * 3.1415927F / 180.0F) * (float) buffer));
+                Mth.cos(yaw * 3.1415927F / 180.0F) * (float) buffer));
     }
     public static Vector getPushVector(Location from, Location to, double velocity) {
         Vector test = to.clone().subtract(from).toVector();
@@ -107,7 +107,7 @@ public class VectorUtil {
         Double launchAngle = calculateLaunchAngle(from, to, velocity, elevation);
         double z = test.getZ();
         double x = test.getX();
-        double distance = MathHelper.sqrt(x * x + z * z);
+        double distance = Math.sqrt(x * x + z * z);
         if (distance != 0.0D) {
             if (launchAngle == null) {
                 launchAngle = Math.atan((40.0D * elevation + velocity * velocity) / (40.0D * elevation + 2.0D * velocity * velocity));
@@ -132,17 +132,17 @@ public class VectorUtil {
     }
 
     private static Vector normalizeVector(Vector victor) {
-        double mag = MathHelper.sqrt(victor.getX() * victor.getX() + victor.getY() * victor.getY() + victor.getZ() * victor.getZ());
+        double mag = Math.sqrt(victor.getX() * victor.getX() + victor.getY() * victor.getY() + victor.getZ() * victor.getZ());
         return mag != 0.0D ? victor.multiply(1.0D / mag) : victor.multiply(0);
     }
 
     private static Double calculateLaunchAngle(Location from, Location to, double v, double elevation) {
         Vector vector = from.clone().subtract(to).toVector();
-        double distance = MathHelper.sqrt(vector.getX() * vector.getX() + vector.getZ() * vector.getZ());
+        double distance = Math.sqrt(vector.getX() * vector.getX() + vector.getZ() * vector.getZ());
         double v2 = v * v;
         double v4 = v2 * v2;
         double check = 20.0 * (20.0 * (distance * distance) + 2.0 * elevation * v2);
-        return v4 < check ? null : Math.atan((v2 - MathHelper.sqrt(v4 - check)) / (20.0 * distance));
+        return v4 < check ? null : Math.atan((v2 - Math.sqrt(v4 - check)) / (20.0 * distance));
     }
 }
 

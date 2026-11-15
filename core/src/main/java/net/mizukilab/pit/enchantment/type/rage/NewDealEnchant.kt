@@ -55,7 +55,7 @@ class NewDealEnchant : AbstractEnchantment(), IPlayerDamaged {
         cancel: AtomicBoolean
     ) {
         if (attacker is Player) {
-            val itemInHand = attacker.inventory.itemInHand
+            val itemInHand = attacker.inventory.itemInMainHand
             if ("mythic_sword" == ItemUtil.getInternalName(itemInHand)) {
                 val item = MythicSwordItem()
                 item.loadFromItemStack(itemInHand)

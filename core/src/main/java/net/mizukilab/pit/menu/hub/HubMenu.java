@@ -32,7 +32,7 @@ public class HubMenu extends Menu {
         button.put(13, new Button() {
             @Override
             public ItemStack getButtonItem(Player player) {
-                return new ItemBuilder(Material.BIRCH_DOOR_ITEM).name("&a看门狗").lore("&7左键点累了吗?", " ", "&e点击返回大厅!").build();
+                return new ItemBuilder(Material.BIRCH_DOOR).name("&a看门狗").lore("&7左键点累了吗?", " ", "&e点击返回大厅!").build();
             }
 
             @Override

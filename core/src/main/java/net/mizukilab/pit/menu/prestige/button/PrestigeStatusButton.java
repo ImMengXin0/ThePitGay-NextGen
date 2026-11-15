@@ -118,7 +118,7 @@ public class PrestigeStatusButton extends Button {
                         profile.setRenown(profile.getRenown() + award);
                         CC.boardCast(MessageType.PRESTIGE, "&e&l精通! &7" + RankUtil.getPlayerColoredName(player.getName()) + " &7解锁了精通 &e" + RomanUtil.convert(profile.getPrestige()) + " &7,gg!");
                         TitleUtil.sendTitle(player, "&e&l精通!", "&7你解锁了精通 &e" + RomanUtil.convert(profile.getPrestige()) + " &7!", 20, 100, 20);
-                        player.playSound(player.getLocation(), Sound.ENDERDRAGON_GROWL, 1, 1);
+                        player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1, 1);
                         //精通操作 - End
 
                     } else {

@@ -60,7 +60,7 @@ public class EnchantmentRegistryMutationTest {
 
     @Test
     public void directReplacementRebuildsTheEnchantPoolOnceAndStableReadsReuseIt() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             EnchantmentFactor factor = new EnchantmentFactor();
             Entry first = new Entry(), second = new Entry();

@@ -217,7 +217,7 @@ object NewConfiguration {
             cleanupConfig()
         }
 
-        serverId = config.getString("server-id", null)
+        serverId = requireNotNull(config.getString("server-id")) { "Missing server-id" }
         rapidEnchanting = config.getBoolean("rapid-enchanting", false)
         repairFeatures = config.getBoolean("repair-features", false)
         luckGem = config.getDouble("luck-gem", 0.30)
@@ -225,10 +225,10 @@ object NewConfiguration {
 
         vipPrice = config.getInt("vip-price", 500)
         sewersSpawn = config.getInt("sewers-spawn", 60)
-        priceName = config.getString("price-name", "点券")
-        lobbyCommand = config.getString("lobby-command", "hub")
+        priceName = config.getString("price-name", "点券") ?: priceName
+        lobbyCommand = config.getString("lobby-command", "hub") ?: lobbyCommand
         dynamicInvisible = config.getBoolean("dynamicInvisible",false)
-        dateFormat = config.getString("dateFormat", "MM/dd HH:mm")
+        dateFormat = config.getString("dateFormat", "MM/dd HH:mm") ?: dateFormat
         alwaysT2Enchant = config.getBoolean("alwaysT2Enchant", false)
         noobProtect = config.getBoolean("noob-protect.enable")
         noobProtectLevel = config.getInt("noob-protect.level")
@@ -238,7 +238,7 @@ object NewConfiguration {
         CombatListener.eventBoost = config.getDouble("boost")
 
         customChatFormatEnable = config.getBoolean("custom-chat-format.enable", false)
-        customChatFormat = config.getString("custom-chat-format.format", "%pit_level_tag_roman% %s&f: %s")
+        customChatFormat = config.getString("custom-chat-format.format", "%pit_level_tag_roman% %s&f: %s") ?: customChatFormat
 
         PrestigeStatusButton.limit = config.getInt("highest-prestige")
         prestige = PrestigeStatusButton.limit;
@@ -252,7 +252,7 @@ object NewConfiguration {
         ThePunchEnchant.PUNCH_Y = config.getDouble("punch_y", 4.0)
         no1_8Effect = config.getBoolean("no1_8Effect",false)
         alwaysCheckNPC = config.getBoolean("alwaysCheckNPC",false);
-        pitSupportPermission = config.getString("pitSupportPermission", pitSupportPermission)
+        pitSupportPermission = config.getString("pitSupportPermission", pitSupportPermission) ?: pitSupportPermission
         removeSupportWhenNoPermission = config.getBoolean("removeSupportWhenNoPermission", false)
 
         scoreboardShowtime = config.getBoolean("scoreboard-showtime")
@@ -294,15 +294,15 @@ object NewConfiguration {
         }
 
         rareRate.clear()
-        var configurationSection = config.getConfigurationSection("rate")
+        val configurationSection = config.getConfigurationSection("rate") ?: config.createSection("rate")
         for (i in 1..3) {
-            var configElf = configurationSection.getConfigurationSection(i.toString());
+            val configElf = configurationSection.getConfigurationSection(i.toString()) ?: configurationSection.createSection(i.toString())
             rareRate[i] = HashMap();
             rareRate[i]?.put(MythicColor.DARK, ArrayList<Rate>().apply {
-                val darkRateSection = configElf.getConfigurationSection("dark")
+                val darkRateSection = (configElf.getConfigurationSection("dark") ?: configElf.createSection("dark"))
 
                 for (key in darkRateSection.getKeys(false)) {
-                    val permission = darkRateSection.getString("${key}.test", "pit.${key}")
+                    val permission = darkRateSection.getString("${key}.test") ?: "pit.${key}"
                     val chance = darkRateSection.getDouble("${key}.value", 0.02)
 
                     this += Rate(permission, chance)
@@ -310,7 +310,7 @@ object NewConfiguration {
             })
 
             rareRate[i]?.put(MythicColor.ORANGE, ArrayList<Rate>().apply {
-                val normalSection = configElf.getConfigurationSection("normal")
+                val normalSection = (configElf.getConfigurationSection("normal") ?: configElf.createSection("normal"))
 
                 for (key in normalSection.getKeys(false)) {
                     val permission = normalSection.getString("${key}.test")
@@ -325,7 +325,7 @@ object NewConfiguration {
             })
 
             rareRate[i]?.put(MythicColor.DARK_GREEN, ArrayList<Rate>().apply {
-                val normalSection = configElf.getConfigurationSection("sewers")
+                val normalSection = (configElf.getConfigurationSection("sewers") ?: configElf.createSection("sewers"))
 
                 for (key in normalSection.getKeys(false)) {
                     val permission = normalSection.getString("${key}.test")
@@ -339,10 +339,10 @@ object NewConfiguration {
                 }
             })
             rareRate[i]?.put(MythicColor.RAGE, ArrayList<Rate>().apply {
-                val rageSection = configElf.getConfigurationSection("rage")
+                val rageSection = (configElf.getConfigurationSection("rage") ?: configElf.createSection("rage"))
 
                 for (key in rageSection.getKeys(false)) {
-                    val permission = rageSection.getString("${key}.test", "pit.${key}")
+                    val permission = rageSection.getString("${key}.test") ?: "pit.${key}"
                     val chance = rageSection.getDouble("${key}.value", 0.02)
 
                     this += Rate(permission, chance)
@@ -353,7 +353,7 @@ object NewConfiguration {
         scoreBoardAnimation = config.getList("scoreboard.animation", scoreBoardAnimation) as List<String>
         loadingBoardTips = config.getList("scoreboard.loading", loadingBoardTips) as List<String>
         bountyTickInterval = config.getInt("bounty.updateInterval", bountyTickInterval);
-        watermarks = config.getString("water-marks", watermarks)
+        watermarks = config.getString("water-marks", watermarks) ?: watermarks
         epicEventTitleAnimation = config.getList("title.event.epic.animation", epicEventTitleAnimation) as List<String>
 
         epicTitleUpdateInterval = config.getInt("title.event.epic.interval", epicTitleUpdateInterval)

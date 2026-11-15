@@ -34,7 +34,7 @@ class PitItemCommands {
     @Execute(name = "saveItem")
     @HandHasItem(mythic = true)
     fun saveItem(@Context player: Player) {
-        val item = player.itemInHand.clone()
+        val item = player.inventory.itemInMainHand.clone()
         val uuid = ItemUtil.getUUID(item)
         if (uuid == null) {
             player.sendMessage(CC.translate("&c&l错误! &c该物品缺少唯一UUID."))
@@ -62,8 +62,8 @@ class PitItemCommands {
             collection.replaceOne(Filters.eq("uuid", uuid), doc, ReplaceOptions().upsert(true))
         }, {
             // Do not replace an item the player moved or changed while MongoDB was working.
-            if (player.inventory.heldItemSlot == heldSlot && player.itemInHand == item) {
-                player.itemInHand = updatedItem
+            if (player.inventory.heldItemSlot == heldSlot && player.inventory.itemInMainHand == item) {
+                player.inventory.setItemInMainHand(updatedItem)
                 player.updateInventory()
             }
             val chat = ChatComponentBuilder(CC.translate("&a&l保存成功! &7已保存UUID为 &f$uuid &7的神话物品. &e[复制UUID]"))

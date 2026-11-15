@@ -10,7 +10,7 @@ import cn.charlotte.pit.events.genesis.GenesisTeam
 import cn.charlotte.pit.events.trigger.type.IEpicEvent
 import cn.charlotte.pit.events.trigger.type.INormalEvent
 import cn.charlotte.pit.util.hologram.Hologram
-import cn.charlotte.pit.util.hologram.packet.PacketHologram
+import cn.charlotte.pit.util.hologram.FancyHologramAdapter
 import net.mizukilab.pit.config.NewConfiguration
 import net.mizukilab.pit.enchantment.menu.MythicWellMenu
 import net.mizukilab.pit.events.impl.*
@@ -230,13 +230,7 @@ object PitInternalImpl : PitInternalHook {
     }
 
     override fun createHologram(location: Location, text: String): Hologram {
-        return PacketHologram(text, location)
-//        val plugin = Bukkit.getPluginManager().getPlugin("DecentHolograms")
-//        return if (plugin == null) {
-//            DefaultHologram(location, text)
-//        } else {
-//            DecentHologramImpl(location, text)
-//        }
+        return FancyHologramAdapter(location, text)
     }
 
     override fun getRunningKingsQuestsUuid(): UUID {
@@ -300,7 +294,7 @@ object PitInternalImpl : PitInternalHook {
 
 
     override fun addItemInHandEnchant(player: Player?, enchantName: String?, enchantLevel: Int): Int {
-        val item = player?.inventory?.itemInHand ?: return 1
+        val item = player?.inventory?.itemInMainHand ?: return 1
 
         if (item.type == Material.AIR) {
             return 0
@@ -311,7 +305,7 @@ object PitInternalImpl : PitInternalHook {
         val mythicItem = Utils.getMythicItem(item) ?: return 2
         mythicItem.enchantments[enchant] = enchantLevel
 
-        player.inventory.itemInHand = mythicItem.toItemStack()
+        player.inventory.setItemInMainHand(mythicItem.toItemStack())
         return 3
     }
 

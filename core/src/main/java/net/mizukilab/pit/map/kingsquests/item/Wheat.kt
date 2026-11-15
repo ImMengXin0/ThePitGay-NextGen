@@ -26,7 +26,7 @@ object Wheat : AbstractPitItem(), Listener {
         val player = event.player
         val block = event.block
 
-        if (block.type == Material.CROPS) {
+        if (block.type == Material.WHEAT) {
             val state = block.state
 
             val crops = state.data as Crops
@@ -50,7 +50,7 @@ object Wheat : AbstractPitItem(), Listener {
             return
         }
 
-        if (block.type != Material.WORKBENCH) {
+        if (block.type != Material.CRAFTING_TABLE) {
             return
         }
 
@@ -68,14 +68,14 @@ object Wheat : AbstractPitItem(), Listener {
             repeat(10) {
                 val particlePlayLoc = block.location.clone()
                     .add(Random.nextDouble(-0.5, 0.5), Random.nextDouble(-0.5, 0.5), Random.nextDouble(-0.5, 0.5))
-                particlePlayLoc.world.playEffect(particlePlayLoc, Effect.HAPPY_VILLAGER, 1, 1)
+                particlePlayLoc.world.spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, particlePlayLoc, 1)
             }
 
             player.inventory.addItem(PackagedBale.toItemStack().apply {
                 amount = result
             })
 
-            player.playSound(block.location, Sound.ORB_PICKUP, 1f, 1f)
+            player.playSound(block.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
         }
 
     }

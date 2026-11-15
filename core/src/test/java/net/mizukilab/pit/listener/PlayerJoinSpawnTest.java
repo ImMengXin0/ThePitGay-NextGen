@@ -5,8 +5,8 @@ import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.event.PitProfileLoadedEvent;
 import cn.charlotte.pit.event.PitPlayerSpawnEvent;
 import cn.charlotte.pit.perk.PerkFactory;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
-import net.minecraft.server.v1_8_R3.AttributeModifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.mizukilab.pit.BukkitDataTestSupport;
 import net.mizukilab.pit.config.ConfigManager;
 import net.mizukilab.pit.config.PitGlobalConfig;
@@ -22,7 +22,7 @@ import net.mizukilab.pit.util.chat.TitleUtil;
 import net.mizukilab.pit.util.configuration.serializer.LocationSerializer;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -76,7 +76,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
     @Before
     public void setUpJoin() {
         pit = mockStatic(ThePit.class);
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         startup = mockStatic(PitInternalImpl.class);
         // Only the NMS reset is isolated; the teleport event and movement guard run normally.
         playerUtil = mockStatic(PlayerUtil.class);
@@ -211,7 +211,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         PlayerSpawnLocationEvent spawnEvent = initialSpawn(player);
         assertEquals(spawn, position.get());
         assertNotSame("An event listener must not be able to mutate the configured spawn", spawn, spawnEvent.getSpawnLocation());
-        listener.onPlayerJoin(new PlayerJoinEvent(player, null));
+        listener.onPlayerJoin(new PlayerJoinEvent(player, (String) null));
         PlayerMoveEvent walk = new PlayerMoveEvent(player, position.get().clone(), position.get().clone().add(1, 0, 0));
         movement.onMove(walk);
         assertTrue("Loading movement protection must remain active", walk.isCancelled());
@@ -230,7 +230,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         when(worldConfig.getSpawnLocations()).thenReturn(List.of(oldSpawn));
         Player first = reconnectAt(new Location(logoutWorld, 20, 20, 20));
         initialSpawn(first);
-        listener.onPlayerJoin(new PlayerJoinEvent(first, null));
+        listener.onPlayerJoin(new PlayerJoinEvent(first, (String) null));
         finishLoading();
         assertEquals(oldSpawn, position.get());
         Player second = reconnectAt(new Location(pitWorld, 300, 40, 400));
@@ -240,7 +240,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         when(configs.getSelectedWorldConfig()).thenReturn(nextMap);
         initialSpawn(second);
         assertTrue(nextSpawns.contains(position.get()));
-        listener.onPlayerJoin(new PlayerJoinEvent(second, null));
+        listener.onPlayerJoin(new PlayerJoinEvent(second, (String) null));
         finishLoading();
         assertTrue(nextSpawns.contains(position.get()));
         assertTrue(teleports.isEmpty());
@@ -254,7 +254,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         when(worldConfig.getSpawnLocations()).thenReturn(spawns);
         Player player = reconnectAt(new Location(logoutWorld, 25, 70, 25));
         initialSpawn(player);
-        listener.onPlayerJoin(new PlayerJoinEvent(player, null));
+        listener.onPlayerJoin(new PlayerJoinEvent(player, (String) null));
         loaded.set(true);
         pendingLoads.remove().accept(profile);
         when(player.isOnline()).thenReturn(false);
@@ -270,7 +270,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         Player player = reconnectAt(saved);
         initialSpawn(player);
         assertEquals(saved, position.get());
-        listener.onPlayerJoin(new PlayerJoinEvent(player, null));
+        listener.onPlayerJoin(new PlayerJoinEvent(player, (String) null));
         finishLoading();
         verify(player, never()).teleport(any(Location.class));
         verify(profile).setLogin(true);
@@ -285,7 +285,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         initialSpawn(player);
         assertEquals(saved, position.get());
         verify(configs, never()).getSelectedWorldConfig();
-        listener.onPlayerJoin(new PlayerJoinEvent(player, null));
+        listener.onPlayerJoin(new PlayerJoinEvent(player, (String) null));
         verify(player).kickPlayer("Didn't load completely");
         verify(player, never()).teleport(any(Location.class));
         verifyNoInteractions(profiles, operator);
@@ -310,7 +310,7 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
         when(worldConfig.getSpawnLocations()).thenReturn(spawns);
         Player player = reconnectAt(new Location(logoutWorld, 500, 32, 600));
         initialSpawn(player);
-        listener.onPlayerJoin(new PlayerJoinEvent(player, null));
+        listener.onPlayerJoin(new PlayerJoinEvent(player, (String) null));
         // Another feature moves the player after initial placement but before data finishes loading.
         Location next = new Location(pitWorld, 20, 114, 20);
         position.set(next.clone());
@@ -336,13 +336,13 @@ public class PlayerJoinSpawnTest extends BukkitDataTestSupport {
              MockedStatic<TitleUtil> titles = mockStatic(TitleUtil.class)) {
             Class<?> allocatorType = Class.forName("org.objenesis.ObjenesisStd"); // Mockito runtime dependency
             Object allocator = allocatorType.getConstructor().newInstance();
-            EntityPlayer handle = (EntityPlayer) allocatorType.getMethod("newInstance", Class.class)
-                    .invoke(allocator, EntityPlayer.class);
+            ServerPlayer handle = (ServerPlayer) allocatorType.getMethod("newInstance", Class.class)
+                    .invoke(allocator, ServerPlayer.class);
             when(player.getHandle()).thenReturn(handle);
             var respawn = CombatListener.class.getDeclaredMethod("doRespawn", Player.class, PlayerProfile.class);
             respawn.setAccessible(true);
             respawn.invoke(mock(CombatListener.class), player, profile);
-            assertEquals(40, handle.invulnerableTicks);
+            assertEquals(40, handle.invulnerableTime);
         }
         assertTrue(spawns.contains(position.get()));
         assertEquals(1, teleports.size());

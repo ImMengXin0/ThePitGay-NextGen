@@ -8,7 +8,7 @@ import cn.charlotte.pit.event.PitProfileLoadedEvent
 import net.md_5.bungee.api.chat.BaseComponent
 import net.md_5.bungee.api.chat.HoverEvent
 import net.md_5.bungee.api.chat.TextComponent
-import net.minecraft.server.v1_8_R3.NBTTagCompound
+import net.minecraft.nbt.CompoundTag
 import net.mizukilab.pit.enchantment.param.item.WeaponOnly
 import net.mizukilab.pit.enchantment.rarity.EnchantmentRarity
 import net.mizukilab.pit.getPitProfile
@@ -24,7 +24,7 @@ import net.mizukilab.pit.util.item.ItemUtil
 import net.mizukilab.pit.util.random.RandomUtil
 import org.bukkit.Bukkit
 import org.bukkit.Material
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack
+import org.bukkit.craftbukkit.inventory.CraftItemStack
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -58,7 +58,7 @@ class JewelSword : IMythicItem(), Listener {
     }
 
     override fun getItemDisplayMaterial(): Material {
-        return Material.GOLD_SWORD
+        return Material.GOLDEN_SWORD
     }
 
     override fun toItemStack(): ItemStack {
@@ -66,7 +66,9 @@ class JewelSword : IMythicItem(), Listener {
 
         if (killed >= KILL_TARGET) {
             val nmsCopy = Utils.toNMStackQuick(itemStack)
-            nmsCopy?.tag?.getCompound("extra")?.setString("internal", "mythic_sword")
+            val custom = cn.mythicland.framework.bukkit.item.PaperItemData.custom(nmsCopy)
+            custom.getCompoundOrEmpty("extra").putString("internal", "mythic_sword")
+            cn.mythicland.framework.bukkit.item.PaperItemData.custom(nmsCopy, custom)
 
             return CraftItemStack.asCraftMirror(nmsCopy)
         }
@@ -89,7 +91,7 @@ class JewelSword : IMythicItem(), Listener {
     }
 
     override fun loadFromItemStack(item: ItemStack) {
-        Utils.toNMStackQuick(item)?.tag?.getCompound("extra")?.getInt("killed")?.let {
+        net.mizukilab.pit.util.item.ItemUtil.getExtra(item)?.getIntOr("killed", 0)?.let {
             killed = it
         }
 
@@ -137,7 +139,7 @@ class JewelSword : IMythicItem(), Listener {
                     it.loadFromItemStack(itemOnCursor)
                 }
                 jewelSword.killed = 0
-                player.itemOnCursor = jewelSword.toItemStack()
+                player.setItemOnCursor(jewelSword.toItemStack())
             }
         }
     }
@@ -153,7 +155,7 @@ class JewelSword : IMythicItem(), Listener {
         }
 
         val profile = killer.getPitProfile()
-        val item = killer.itemInHand ?: return
+        val item = killer.inventory.itemInMainHand ?: return
 
         val name = ItemUtil.getInternalName(item)
         if ("jewel_sword" != name) {
@@ -196,16 +198,10 @@ class JewelSword : IMythicItem(), Listener {
             }
 
             val itemStack = newSword.toItemStack()
-            killer.itemInHand = itemStack
+            killer.inventory.setItemInMainHand(itemStack)
 
             if (enchantment.rarity == EnchantmentRarity.RARE) {
-                val nms = Utils.toNMStackQuick(itemStack)
-                val tag = NBTTagCompound()
-                nms?.save(tag)
-                val hoverEventComponents = arrayOf<BaseComponent>(
-                    TextComponent(tag.toString())
-                )
-
+        val hover = cn.mythicland.framework.bukkit.item.v1_8_R3.ItemHoverUtil.hover(itemStack)
                 for (p in Bukkit.getOnlinePlayers()) {
                     p.spigot().sendMessage(
                         *ChatComponentBuilder(
@@ -214,7 +210,7 @@ class JewelSword : IMythicItem(), Listener {
                                     .itemMeta.displayName + " &e[查看]"
                             )
                         )
-                            .setCurrentHoverEvent(HoverEvent(HoverEvent.Action.SHOW_ITEM, hoverEventComponents))
+                            .setCurrentHoverEvent(hover)
                             .create()
                     )
                 }
@@ -223,7 +219,7 @@ class JewelSword : IMythicItem(), Listener {
             ThePit.getInstance().soundFactory.playSound("successfully", killer)
             killer.sendMessage(CC.translate("&d晋升! &7经过坚持与努力, 您的 &d宝石之剑 &7获得了附魔!"))
         } else {
-            killer.itemInHand = sword.toItemStack()
+            killer.inventory.setItemInMainHand(sword.toItemStack())
         }
     }
 }

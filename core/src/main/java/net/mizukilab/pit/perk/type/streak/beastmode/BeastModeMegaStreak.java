@@ -49,7 +49,7 @@ public class BeastModeMegaStreak extends AbstractPerk implements Listener, ITick
         //trigger check (get X streak)
         if (event.getFrom() < trigger && event.getTo() >= trigger) {
             CC.boardCast(MessageType.COMBAT, "&c&l超级连杀! " + event.getPlayerProfile().getFormattedNameWithRoman() + " &7激活了 &a&l野兽模式 &7!");
-            Bukkit.getOnlinePlayers().forEach(player -> player.playSound(player.getLocation(), Sound.WITHER_SPAWN, 0.8F, 1.5F));
+            Bukkit.getOnlinePlayers().forEach(player -> player.playSound(player.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.8F, 1.5F));
             myself.getInventory().addItem(
                     new ItemBuilder(Material.DIAMOND_HELMET)
                             .removeOnJoin(true)

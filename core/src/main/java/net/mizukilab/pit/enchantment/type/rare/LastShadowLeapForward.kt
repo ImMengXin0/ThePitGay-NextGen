@@ -73,7 +73,7 @@ class LastShadowLeapForward : AbstractEnchantment(), Listener, IActionDisplayEnc
             val ignore = PlayerUtil.shouldIgnoreEnchant(player)
             if (ignore) return
 
-            val item = player.itemInHand
+            val item = player.inventory.itemInMainHand
             val mythicItem = item.toMythicItem() ?: return
             val level = mythicItem.enchantments[this] ?: return
 
@@ -89,9 +89,9 @@ class LastShadowLeapForward : AbstractEnchantment(), Listener, IActionDisplayEnc
                 this.setY(0.5)
             }
 
-            Bukkit.getScheduler().runTask(ThePit.getInstance()) {
+            Bukkit.getScheduler().runTask(ThePit.getInstance(), Runnable {
                 player.velocity = vector
-            }
+            })
             player.addPotionEffect(
                 PotionEffect(
                     PotionEffectType.SPEED,

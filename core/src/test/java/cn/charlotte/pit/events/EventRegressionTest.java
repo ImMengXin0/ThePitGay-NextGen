@@ -175,7 +175,7 @@ public class EventRegressionTest extends net.mizukilab.pit.BukkitDataTestSupport
         event.getBidHistories().add(new AuctionEvent.BidHistory(uuid, 1, 100));
         event.getBidHistories().add(new AuctionEvent.BidHistory(uuid, 2, 200));
         event.setTimer(new Cooldown(0)); ((AbstractEvent)event).markAborting();
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
              MockedStatic<AuctionEvent> auction = mockStatic(AuctionEvent.class)) {
             event.onInactive(); event.onInactive();
             auction.verify(() -> AuctionEvent.sendMail(eq(uuid), argThat(mail -> mail.getCoins() == 200)), times(1));
@@ -185,29 +185,23 @@ public class EventRegressionTest extends net.mizukilab.pit.BukkitDataTestSupport
     @Test public void worldEditsKeepBuildUndoAndNextBuildOrdered() throws Exception {
         DoubleRewardsEvent event = new DoubleRewardsEvent(); ((AbstractEvent)event).beginLifecycle();
         List<String> order = Collections.synchronizedList(new ArrayList<>());
-        CountDownLatch entered = new CountDownLatch(1), release = new CountDownLatch(1), done = new CountDownLatch(1);
         EventWorldEdits.build(event, () -> {
-            entered.countDown();
-            try { if (!release.await(5, TimeUnit.SECONDS)) throw new AssertionError("worker gate timed out"); }
-            catch (InterruptedException e) { throw new AssertionError(e); }
+            assertTrue(Bukkit.isPrimaryThread());
             order.add("old build");
         });
-        try {
-            assertTrue(entered.await(5, TimeUnit.SECONDS));
-            ((AbstractEvent)event).endLifecycle();
-            EventWorldEdits.undo(() -> order.add("old undo"));
-            ((AbstractEvent)event).beginLifecycle();
-            EventWorldEdits.build(event, () -> order.add("new build"));
-        } finally { release.countDown(); }
-        EventWorldEdits.undo(done::countDown);
-        assertTrue(done.await(5, TimeUnit.SECONDS));
+        EventWorldEdits.shutdown();
+        ((AbstractEvent)event).endLifecycle();
+        EventWorldEdits.undo(() -> order.add("old undo"));
+        ((AbstractEvent)event).beginLifecycle();
+        EventWorldEdits.build(event, () -> order.add("new build"));
+        EventWorldEdits.shutdown();
         assertEquals(List.of("old build", "old undo", "new build"), order);
     }
 
     @Test public void blockHeadDoesNotOverwriteContainersAndRestoresClaimedBlockOnce() throws Exception {
         var event = new net.mizukilab.pit.events.impl.major.BlockHeadEvent();
         var data = new net.mizukilab.pit.events.impl.major.BlockHeadEvent.PlayerBlockHeadData();
-        var material = data.getClass().getDeclaredField("block"); material.setAccessible(true); material.set(data, Material.WOOL);
+        var material = data.getClass().getDeclaredField("block"); material.setAccessible(true); material.set(data, Material.WHITE_WOOL);
         var claim = event.getClass().getDeclaredMethod("claimBlock", Player.class, data.getClass(), Location.class);
         claim.setAccessible(true);
         World world = mock(World.class); when(world.getUID()).thenReturn(UUID.randomUUID());
@@ -246,7 +240,7 @@ public class EventRegressionTest extends net.mizukilab.pit.BukkitDataTestSupport
         for (int i = 0; i < 200; i++) {
             Material material = event.pickRandomBlockMaterial();
             assertTrue(material.isSolid());
-            assertNotEquals(Material.FURNACE, material); assertNotEquals(Material.BURNING_FURNACE, material);
+            assertNotEquals(Material.FURNACE, material); assertNotEquals(Material.FURNACE, material);
         }
     }
 }

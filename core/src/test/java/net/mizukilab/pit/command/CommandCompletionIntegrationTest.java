@@ -52,7 +52,7 @@ public class CommandCompletionIntegrationTest extends BukkitDataTestSupport {
     @Before
     public void registerActualCoreCommands() throws Exception {
         pit = mockStatic(ThePit.class);
-        bukkit = mockStatic(Bukkit.class);
+        bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit();
         plugin = mock(ThePit.class);
         pit.when(ThePit::getInstance).thenReturn(plugin);
         Server delegate = mock(Server.class);

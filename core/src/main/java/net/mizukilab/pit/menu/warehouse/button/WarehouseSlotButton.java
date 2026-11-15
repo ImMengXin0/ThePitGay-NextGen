@@ -30,7 +30,7 @@ public class WarehouseSlotButton extends Button {
         int itemCount = profile.getWarehouse().getItemCount(warehouseId);
         boolean isEmpty = profile.getWarehouse().isEmpty(warehouseId);
 
-        Material material = isEmpty ? Material.CHEST : Material.ENDER_PORTAL_FRAME;
+        Material material = isEmpty ? Material.CHEST : Material.END_PORTAL_FRAME;
         String statusColor = isEmpty ? "§7" : "§a";
 
         return new ItemBuilder(material)

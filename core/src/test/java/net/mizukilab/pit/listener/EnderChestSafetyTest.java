@@ -19,8 +19,8 @@ public class EnderChestSafetyTest {
     }
     @Test public void forbiddenCursorAndLockedSlotsCannotBeBypassedUsingDrag() throws Exception {
         try(MockedStatic<ItemUtil> items=mockStatic(ItemUtil.class)) {
-            Inventory inventory=mock(Inventory.class); when(inventory.getName()).thenReturn("末影箱"); when(inventory.getSize()).thenReturn(54);
-            InventoryView view=mock(InventoryView.class); when(view.getTopInventory()).thenReturn(inventory);
+            Inventory inventory=mock(Inventory.class); when(inventory.getSize()).thenReturn(54);
+            InventoryView view=mock(InventoryView.class); when(view.getTopInventory()).thenReturn(inventory); when(view.getTitle()).thenReturn("末影箱");
             InventoryDragEvent drag=mock(InventoryDragEvent.class); when(drag.getView()).thenReturn(view); when(drag.getInventory()).thenReturn(inventory);
             when(drag.getRawSlots()).thenReturn(Set.of(1)); ItemStack cursor=mock(ItemStack.class); when(cursor.getType()).thenReturn(Material.PAPER);
             when(drag.getOldCursor()).thenReturn(cursor); dispatch(drag); verify(drag).setCancelled(true);
@@ -35,7 +35,8 @@ public class EnderChestSafetyTest {
     }
     @Test public void outsideClickWithNullCursorDoesNotThrow() {
         InventoryClickEvent click=mock(InventoryClickEvent.class); Inventory inventory=mock(Inventory.class);
-        when(click.getInventory()).thenReturn(inventory); when(inventory.getName()).thenReturn("末影箱");
+        InventoryView view=mock(InventoryView.class); when(click.getView()).thenReturn(view); when(view.getTitle()).thenReturn("末影箱");
+        when(click.getInventory()).thenReturn(inventory);
         when(click.getClick()).thenReturn(ClickType.LEFT); when(click.getAction()).thenReturn(InventoryAction.NOTHING);
         new EnderChestListener().onInvClick(click);
     }

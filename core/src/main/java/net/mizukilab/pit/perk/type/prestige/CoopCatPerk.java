@@ -30,7 +30,7 @@ public class CoopCatPerk extends AbstractPerk implements IPlayerAssist {
 
     @Override
     public Material getIcon() {
-        return Material.RAW_FISH;
+        return Material.COD;
     }
 
     @Override

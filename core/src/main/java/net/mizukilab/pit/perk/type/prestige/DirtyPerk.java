@@ -84,7 +84,7 @@ public class DirtyPerk extends AbstractPerk implements IPlayerKilledEntity {
 
     @Override
     public void handlePlayerKilled(int enchantLevel, Player myself, Entity target, AtomicDouble coins, AtomicDouble experience) {
-        myself.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE);
-        myself.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 20 * 4, 1), true);
+        myself.removePotionEffect(PotionEffectType.RESISTANCE);
+        myself.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 4, 1), true);
     }
 }

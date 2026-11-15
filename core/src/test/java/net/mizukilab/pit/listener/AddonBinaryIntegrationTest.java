@@ -57,7 +57,7 @@ public class AddonBinaryIntegrationTest extends BukkitDataTestSupport {
         Path loader = Path.of(System.getProperty("pitAddonLoaderJar"));
         Assume.assumeTrue("Local Addon fixtures unavailable", Files.isRegularFile(server) && Files.isRegularFile(loader));
         return new URLClassLoader(new URL[]{server.toUri().toURL(), loader.toUri().toURL(),
-                Path.of("build/libs/ThePitGay-V.jar").toUri().toURL()}, getClass().getClassLoader());
+                Path.of("build/libs/ThePitGay-High.jar").toUri().toURL()}, getClass().getClassLoader());
     }
 
     @Test
@@ -130,7 +130,7 @@ public class AddonBinaryIntegrationTest extends BukkitDataTestSupport {
     @Test
     public void addonPlutocratUsesOneListenerAndMultipliesActualRewardOnce() throws Exception {
         try (URLClassLoader loader = addon(); MockedStatic<ThePit> pit = mockStatic(ThePit.class);
-             MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class); MockedStatic<PlayerUtil> util = mockStatic(PlayerUtil.class)) {
+             MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit(); MockedStatic<PlayerUtil> util = mockStatic(PlayerUtil.class)) {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);
             Plugin owner = mock(Plugin.class);
@@ -189,7 +189,7 @@ public class AddonBinaryIntegrationTest extends BukkitDataTestSupport {
     @Test
     public void addonTemporaryPerkFactoryRegistersAllowedPerksInLiveCoreAndReloadIsIdempotent() throws Exception {
         try (URLClassLoader loader = addon(); MockedStatic<ThePit> pit = mockStatic(ThePit.class);
-             MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+             MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);
             bukkit.when(Bukkit::getPluginManager).thenReturn(mock(PluginManager.class));
@@ -216,7 +216,7 @@ public class AddonBinaryIntegrationTest extends BukkitDataTestSupport {
     @Test
     public void crazyDogIsRejectedByTemporaryDirectAndRepeatedAddonRegistration() throws Exception {
         try (URLClassLoader loader = addon(); MockedStatic<ThePit> pit = mockStatic(ThePit.class);
-             MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+             MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);
             PluginManager plugins = mock(PluginManager.class);
@@ -249,7 +249,7 @@ public class AddonBinaryIntegrationTest extends BukkitDataTestSupport {
 
     @Test
     public void profileLoadClearsOnlyTheRetiredMegaStreakSelection() {
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        try (MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             PlayerProfile profile = mock(PlayerProfile.class);
             var chosen = new HashMap<Integer, PerkData>();
             var bought = new HashMap<String, PerkData>();
@@ -279,7 +279,7 @@ public class AddonBinaryIntegrationTest extends BukkitDataTestSupport {
     @Test
     public void actualAddonMegaStreaksTickOnlyWhenSelectedAndUseReplacementInstances() throws Exception {
         try (URLClassLoader loader = addon(); MockedStatic<ThePit> pit = mockStatic(ThePit.class);
-             MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+             MockedStatic<Bukkit> bukkit = net.mizukilab.pit.PaperTestBootstrap.mockBukkit()) {
             ThePit plugin = mock(ThePit.class);
             pit.when(ThePit::getInstance).thenReturn(plugin);
             bukkit.when(Bukkit::getPluginManager).thenReturn(mock(PluginManager.class));

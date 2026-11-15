@@ -54,7 +54,7 @@ public class SiltedUpBuff extends AbstractPitBuff implements Listener {
         @Override
         public void run() {
             player.removePotionEffect(PotionEffectType.SPEED);
-            player.removePotionEffect(PotionEffectType.JUMP);
+            player.removePotionEffect(PotionEffectType.JUMP_BOOST);
 
             if (getPlayerBuffData(player).getTier() < 1) {
                 cancel();

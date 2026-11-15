@@ -41,7 +41,7 @@ public class ItemButton extends DisplayButton {
             }
 
             if (chestData.getRewarded().contains(player.getUniqueId())) {
-                player.playSound(player.getLocation(), Sound.ENDERMAN_TELEPORT, 1, 1);
+                player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1);
                 return;
             }
             PlayerProfile loaded = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
@@ -71,7 +71,7 @@ public class ItemButton extends DisplayButton {
                     player.getInventory().addItem(itemStack);
                     CC.boardCast(MessageType.EVENT, "&6&l空投! " + profile.getFormattedName() + "&7 从空投箱中找到了 " + itemStack.getItemMeta().getDisplayName());
                 }
-                player.playSound(player.getLocation(), Sound.NOTE_PLING, 1, 1);
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
                 chestData.getRewarded().add(player.getUniqueId());
             }
             if (PackageMenu.getItems().isEmpty()) {

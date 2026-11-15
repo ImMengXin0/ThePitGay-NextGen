@@ -28,7 +28,7 @@ class GrandmasterEnchant : AbstractEnchantment(), Listener {
                 it.key.nbtName == "rod_back"
             } == true
         ) {
-            Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), {
+            Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), Runnable {
                 val player = event.entity as Player
                 player.damage(0.0, (event.damager as FishHook).shooter as Player)
                 player.health = max(0.0, player.health - 1.0)

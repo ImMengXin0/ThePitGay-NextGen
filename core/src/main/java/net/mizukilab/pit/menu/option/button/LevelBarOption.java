@@ -24,7 +24,7 @@ public class LevelBarOption extends Button {
         lines.add(" ");
         lines.add("&7当前: " + (profile.getPlayerOption().isLevelBar() ? "&a是" : "&c否"));
         lines.add("&e点击切换此选项!");
-        return new ItemBuilder(Material.EXP_BOTTLE).name("&a显示选项: 经验").lore(lines).build();
+        return new ItemBuilder(Material.EXPERIENCE_BOTTLE).name("&a显示选项: 经验").lore(lines).build();
     }
 
     @Override

@@ -114,7 +114,7 @@ public abstract class AbstractQuest {
 
             @Override
             public void run() {
-                player.playSound(player.getLocation(), Sound.NOTE_PLING, 20, 0.6F + (tick * 0.05F));
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 20, 0.6F + (tick * 0.05F));
                 if (shouldUp) {
                     tick++;
                 }

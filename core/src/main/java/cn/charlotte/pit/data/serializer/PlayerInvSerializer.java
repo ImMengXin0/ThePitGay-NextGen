@@ -16,12 +16,13 @@ public class PlayerInvSerializer extends JsonSerializer<PlayerInv> {
 
     @Override
     public void serialize(PlayerInv value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-        try {;
+        try {
+            String encoded = InventoryUtil.playerInvToString(value);
             gen.writeStartObject();
-            gen.writeStringField("inv", InventoryUtil.playerInvToString(value));
+            gen.writeStringField("inv", encoded);
             gen.writeEndObject();
         } catch (Exception e) {
-            e.printStackTrace();
+            throw com.fasterxml.jackson.databind.JsonMappingException.from(gen, "Cannot serialize player inventory", e);
         }
     }
 }

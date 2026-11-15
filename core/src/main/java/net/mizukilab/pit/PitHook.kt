@@ -4,7 +4,7 @@ import cn.charlotte.pit.ThePit
 import cn.charlotte.pit.data.CDKData
 import net.mizukilab.pit.enchantment.type.ragerare.Regularity
 import cn.charlotte.pit.events.genesis.GenesisCombatListener
-import cn.charlotte.pit.util.hologram.packet.PacketHologramRunnable
+import cn.charlotte.pit.util.hologram.FancyHologramTicker
 import com.comphenix.protocol.ProtocolLibrary
 import dev.rollczi.litecommands.bukkit.LiteBukkitFactory
 import dev.rollczi.litecommands.bukkit.LiteBukkitMessages
@@ -114,7 +114,7 @@ import java.lang.Boolean
 
 object PitHook {
     @JvmStatic
-    val gitVersion = "4.4.9-20261016"
+    val gitVersion = "5.0.0-HIGH-SNAPSHOT"
 
     @JvmStatic
     val itemVersion = "buuid"
@@ -145,11 +145,6 @@ object PitHook {
             PitPapiHook.register()
             ItemPapiHook.register()
         }
-        val description = ThePit.getInstance().description
-
-        val field = PluginDescriptionFile::class.java.getDeclaredField("version")
-        field.isAccessible = true
-        field.set(description, gitVersion)
         KingsQuests.enable()
 
         CDKData.loadAllCDKFromData()
@@ -163,7 +158,7 @@ object PitHook {
         if(!delayReloadEnchTable){
             ThePit.getInstance().enchTable.reload();
         }
-        Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), {
+        Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), Runnable {
             if(delayReloadEnchTable) {
                 ThePit.getInstance().enchTable.reload()
             }
@@ -260,7 +255,7 @@ object PitHook {
         FreeExpRunnable().runTaskTimer(ThePit.getInstance(), 20 * 60 * 15, 20 * 60 * 15)
         NightVisionRunnable().runTaskTimer(ThePit.getInstance(), 20, 20)
 
-        PacketHologramRunnable().runTaskTimerAsynchronously(ThePit.getInstance(), 20, 20)
+        FancyHologramTicker().runTaskTimer(ThePit.getInstance(), 1, 1)
 
         LeaderBoardRunnable().runTaskTimerAsynchronously(ThePit.getInstance(), 0, 10 * 20 * 60)
         if (Boolean.getBoolean("unsafeBounty")) {
@@ -337,7 +332,7 @@ object PitHook {
         try {
             var itemFactor = ThePit.getInstance().itemFactor
             itemFactor.registerItems(clazzList)
-            Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), {
+            Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), Runnable {
                 itemFactor.registerItems(ItemConstructor.getItems())
             }, 10)
         } catch (e: Exception) {
@@ -553,7 +548,7 @@ private fun loadEnchants() {
 //    }
     enchantmentFactor.init(classes)
     EnchantedConstructor.apply {
-        Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), {
+        Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), Runnable {
             enchantmentFactor.init(getEnchantments())
         }, 10);
     }
@@ -687,7 +682,7 @@ private fun loadPerks() {
     )
 
     perkFactory.init(classes as Collection<Class<*>>?)
-    Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), {
+    Bukkit.getScheduler().runTaskLater(ThePit.getInstance(), Runnable {
         perkFactory.init(PerkConstructor.getPerks())
     }, 10)
 }
@@ -719,7 +714,9 @@ private fun loadNpcs() {
             PrestigeNPC::class.java,
             QuestNpc::class.java,
             ShopNPC::class.java,
-            StatusNPC::class.java
+            StatusNPC::class.java,
+            SewersNpc::class.java,
+            WarehouseNPC::class.java
         )
     )
     println("load Npc...")
@@ -730,13 +727,6 @@ private fun loadNpcs() {
 private fun loadCustomEntityNpcs() {
     val customNpcFactory = ThePit.getInstance().customEntityNPCFactory
     Bukkit.getServer().pluginManager.registerEvents(customNpcFactory, ThePit.getInstance())
-    customNpcFactory.init(
-        listOf(
-            SewersNpc::class.java,
-            WarehouseNPC::class.java,
-        )
-    )
-    println("load Custom Entity NPCs...")
 }
 
 

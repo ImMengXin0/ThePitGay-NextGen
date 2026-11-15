@@ -25,7 +25,7 @@ import net.md_5.bungee.api.chat.BaseComponent
 import net.md_5.bungee.api.chat.ClickEvent
 import net.md_5.bungee.api.chat.HoverEvent
 import net.md_5.bungee.api.chat.TextComponent
-import net.minecraft.server.v1_8_R3.NBTTagCompound
+import net.minecraft.nbt.CompoundTag
 import net.mizukilab.pit.audience
 import net.mizukilab.pit.command.handler.HandHasItem
 import net.mizukilab.pit.enchantment.type.custom.VollewyA
@@ -57,7 +57,7 @@ import org.bukkit.ChatColor
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.Sound
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack
+import org.bukkit.craftbukkit.inventory.CraftItemStack
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.metadata.FixedMetadataValue
@@ -100,7 +100,7 @@ class PitCommands {
     }
     @Execute(name = "witherboss520")
     fun witherBoss520(@Context player: Player){
-        player.sendMessage(ChatColor.stripColor("c"))
+        player.sendMessage(ChatColor.stripColor("c") ?: "")
     }
     @Execute(name = "bar")
     fun getBar(@Context player: Player) {
@@ -156,25 +156,25 @@ class PitCommands {
                 )
                 return
             }
-            Bukkit.getScheduler().runTaskAsynchronously(ThePit.getInstance()) {
+            Bukkit.getScheduler().runTaskAsynchronously(ThePit.getInstance(), Runnable {
                 val lookupStrict = ThePit.getInstance()?.profileOperator?.namedIOperator(name)
                 if (lookupStrict == null || lookupStrict.profile().playerName == "NotLoadPlayer") {
                     player.sendMessage(CC.translate("&c此玩家的档案不存在,请检查输入是否有误."))
-                    return@runTaskAsynchronously
+                    return@Runnable
                 }
                 if (!player.hasPermission("pit.admin") || player.isSpecial) {
                     if (!name.equals(player.name, ignoreCase = true) && lookupStrict.profile().isSpecial) {
                         player.sendMessage(CC.translate("&c此玩家的档案不存在,请检查输入是否有误."))
-                        return@runTaskAsynchronously
+                        return@Runnable
                     }
                 }
 
-                Bukkit.getScheduler().runTask(ThePit.getInstance()) {
+                Bukkit.getScheduler().runTask(ThePit.getInstance(), Runnable {
                     StatusViewerMenu(lookupStrict.profile()).openMenu(
                         player
                     )
-                }
-            }
+                })
+            })
         } catch (e: Exception) {
             if (player.hasPermission("pit.admin")) {
                 CC.printError(player, e)
@@ -210,21 +210,16 @@ class PitCommands {
             )
             return
         }
-        if (player.itemInHand == null || player.itemInHand.type == Material.AIR) {
+        if (player.inventory.itemInMainHand == null || player.inventory.itemInMainHand.type == Material.AIR) {
             player.sendMessage(CC.translate("&c请先手持要展示的物品!"))
             return
         }
-        if (player.itemInHand.itemMeta.displayName == null && !player.hasPermission("pit.admin")) {
+        if (player.inventory.itemInMainHand.itemMeta.displayName == null && !player.hasPermission("pit.admin")) {
             player.sendMessage(CC.translate("&c此物品无法被用于展示!"))
             return
         }
         COOLDOWN_SHOW.put(player.uniqueId, Cooldown(60, TimeUnit.SECONDS))
-        val nms = Utils.toNMStackQuick(player.itemInHand)
-        val tag = NBTTagCompound()
-        nms.save(tag)
-        val hoverEventComponents = arrayOf<BaseComponent>(
-            TextComponent(tag.toString())
-        )
+        val hover = cn.mythicland.framework.bukkit.item.v1_8_R3.ItemHoverUtil.hover(player.inventory.itemInMainHand)
         var showPlayers = Bukkit.getOnlinePlayers()
         if (player.isSpecial) {
             showPlayers = buildSet {
@@ -238,8 +233,8 @@ class PitCommands {
         }
         for (p in showPlayers) {
             p.spigot().sendMessage(
-                *ChatComponentBuilder(CC.translate("&a&l物品展示! &7" + profile.formattedName + " &7正在展示物品: &f" + (if (player.itemInHand.itemMeta.displayName == null) player.itemInHand.type.name else player.itemInHand.itemMeta.displayName) + " &e[查看]"))
-                    .setCurrentHoverEvent(HoverEvent(HoverEvent.Action.SHOW_ITEM, hoverEventComponents)).create()
+                *ChatComponentBuilder(CC.translate("&a&l物品展示! &7" + profile.formattedName + " &7正在展示物品: &f" + (if (player.inventory.itemInMainHand.itemMeta.displayName == null) player.inventory.itemInMainHand.type.name else player.inventory.itemInMainHand.itemMeta.displayName) + " &e[查看]"))
+                    .setCurrentHoverEvent(hover).create()
             )
         }
     }
@@ -588,8 +583,8 @@ class PitCommands {
                         if (damageData.usedItem != null && damageData.usedItem.type != Material.AIR) {
                             val usedItem = damageData.getUsedItem()
                             val nbt = usedItem.nbt
-                            val item = net.kyori.adventure.text.event.HoverEvent.ShowItem.of(Key.key(nbt.getString("id")), 1,
-                                BinaryTagHolder.binaryTagHolder(nbt.getCompound("tag").toString()) )
+                            val item = net.kyori.adventure.text.event.HoverEvent.ShowItem.of(Key.key(nbt.getStringOr("id", "")), 1,
+                                BinaryTagHolder.binaryTagHolder(nbt.getCompoundOrEmpty("tag").toString()) )
                             it.hoverEvent(net.kyori.adventure.text.event.HoverEvent.showItem(item))
                         }
                     }*/
@@ -686,7 +681,7 @@ class PitCommands {
             data.active()
 
             profile.getMailData().sendMail(mail)
-            player.playSound(player.location, Sound.LEVEL_UP, 1f, 0.8f)
+            player.playSound(player.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 0.8f)
             player.sendMessage(CC.translate("&a领取成功! 请在邮件NPC处领取奖励!"))
         } else {
             player.sendMessage(CC.translate("&c你已经领取过这个CDK了!"))
@@ -799,14 +794,14 @@ class PitCommands {
             player.sendMessage(CC.translate("&c你输入的价格有误!"))
             return
         }
-        if (Bukkit.getPlayer(targetPlayer) == null || !Bukkit.getPlayer(targetPlayer).isOnline || PlayerUtil.isVanished(
+        if (Bukkit.getPlayer(targetPlayer) == null || Bukkit.getPlayer(targetPlayer)?.isOnline != true || PlayerUtil.isVanished(
                 Bukkit.getPlayer(targetPlayer)
             )
         ) {
             player.sendMessage(CC.translate("&c你选择的玩家不在线!"))
             return
         }
-        val target = Bukkit.getPlayer(targetPlayer)
+        val target = Bukkit.getPlayer(targetPlayer) ?: return
         ThePit.getInstance().profileOperator.ifPresentAndILoaded(target) { operator: IOperator ->
             val targetProfile = operator.profile()
             if (player.uniqueId == target.uniqueId || player.isSpecial || target.isSpecial) {
@@ -856,20 +851,20 @@ class PitCommands {
                 return@ifPresentAndILoaded
             }
 
-            if (player.itemInHand == null || player.itemInHand.type == Material.AIR) {
+            if (player.inventory.itemInMainHand == null || player.inventory.itemInMainHand.type == Material.AIR) {
                 player.sendMessage(CC.translate("&c请手持你要出售的物品再设置出售对象与价格!"))
                 return@ifPresentAndILoaded
             }
 
-            if (!ItemUtil.canTrade(player.itemInHand)) {
+            if (!ItemUtil.canTrade(player.inventory.itemInMainHand)) {
                 player.sendMessage(CC.translate("&c此物品无法用于交易!"))
                 return@ifPresentAndILoaded
             }
 
 
             //todo: create offer
-            profile.offerData.createOffer(target.uniqueId, player.itemInHand, price.toInt().toDouble())
-            player.itemInHand = ItemStack(Material.AIR)
+            profile.offerData.createOffer(target.uniqueId, player.inventory.itemInMainHand, price.toInt().toDouble())
+            player.inventory.setItemInMainHand(ItemStack(Material.AIR))
             net.mizukilab.pit.trade.TradeInventory.snapshot(player, profile)
             if (!targetProfile.playerOption.isTradeNotify && !player.hasPermission(PlayerUtil.getStaffPermission())) {
                 player.sendMessage(CC.translate("&c对方在游戏选项之后中设置了不接受交易请求,因此无法查看你的请求提示."))
@@ -925,7 +920,7 @@ class PitCommands {
     @Execute(name = "changeVolley")
     @HandHasItem
     fun changeVolley(@Context player: Player) {
-        val mythicItem = MythicUtil.getMythicItem(player.itemInHand)
+        val mythicItem = MythicUtil.getMythicItem(player.inventory.itemInMainHand)
 
         val volleyALevel = Utils.getEnchantLevel(mythicItem, "volley_enchant")
         val volleyBLevel = Utils.getEnchantLevel(mythicItem, "volley_enchant_B")
@@ -942,7 +937,7 @@ class PitCommands {
                     remove(VollewyA())
                 }
 
-                player.itemInHand = mythicItem.toItemStack()
+                player.inventory.setItemInMainHand(mythicItem.toItemStack())
                 player.sendMessage(CC.translate("&a已将连射附魔切换为 B 类型！"))
             }
             volleyBLevel >= 1 -> {
@@ -952,7 +947,7 @@ class PitCommands {
                     remove(Volley_B())
                 }
 
-                player.itemInHand = mythicItem.toItemStack()
+                player.inventory.setItemInMainHand(mythicItem.toItemStack())
                 player.sendMessage(CC.translate("&a已将连射附魔切换为 A 类型！"))
             }
         }
@@ -977,7 +972,7 @@ class PitCommands {
         }
         if (list.size > 0) {
             player.sendMessage(CC.translate("&b当前在线精通玩家数: &6" + list.size))
-            list.forEach { s: String? -> player.sendMessage(s) }
+            list.forEach { s: String? -> player.sendMessage(s ?: "") }
         } else {
             player.sendMessage(CC.translate("&c当前没有精通玩家在线!"))
         }
@@ -999,7 +994,7 @@ class PitCommands {
     @Permission("pit.rename")
     @HandHasItem(mythic = true)
     fun rename(@Context player: Player, @Quoted @Arg("name") name: String): String {
-        val item = player.itemInHand
+        val item = player.inventory.itemInMainHand
         if (Utils.getMythicItem0(item) == null) return "§c请手持神话物品。"
         val renamed = if (player.hasPermission("pit.rename-color")) {
             CC.translate(name)
@@ -1018,11 +1013,11 @@ class PitCommands {
             profile.lastRenameTime = System.currentTimeMillis()
         }
         // Persist the name on the real item, independent of parsed-item caches and subclass renderers.
-        player.itemInHand = ItemBuilder(copyForRename(item))
+        player.inventory.setItemInMainHand(ItemBuilder(copyForRename(item))
             .name(renamed)
             .customName(renamed)
             .forceCanTrade(false)
-            .build()
+            .build())
         IMythicItem.clearCache(item)
         return "§a已重命名"
     }
@@ -1031,7 +1026,7 @@ class PitCommands {
     @Permission("pit.unrename")
     @HandHasItem(mythic = true)
     fun unRename(@Context player: Player): String {
-        val item = player.itemInHand
+        val item = player.inventory.itemInMainHand
         val mythicItem = Utils.getMythicItem0(item) ?: return "§c请手持神话物品。"
         if (mythicItem.customName == null) {
             return "§c咦...这个物品似乎没有被重命名呢!"
@@ -1039,19 +1034,17 @@ class PitCommands {
         mythicItem.customName = null
         mythicItem.forceCanTrade = -1
         val defaultName = mythicItem.toItemStack().itemMeta.displayName
-        player.itemInHand = ItemBuilder(copyForRename(item))
+        player.inventory.setItemInMainHand(ItemBuilder(copyForRename(item))
             .name(defaultName)
             .customName(null)
             .unsetForceCanTrade()
-            .build()
+            .build())
         IMythicItem.clearCache(item)
         return "§a成功取消重命名!"
     }
 
     private fun copyForRename(item: ItemStack): ItemStack {
-        val copy = CraftItemStack.asNMSCopy(item)
-        copy.tag = copy.tag?.clone() as NBTTagCompound?
-        return CraftItemStack.asCraftMirror(copy)
+        return item.clone()
     }
 
 

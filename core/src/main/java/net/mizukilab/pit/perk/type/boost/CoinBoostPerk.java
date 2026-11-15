@@ -35,7 +35,7 @@ public class CoinBoostPerk extends AbstractPerk implements IPlayerKilledEntity, 
 
     @Override
     public Material getIcon() {
-        return Material.getMaterial(351);
+        return Material.INK_SAC;
     }
 
     @Override

@@ -54,7 +54,7 @@ public class HermitMegaStreak extends AbstractPerk implements Listener, IPlayerD
 
     @Override
     public Material getIcon() {
-        return Material.BED;
+        return Material.RED_BED;
     }
 
     @Override
@@ -108,13 +108,13 @@ public class HermitMegaStreak extends AbstractPerk implements Listener, IPlayerD
 
     @Override
     public void onPerkActive(Player player) {
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 86400 * 20, 0), true);
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 86400 * 20, 0), true);
     }
 
     @Override
     public void onPerkInactive(Player player) {
-        player.removePotionEffect(PotionEffectType.SLOW);
-        player.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE);
+        player.removePotionEffect(PotionEffectType.SLOWNESS);
+        player.removePotionEffect(PotionEffectType.RESISTANCE);
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
@@ -131,7 +131,7 @@ public class HermitMegaStreak extends AbstractPerk implements Listener, IPlayerD
         if (event.getFrom() < trigger && event.getTo() >= trigger) {
             CC.boardCast(MessageType.COMBAT, "&c&l超级连杀! " + event.getPlayerProfile().getFormattedNameWithRoman() + " &7激活了 &9&l隐士 &7!");
             Bukkit.getOnlinePlayers().forEach(player -> {
-                player.playSound(player.getLocation(), Sound.WITHER_SPAWN, 0.8F, 1.5F);
+                player.playSound(player.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.8F, 1.5F);
             });
             myself.getInventory().addItem(new ItemBuilder(Material.BEDROCK).canDrop(false).removeOnJoin(true).canSaveToEnderChest(false).deathDrop(true).internalName("perk_hermit").amount(32).build());
         }
@@ -162,14 +162,14 @@ public class HermitMegaStreak extends AbstractPerk implements Listener, IPlayerD
                 slowFound = true;
                 //自身有缓慢 I 且时间小于<30秒时直接覆盖
                 if (potionEffect.getAmplifier() == 0 && potionEffect.getDuration() < 30 * 20) {
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 86400 * 20, 0), true);
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 86400 * 20, 0), true);
                     return;
                 }
             }
         }
         //自身没有缓慢效果时补充缓慢效果
         if (!slowFound) {
-            player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 86400 * 20, 0), true);
+            player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 86400 * 20, 0), true);
         }
         boolean resistanceFound = false;
         for (PotionEffect potionEffect : player.getActivePotionEffects()) {
@@ -177,19 +177,19 @@ public class HermitMegaStreak extends AbstractPerk implements Listener, IPlayerD
                 resistanceFound = true;
                 //自身有抗性提升 I 且时间小于<30秒时直接覆盖
                 if (potionEffect.getAmplifier() == 0 && potionEffect.getDuration() < 30 * 20 && profile.getStreakKills() >= 50) {
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 86400 * 20, 0), true);
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 86400 * 20, 0), true);
                     return;
                 }
                 //如果不满足连杀条件有时间过长的抗性提升 I 则直接清除
                 if (potionEffect.getAmplifier() == 0 && potionEffect.getDuration() > 8640 * 20 && profile.getStreakKills() < 50) {
-                    player.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE);
+                    player.removePotionEffect(PotionEffectType.RESISTANCE);
                     return;
                 }
             }
         }
         //自身没有速度效果且连杀条件满足时补充速度效果
         if (profile.getStreakKills() >= 50 && !resistanceFound) {
-            player.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 86400 * 20, 0), true);
+            player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 86400 * 20, 0), true);
         }
         if (profile.getStreakKills() >= 50) {
             player.setMetadata("true_damage_immune", new FixedMetadataValue(ThePit.getInstance(), System.currentTimeMillis() + 4 * 1000L));

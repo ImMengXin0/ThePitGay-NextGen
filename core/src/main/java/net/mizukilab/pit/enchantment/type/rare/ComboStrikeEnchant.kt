@@ -73,7 +73,7 @@ class ComboStrikeEnchant : AbstractEnchantment(), IAttackEntity, IPlayerShootEnt
         cancel: AtomicBoolean
     ) {
         val victim = target as Player
-        if (attacker.itemInHand.type != MythicSwordItem().itemDisplayMaterial) {
+        if (attacker.inventory.itemInMainHand.type != MythicSwordItem().itemDisplayMaterial) {
             return
         }
         for (nearbyPlayers in PlayerUtil.getNearbyPlayers(victim.location, 10.0)) {
@@ -114,7 +114,7 @@ class ComboStrikeEnchant : AbstractEnchantment(), IAttackEntity, IPlayerShootEnt
         cancel: AtomicBoolean
     ) {
         val victim = target as Player
-        if (attacker.itemInHand.type != MythicBowItem().itemDisplayMaterial) {
+        if (attacker.inventory.itemInMainHand.type != MythicBowItem().itemDisplayMaterial) {
             return
         }
         for (nearbyPlayers in PlayerUtil.getNearbyPlayers(victim.location, 10.0)) {
@@ -145,7 +145,7 @@ class ComboStrikeEnchant : AbstractEnchantment(), IAttackEntity, IPlayerShootEnt
 
     override fun getText(level: Int, player: Player): String {
         val hit =
-            if (player.itemInHand != null && player.itemInHand.type == Material.BOW) PlayerProfile.getPlayerProfileByUuid(
+            if (player.inventory.itemInMainHand != null && player.inventory.itemInMainHand.type == Material.BOW) PlayerProfile.getPlayerProfileByUuid(
                 player.uniqueId
             ).bowHit else PlayerProfile.getPlayerProfileByUuid(player.uniqueId).meleeHit
         return if (hit % (if (level > 1) 4 else 5) == 0) "&a&l✔" else "&e&l" + ((if (level > 1) 4 else 5) - hit % if (level > 1) 4 else 5)

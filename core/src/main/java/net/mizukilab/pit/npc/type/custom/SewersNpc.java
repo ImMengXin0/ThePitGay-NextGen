@@ -3,7 +3,7 @@ package net.mizukilab.pit.npc.type.custom;
 import cn.charlotte.pit.ThePit;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.mizukilab.pit.menu.sewers.SewersMenu;
-import net.mizukilab.pit.npc.AbstractCustomEntityNPC;
+import net.mizukilab.pit.npc.AbstractPitNPC;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
@@ -16,7 +16,11 @@ import java.util.List;
  * @author Araykal
  * @since 2025/5/2
  */
-public class SewersNpc extends AbstractCustomEntityNPC {
+public class SewersNpc extends AbstractPitNPC {
+    @Override public cn.mythicland.npclib.api.state.NPCAnimation getAnimation() { return null; }
+    @Override public cn.mythicland.npclib.api.skin.Skin getNpcSkin() { return null; }
+    @Override public org.bukkit.inventory.ItemStack getNpcHeldItem() { return null; }
+    @Override public void initSkin(cn.mythicland.npclib.api.NPC npc) { }
     @Override
     public String getNpcInternalName() {
         return "sewers";
@@ -36,7 +40,7 @@ public class SewersNpc extends AbstractCustomEntityNPC {
     }
 
     @Override
-    public EntityType getEntityType() {
+    public EntityType getNpcEntityType() {
         return EntityType.SILVERFISH;
     }
 
@@ -44,11 +48,7 @@ public class SewersNpc extends AbstractCustomEntityNPC {
     @Override
     public void handlePlayerInteract(Player player) {
         new SewersMenu().openMenu(player);
-        player.playSound(player.getLocation(), Sound.SILVERFISH_HIT, 1, 1);
+        player.playSound(player.getLocation(), Sound.ENTITY_SILVERFISH_HURT, 1, 1);
     }
 
-    @Override
-    public void customizeEntity(Entity entity) {
-
-    }
 }

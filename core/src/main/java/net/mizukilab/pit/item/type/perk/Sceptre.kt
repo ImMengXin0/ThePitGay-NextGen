@@ -45,12 +45,12 @@ class Sceptre : AbstractPitItem(), Listener {
 
     @EventHandler
     fun onPlayerInteract(event: PlayerInteractEvent) {
-        val item = event.player.itemInHand ?: return
+        val item = event.player.inventory.itemInMainHand ?: return
         if (this.internalName == ItemUtil.getInternalName(item)) {
             if (event.action == Action.RIGHT_CLICK_BLOCK) {
                 val block: Block? = event.clickedBlock
                 if (block != null && block.getType() === Material.OBSIDIAN) {
-                    event.getPlayer().playSound(block.getLocation(), Sound.STEP_STONE, 1.0f, 1.0f);
+                    event.getPlayer().playSound(block.getLocation(), Sound.BLOCK_STONE_STEP, 1.0f, 1.0f);
                     block.breakNaturally()
                 }
             }

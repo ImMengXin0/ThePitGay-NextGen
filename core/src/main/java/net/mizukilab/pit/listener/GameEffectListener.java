@@ -12,10 +12,10 @@ import cn.charlotte.pit.perk.AbstractPerk;
 import cn.charlotte.pit.perk.PerkFactory;
 import com.google.common.util.concurrent.AtomicDouble;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import net.minecraft.server.v1_8_R3.EnchantmentManager;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
-import net.minecraft.server.v1_8_R3.GenericAttributes;
-import net.minecraft.server.v1_8_R3.MobEffectList;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.effect.MobEffects;
 import net.mizukilab.pit.config.NewConfiguration;
 import net.mizukilab.pit.enchantment.AbstractEnchantment;
 import net.mizukilab.pit.enchantment.EnchantmentFactor;
@@ -37,8 +37,8 @@ import net.mizukilab.pit.util.chat.CC;
 import net.mizukilab.pit.util.item.ItemUtil;
 import nya.Skip;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftLivingEntity;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -319,11 +319,11 @@ public class GameEffectListener implements Listener {
             }
             //mirror enchant code end
             player.setLastDamageCause(event);
-            EntityPlayer handle = ((CraftPlayer) player).getHandle();
+            ServerPlayer handle = ((CraftPlayer) player).getHandle();
             if (damager != null) {
-                handle.killer = ((CraftPlayer) damager).getHandle();
+                player.setKiller(damager);
                 if(instance1.getNo1_8Effect()){
-                    handle.lastDamage = Float.MAX_VALUE;
+                    handle.lastHurt = Float.MAX_VALUE;
                 }
             }
             //we need to ensure the final damage is pushed into the event
@@ -355,10 +355,12 @@ public class GameEffectListener implements Listener {
             PlayerProfile profile = PlayerProfile.getPlayerProfileByUuid(player.getUniqueId());
             if (profile.getPlayerOption().isDebugDamageMessage()) {
                 player.sendMessage(CC.translate("&7造成伤害(Damage/Final Damage): &c" + numFormatTwo.format(event.getDamage()) + "&7/&c" + numFormatTwo.format(event.getFinalDamage())));
-                final EntityPlayer entityPlayer = ((CraftPlayer) player).getHandle();
-                final double value = entityPlayer.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).getValue();
-                final float enchantDamage = EnchantmentManager.a(entityPlayer.bA(), ((CraftLivingEntity) event.getEntity()).getHandle().getMonsterType());
-                final boolean critical = entityPlayer.fallDistance > 0.0F && !entityPlayer.onGround && !entityPlayer.k_() && !entityPlayer.V() && !entityPlayer.hasEffect(MobEffectList.BLINDNESS) && entityPlayer.vehicle == null;
+                final ServerPlayer entityPlayer = ((CraftPlayer) player).getHandle();
+                final double value = entityPlayer.getAttribute(Attributes.ATTACK_DAMAGE).getValue();
+                final float enchantDamage = EnchantmentHelper.modifyDamage((net.minecraft.server.level.ServerLevel) entityPlayer.level(),
+                        entityPlayer.getMainHandItem(), ((org.bukkit.craftbukkit.entity.CraftEntity) event.getEntity()).getHandle(),
+                        entityPlayer.damageSources().playerAttack(entityPlayer), 0f);
+                final boolean critical = PlayerUtil.critical(player);
                 player.sendMessage(CC.translate("&7基础: &c" + value + "&7,附魔伤害: &c" + enchantDamage + "&7,cancel:" + cancel.get() + " ,暴击: &c" + critical));
             }
         }
