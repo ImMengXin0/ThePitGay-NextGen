@@ -52,7 +52,7 @@ public final class FancyNpcService implements Listener, AutoCloseable {
         FancyTextService.requireMainThread();
         if (closed) throw new IllegalStateException("NPC service is closed");
         Objects.requireNonNull(location.getWorld(), "NPC world");
-        NpcData data = new NpcData("thepit_" + name + "_" + UUID.randomUUID(),
+        NpcData data = new FancyNpcData("thepit_" + name + "_" + UUID.randomUUID(),
                 new UUID(0, 0), location.clone());
         data.setType(type);
         data.setDisplayName("");
@@ -221,10 +221,28 @@ public final class FancyNpcService implements Listener, AutoCloseable {
                         && player.getLocation().distanceSquared(location) <= 2500.0;
                 if (visible) {
                     NpcVisibility.ManualNpcVisibility.addDistantViewer(npc, id);
-                    if (shown.add(id) || !npc.isShownFor(player)) npc.spawn(player);
+                    if (!shown.contains(id) || !npc.isShownFor(player)) spawnForViewer(player);
                     FancyTextService.TextHandle text = personalText.get(id);
-                    if (text != null) text.showOnly(List.of(player));
+                    if (text != null && isShown(player)) text.showOnly(List.of(player));
                 } else hideForViewer(player);
+            }
+        }
+
+        private void spawnForViewer(Player player) {
+            UUID id = player.getUniqueId();
+            shown.remove(id);
+            try {
+                npc.spawn(player);
+                if (npc.isShownFor(player)) shown.add(id);
+            } catch (RuntimeException failure) {
+                // Fancy sets its visible flag before update(), which may still fail.
+                // Remove partial visuals and retain viewer intent so refresh can retry.
+                try {
+                    npc.remove(player);
+                } catch (RuntimeException cleanupFailure) {
+                    failure.addSuppressed(cleanupFailure);
+                }
+                throw failure;
             }
         }
 

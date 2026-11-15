@@ -40,6 +40,18 @@ FancyHolograms **2.10.1 的插件入口类已经要求 Java 25**，因此服务�
 
 `:core:paperLibrarySmoke` 使用目标 Paper 的真实 `LibraryLoader`，在独立空缓存中下载并核对全部 21 个 JAR 的 SHA-256，验证薄 JAR、JSON 和脚本运行，然后切换为离线会话检查缓存复用及空缓存拒绝启动。结果位于 `core/build/paper-library-smoke/result.txt`。该任务首次需联网，故纯离线构建可只执行 `build --offline`。
 
+## FancyNpcs 兼容回归
+
+核心适配层兼容 FancyNpcs 缺少可选属性时的查询。用户使用的 `2.10.1-java21+2` 在 `update()` 内无条件查询 `custom_model`，属性未注册时会用空键访问原始 `ConcurrentHashMap`；本项目仅为自身 NPC 提供属性视图，将这类查询视为属性不存在，保留原有并发存储、普通属性及清理行为。显示失败时会回收部分状态，下一次刷新可重试。
+
+默认 `build` 会执行人物、村民、蠹虫、属性修改清理和显示失败重试共 5 项回归。测试调用真实的目标版本 Fancy `update()`，实体、移动、元数据传输及玩家连接使用模拟边界，未启动服务端。可额外指定本地 FancyNpcs JAR 运行同组回归，任务会核对实际加载的 JAR 路径：
+
+```powershell
+.\gradlew.bat :core:fancyNpcCompatibilityTest '-PfancyNpcsTestJar=D:/path/FancyNpcs.jar'
+```
+
+该选项仅替换此验证任务的运行依赖，不修改生产依赖版本或打包 FancyNpcs。
+
 ## 自动化测试
 
 测试会初始化目标 Paper 的注册表和数据转换器，使用真实物品数据、容器和协议对象；玩家连接、调度和数据库等边界使用模拟对象。测试不会启动 Minecraft 服务端、接受 EULA 或连接生产数据库。

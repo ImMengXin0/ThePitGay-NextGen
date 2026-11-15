@@ -14,6 +14,7 @@
 - 告示牌输入增加会话及位置检查、重复提交抑制、主线程回调、超时和退出清理；区块保护使用插件区块票；移除会删除世界内全部非玩家实体的旧 NPC 清理逻辑。
 - Shadow 打包保留服务注册信息和需要重定位的框架库；Kotlin、MongoDB/MongoJack、Jackson、Jedis、Nashorn 等 21 个运行库使用产物 `plugin.yml` 的 Paper 原生 `libraries:` 下载机制，固定全部直接及传递依赖版本。首次启动联网下载到服务端根目录 `libraries/`，后续复用缓存。核心 JAR 不包含这些远程运行库、FancyNpcs、FancyHolograms、ProtocolLib 或 Minecraft 服务端类。
 - 修复用户在 Leaf 1.21.11 上报告的名牌任务启动异常：使用 `BukkitRunnable.runTaskTimer` 注册任务，保留取消能力。MongoDB 客户端增加幂等关闭及初始化失败回收；停服时先停止调度、保存玩家数据并排空档案队列，再关闭数据库。其他资源清理失败会记录异常并继续，避免遗漏 MongoDB 监控线程。启动失败通过插件管理器禁用插件，并恢复原白名单状态。
+- 修复用户所用 FancyNpcs `2.10.1-java21+2` 在缺少 `custom_model` 属性时的空键查询；兼容处理仅作用于核心创建的 NPC。显示成功后才记录可见状态，显示失败时清理部分状态并允许下一次刷新重试。
 
 ## 物品与历史数据
 
@@ -35,26 +36,28 @@
 
 | 模块 | 测试总数 | 通过 | 跳过 | 失败或错误 |
 | --- | ---: | ---: | ---: | ---: |
-| core | 491 | 386 | 105 | 0 |
+| core | 496 | 391 | 105 | 0 |
 | mythic-framework-core | 22 | 22 | 0 | 0 |
 | mythic-framework-bukkit | 7 | 7 | 0 | 0 |
 | paper-platform | 6 | 6 | 0 | 0 |
-| **合计** | **526** | **421** | **105** | **0** |
+| **合计** | **531** | **426** | **105** | **0** |
 
 105 项外部扩展检查按用户要求暂不纳入本次验收；默认测试样本路径未配置，测试明确记录为跳过。核心弓连击等可独立运行的检查仍执行。历史 1.8 扩展中依赖旧 Bukkit/NMS 的代码需要单独迁移源码并重编译；这些跳过项不构成扩展兼容性证明。
 
 测试初始化真实 Paper 注册表、物品容器和数据转换器，并验证现代 ProtocolLib 数据包；玩家连接、调度、数据库等边界使用模拟对象。新增回归包含物品迁移 7 项、全息图生命周期 5 项、告示牌生命周期 4 项，以及本次名牌调度和数据库生命周期 5 项。测试未开启游戏端口、加载运行世界或连接生产数据库。
 
+NPC 另新增 5 项回归：人物、村民、蠹虫缺少可选属性时的显示更新，普通属性应用及清理，以及显示失败后的清理与重试。默认构建使用 FancyNpcs 2.9.2；额外使用本地 `2.10.1-java21+2` JAR 运行同组回归，5 项全部通过。测试调用两版真实的 `Npc_1_21_11.update()`，模拟实体、移动、元数据传输和玩家连接；尚未在用户实服复测。该本地变体的 SHA-256 为 `c95eabf27f721d076ff114aaea757d4d7b062949dc1d8cb21c8d61fc92c4a72a`，日志为 `audit/high-fancy-npc-2.10.1-regression.log`。
+
 另执行独立 `paperLibrarySmoke` 检查，使用目标 Paper 真实 `LibraryLoader` 从空缓存下载 21 个运行库，逐一比对构建时 SHA-256，并验证薄 JAR 类加载、Jackson JSON 和 Nashorn 脚本。随后切换离线会话验证缓存复用、JAR 未被重写，以及空缓存离线启动被拒绝。结果为 `core/build/paper-library-smoke/result.txt`；生产代码使用 Paper 原生加载器，不包含这项验证所用的反射设置。
 
-本地完整构建日志为 `audit/high-paper-libraries-build.log`，HTML 报告在各模块 `build/reports/tests/test/`。这些构建输出不入库。GitHub Actions 工作流 `.github/workflows/high-build.yml` 在本分支推送及 PR 时使用 JDK 21 构建、Java 25 测试并保存 JAR、测试报告和依赖缓存验证结果；本地结果不代表远程 CI 已通过。
+最新完整构建日志为 `audit/high-fancy-npc-build.log`，前次 Paper 依赖下载验证日志为 `audit/high-paper-libraries-build.log`，HTML 报告在各模块 `build/reports/tests/test/`。这些构建输出不入库。GitHub Actions 工作流 `.github/workflows/high-build.yml` 在本分支推送及 PR 时使用 JDK 21 构建、Java 25 测试并保存 JAR、测试报告和依赖缓存验证结果；本地结果不代表远程 CI 已通过。
 
 ## 交付产物与依赖
 
 - 核心 JAR：`core/build/libs/ThePitGay-High.jar`
 - 插件版本：`5.0.0-HIGH-SNAPSHOT`
-- 文件大小：`7,764,450` 字节
-- SHA-256：`be3113872c943ae1f9750872bd07548d9f324b2b0d66ba9de56cb31953e7b6bb`
+- 文件大小：`7,766,403` 字节
+- SHA-256：`a0279235aca30f1da8f59b211c64d7e8cc0b683c3226af2fa13f9fd1e09885b6`
 - 映射命名空间：`mojang`
 
 打包检查未发现对 `net/minecraft/server/v1_8_R3` 或 `org/bukkit/craftbukkit/v1_8_R3` 的类链接。历史 facade 的部分包名仍保留 `v1_8_R3`，其实现已迁移；这不表示旧 NMS 仍被打包。

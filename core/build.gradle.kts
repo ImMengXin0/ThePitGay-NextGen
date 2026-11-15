@@ -283,6 +283,22 @@ tasks.check {
     dependsOn(":mythic-framework-core:test", ":mythic-framework-bukkit:test")
 }
 
+tasks.register<Test>("fancyNpcCompatibilityTest") {
+    group = "verification"
+    description = "Run the real Fancy NPC adapter regressions against an optional supplied FancyNpcs JAR."
+    dependsOn(tasks.testClasses)
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    providers.gradleProperty("fancyNpcsTestJar").orNull?.let { path ->
+        val artifact = rootProject.file(path)
+        inputs.file(artifact).withPropertyName("fancyNpcsTestJar")
+        systemProperty("fancyNpcsTestJar", artifact.absolutePath)
+        classpath = classpath.filter { !it.name.startsWith("fancynpcs-", ignoreCase = true) } + files(artifact)
+    }
+    useJUnitPlatform()
+    filter { includeTestsMatching("net.mizukilab.pit.platform.paper.FancyNpcServiceTest") }
+}
+
 tasks.register<JavaExec>("paperLibrarySmoke") {
     group = "verification"
     description = "Exercise Paper's native library loader with a fresh cache and then offline."
