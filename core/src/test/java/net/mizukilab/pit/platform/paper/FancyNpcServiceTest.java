@@ -45,6 +45,8 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
     private World world;
     private Runnable refresh;
     private final List<RenderingNpc> npcs = new ArrayList<>();
+    private final List<org.bukkit.event.Listener> listeners = new ArrayList<>();
+    @Rule public org.junit.rules.TemporaryFolder files = new org.junit.rules.TemporaryFolder();
 
     @BeforeClass public static void verifyRuntimeArtifact() throws Exception {
         var actual = java.nio.file.Path.of(Npc_1_21_11.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toRealPath();
@@ -100,6 +102,7 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
         texts = mock(FancyTextService.class);
         text = mock(FancyTextService.TextHandle.class);
         when(texts.create(any(), anyList())).thenReturn(text);
+        installEventBus();
         service = new FancyNpcService(owner, texts);
     }
 
@@ -122,6 +125,8 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
 
     @After public void cleanup() {
         if (service != null) service.close();
+        listeners.forEach(org.bukkit.event.HandlerList::unregisterAll);
+        net.mizukilab.pit.util.menu.Menu.currentlyOpenedMenus.remove(player.getUniqueId());
         if (colors != null) colors.close();
         if (fancyApi != null) fancyApi.close();
         if (bukkit != null) bukkit.close();
@@ -132,19 +137,26 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
     @Test public void silverfishRendersWithoutOptionalAttributeProviders() { assertRenders(EntityType.SILVERFISH); }
 
     @Test public void positionalClickReachesTheActualPerkMenuThroughRegisteredListeners() throws Exception {
-        assertPerkMenuOpens(true, false);
+        assertPerkMenuOpens(true, false, false);
     }
 
     @Test public void ordinaryFancyClickReachesTheActualPerkMenuThroughRegisteredListeners() throws Exception {
-        assertPerkMenuOpens(false, false);
+        assertPerkMenuOpens(false, false, false);
     }
 
     @Test public void cancelledFancyClickCannotReachTheActualPerkMenu() throws Exception {
-        assertPerkMenuOpens(false, true);
+        assertPerkMenuOpens(false, true, false);
     }
 
-    private void assertPerkMenuOpens(boolean positional, boolean cancelled) throws Exception {
-        var listeners = new ArrayList<org.bukkit.event.Listener>();
+    @Test public void delayedFancyLoadRestoresOrdinaryClickToTheActualPerkMenu() throws Exception {
+        assertPerkMenuOpens(false, false, true);
+    }
+
+    @Test public void delayedFancyLoadRestoresPositionalClickToTheActualPerkMenu() throws Exception {
+        assertPerkMenuOpens(true, false, true);
+    }
+
+    private void installEventBus() {
         doAnswer(call -> {
             org.bukkit.event.Listener listener = call.getArgument(0);
             listeners.add(listener);
@@ -167,14 +179,26 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
             for (var listener : event.getHandlers().getRegisteredListeners()) listener.callEvent(event);
             return null;
         }).when(plugins).callEvent(any());
+    }
+
+    private de.oliver.fancynpcs.NpcManagerImpl realManager(de.oliver.fancynpcs.FancyNpcs nativePlugin) throws Exception {
+        var manager = new de.oliver.fancynpcs.NpcManagerImpl(owner, fancy.getNpcAdapter());
+        var configFile = manager.getClass().getDeclaredField("npcConfigFile");
+        configFile.setAccessible(true);
+        configFile.set(manager, files.newFile());
+        when(fancy.getNpcManager()).thenReturn(manager);
+        when(nativePlugin.getNpcManagerImpl()).thenReturn(manager);
+        return manager;
+    }
+
+    private void assertPerkMenuOpens(boolean positional, boolean cancelled, boolean delayedLoad) throws Exception {
         try (var pit = mockStatic(ThePit.class);
              var profiles = mockStatic(cn.charlotte.pit.data.PlayerProfile.class);
              var nativeApi = mockStatic(de.oliver.fancynpcs.FancyNpcs.class);
              var actions = mockStatic(de.oliver.fancynpcs.api.actions.executor.ActionExecutor.class)) {
             var nativePlugin = mock(de.oliver.fancynpcs.FancyNpcs.class);
-            var nativeManager = mock(de.oliver.fancynpcs.NpcManagerImpl.class);
             nativeApi.when(de.oliver.fancynpcs.FancyNpcs::getInstance).thenReturn(nativePlugin);
-            when(nativePlugin.getNpcManagerImpl()).thenReturn(nativeManager);
+            var nativeManager = realManager(nativePlugin);
             plugins.registerEvents(new de.oliver.fancynpcs.listeners.PlayerUseUnknownEntityListener(), owner);
             if (cancelled) plugins.registerEvents(new CancellingListener(), owner);
             pit.when(ThePit::getInstance).thenReturn(owner);
@@ -205,8 +229,14 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
                 factory.init(List.of(MenuPerkNpc.class));
                 assertEquals(1, factory.getPitNpc().size());
                 var npc = npcs.getLast();
-                when(fancy.getNpcManager().getNpc(npc.getEntityId())).thenReturn(npc);
-                when(nativeManager.getNpc(npc.getEntityId())).thenReturn(npc);
+                assertSame(npc, nativeManager.getNpc(npc.getEntityId()));
+                if (delayedLoad) {
+                    // Reproduce Fancy's real startup task: it clears all registrations, including ours.
+                    nativeManager.loadNpcs();
+                    assertSame(npc, nativeManager.getNpc(npc.getEntityId()));
+                    assertTrue(service.isRegistered(npc.getEntityId()));
+                    assertEquals(1, nativeManager.getAllNpcs().size());
+                }
                 plugins.callEvent(new com.destroystokyo.paper.event.player.PlayerUseUnknownEntityEvent(player,
                         npc.getEntityId(), false, org.bukkit.inventory.EquipmentSlot.HAND,
                         positional ? new org.bukkit.util.Vector(0, 1, 0) : null));
@@ -219,10 +249,63 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
                     verify(player).openInventory(any(org.bukkit.inventory.Inventory.class));
                 }
             } finally { factory.shutdown(); }
-        } finally {
-            listeners.forEach(org.bukkit.event.HandlerList::unregisterAll);
-            net.mizukilab.pit.util.menu.Menu.currentlyOpenedMenus.remove(player.getUniqueId());
         }
+    }
+
+    @Test public void reloadPreservesOwnedIdsAndViewerPolicyWithoutDuplicatingOrResurrectingNpcs() throws Exception {
+        try (var nativeApi = mockStatic(de.oliver.fancynpcs.FancyNpcs.class)) {
+            var nativePlugin = mock(de.oliver.fancynpcs.FancyNpcs.class);
+            nativeApi.when(de.oliver.fancynpcs.FancyNpcs::getInstance).thenReturn(nativePlugin);
+            var manager = realManager(nativePlugin);
+            var visible = service.create("visible", new Location(world, 0, 64, 0), EntityType.PLAYER, ignored -> {});
+            var hidden = service.create("hidden", new Location(world, 0, 64, 0), EntityType.VILLAGER, ignored -> {});
+            var deleted = service.create("deleted", new Location(world, 0, 64, 0), EntityType.SILVERFISH, ignored -> {});
+            visible.setText(player, List.of("personal"));
+            visible.show(player);
+            deleted.close();
+            var npc = npcs.getFirst();
+            int entityId = visible.entityId();
+            manager.loadNpcs();
+            manager.loadNpcs();
+            assertEquals(2, manager.getAllNpcs().size());
+            assertSame(npc, manager.getNpc(entityId));
+            assertEquals(1, npc.spawnAttempts);
+            manager.reloadNpcs();
+            assertEquals(2, manager.getAllNpcs().size());
+            assertSame(npc, manager.getNpc(entityId));
+            assertTrue(visible.isShown(player));
+            assertFalse(hidden.isShown(player));
+            assertEquals(2, npc.spawnAttempts);
+            verify(texts).create(any(), eq(List.of("personal")));
+            service.close();
+            manager.loadNpcs();
+            assertTrue(manager.getAllNpcs().isEmpty());
+            assertFalse(visible.isShown(player));
+        }
+    }
+
+    @Test public void asynchronousLoadRestoresOnMainThreadAndSkipsAClosedService() throws Exception {
+        var pending = new ArrayList<Runnable>();
+        when(Bukkit.getScheduler().runTask(eq(owner), any(Runnable.class))).thenAnswer(call -> {
+            pending.add(call.getArgument(1));
+            return mock(BukkitTask.class);
+        });
+        service.create("async", new Location(world, 0, 64, 0), EntityType.PLAYER, ignored -> {});
+        clearInvocations(fancy.getNpcManager());
+        bukkit.when(Bukkit::isPrimaryThread).thenReturn(false);
+        plugins.callEvent(new de.oliver.fancynpcs.api.events.NpcsLoadedEvent());
+        verify(fancy.getNpcManager(), never()).registerNpc(any());
+        assertEquals(1, pending.size());
+        bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
+        pending.removeFirst().run();
+        verify(fancy.getNpcManager()).registerNpc(npcs.getFirst());
+        bukkit.when(Bukkit::isPrimaryThread).thenReturn(false);
+        plugins.callEvent(new de.oliver.fancynpcs.api.events.NpcsLoadedEvent());
+        bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
+        service.close();
+        clearInvocations(fancy.getNpcManager());
+        pending.removeFirst().run();
+        verify(fancy.getNpcManager(), never()).registerNpc(any());
     }
 
     public static final class MenuPerkNpc extends net.mizukilab.pit.npc.type.PerkNPC {
@@ -278,7 +361,7 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
     }
 
     /** Retains Fancy's actual update(); isolates spawn packets, metadata transport and movement. */
-    private static final class RenderingNpc extends Npc_1_21_11 {
+    private final class RenderingNpc extends Npc_1_21_11 {
         private boolean failNextSpawn;
         private int spawnAttempts;
         RenderingNpc(NpcData data) { super(data); }
@@ -301,6 +384,7 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
                         : mock(net.minecraft.world.entity.monster.Silverfish.class);
             }
             when(entity.getStringUUID()).thenReturn(UUID.randomUUID().toString());
+            when(entity.getId()).thenReturn(npcs.size() + 1);
             when(entity.getItemBySlot(any())).thenReturn(net.minecraft.world.item.ItemStack.EMPTY);
             try {
                 var field = Npc_1_21_11.class.getDeclaredField("npc");
@@ -318,6 +402,9 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
             update(viewer, false);
         }
         @Override public void remove(Player viewer) { getIsVisibleForPlayer().remove(viewer.getUniqueId()); }
+        @Override public void removeForAll() {
+            for (Player viewer : Bukkit.getOnlinePlayers()) remove(viewer);
+        }
         @Override protected void refreshEntityData(Player viewer) { }
         @Override public void move(Player viewer, boolean force) { }
         // Overrides the scheduler hook added in 2.10; 2.9 sends directly.

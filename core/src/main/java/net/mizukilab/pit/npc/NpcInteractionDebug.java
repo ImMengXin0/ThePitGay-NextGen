@@ -44,11 +44,13 @@ public final class NpcInteractionDebug {
             removeObserverIfIdle();
         }, 1200L);
         player.sendMessage("§eNPC 点击诊断已开启 60 秒。请关闭菜单并右键目标 NPC，随后提供后台 [NPC-CLICK] 日志。");
-        trace(player, "start", () -> "patch=2026-11-15-menu-trace version=" + plugin.getDescription().getVersion());
+        trace(player, "start", () -> "patch=2026-11-15-fancy-registry version=" + plugin.getDescription().getVersion());
         for (AbstractPitNPC model : plugin.getNpcFactory().getPitNpc()) {
             if (!(model.getNpc() instanceof cn.mythicland.npclib.internal.NPCBase npc)) continue;
             trace(player, "state", () -> "npc=" + model.getNpcInternalName() + " entity=" + npc.getEntityId()
                     + " registered=" + (NPCManager.getByEntityId(npc.getEntityId()) == npc)
+                    + " fancyRegistered=" + (plugin.getFancyNpcs() != null
+                    && plugin.getFancyNpcs().isRegistered(npc.getEntityId()))
                     + " visible=" + npc.isShown(player)
                     + " world=" + npc.getWorld().getName()
                     + " distance=" + (player.getWorld().equals(npc.getWorld())

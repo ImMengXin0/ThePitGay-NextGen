@@ -2,15 +2,25 @@
 
 用户报告人物 NPC 已显示“天赋 / 右键查看”，右键没有打开菜单，后台也没有异常；这里的 MythicLib 指核心内嵌的 MythicNPCLib。
 
-## 已确认的范围
+## 本次日志与根因
+
+20:05 的实服诊断显示，玩家点击商店实体 8 时有 `packet` 和 `paper` 阶段，核心的 `registered=true`，但始终没有 `fancy`、`dispatch`、`model` 或 `menu`。这把失败范围缩小到 Fancy 查询实体的环节；原来的 `registered` 只代表核心内嵌库的注册表，不能证明 Fancy 的注册表仍有这个实体。
+
+检查 FancyNpcs 实际代码后发现：其启动后延迟 100 tick 调用 `NpcManagerImpl.loadNpcs()`，该方法先清空注册表，再加载 YAML 并发布 `NpcsLoadedEvent`。核心提前创建的 NPC 不写入 YAML，因此会从 Fancy 注册表消失；核心仍保留并显示这些对象。Fancy 原生监听器与核心的身体右键补充路径都查询 Fancy 注册表，找不到实体后直接返回，不产生报错。
+
+补丁监听 `NpcsLoadedEvent`，重新注册核心仍持有的 NPC，并按已有玩家可见策略刷新显示。保留原对象、实体 ID、皮肤、个人文字和点击回调；注册身份一致时不重复注册。异步通知转回主线程处理，已删除 NPC、已关闭服务不会恢复。原生 Fancy 的点击取消行为继续生效。`/pit npcdebug` 的状态行新增独立的 `fancyRegistered` 字段，以区分两个注册表。
+
+## 点击链路与验证
 
 点击链路为：Paper `PlayerUseUnknownEntityEvent` → FancyNpcs 原生点击监听器或核心的 `INTERACT_AT` 补充路径 → Fancy `NpcInteractEvent` → 内嵌 `NPCInteractEvent` → `NpcFactory` 根据 NPC UUID 匹配模型 → `PerkNPC.handlePlayerInteract()` → `PerkChooseMenu.openMenu()`。
 
 内嵌库随核心重定位到 `net.mizukilab.pit.libs.npclib`，内置 NPC 的模型、显示和点击都使用同一套包装对象。当前没有证据说明内嵌库与 FancyNpcs 本身冲突。
 
-新增集成回归使用真实 FancyNpcs `PlayerUseUnknownEntityListener`、`Npc.interact()`、Bukkit HandlerList 注册与事件分发、核心 NPCLib、NpcFactory、天赋 NPC 处理方法和天赋菜单构建。普通右键、点身体的 `INTERACT_AT` 均打开菜单；Fancy 点击事件被取消时不会打开菜单。额外使用用户的 `2.10.1-java21+2` JAR 运行这些检查。
+集成回归使用真实 FancyNpcs `NpcManagerImpl`、`loadNpcs()`、`reloadNpcs()`、`PlayerUseUnknownEntityListener`、`Npc.interact()`、Bukkit HandlerList 注册与事件分发、核心 NPCLib、NpcFactory、天赋 NPC 处理方法和天赋菜单构建。普通右键、点身体的 `INTERACT_AT` 在延迟清空注册表后仍打开菜单；Fancy 点击事件被取消时不会打开菜单。临时 YAML 文件位于测试目录。
 
-测试模拟玩家连接、NMS 实体创建、调度和物品构建等服务端边界；没有启动 Leaf 或接入用户实际插件组合。因此这些结果不能证明用户实服的问题已经修复，也不能排除取消事件、监听器缺失、旧产物或可见状态等运行差异。
+本轮增加四项回归：延迟加载后的两种右键菜单流程，重复加载与重载时保持 ID、可见策略、个人文字且不恢复已删除对象，以及异步加载回到主线程并跳过已经关闭的服务。此前菜单测试把管理器查询模拟为固定返回 NPC，遗漏了延迟清空注册表的生命周期；现在改用真实管理器。默认 FancyNpcs 2.9.2 与用户的 `2.10.1-java21+2` 均运行这些检查。
+
+测试模拟玩家连接、NMS 实体创建、调度和物品构建等服务端边界；没有启动 Leaf 或接入用户实际插件组合。已确认代码中的注册丢失问题及补丁回归，实服仍需更换产物重启复测。
 
 ## 实服诊断
 

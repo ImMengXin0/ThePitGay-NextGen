@@ -4,6 +4,7 @@ import de.oliver.fancynpcs.api.FancyNpcsPlugin;
 import de.oliver.fancynpcs.api.Npc;
 import de.oliver.fancynpcs.api.NpcData;
 import de.oliver.fancynpcs.api.data.property.NpcVisibility;
+import de.oliver.fancynpcs.api.events.NpcsLoadedEvent;
 import de.oliver.fancynpcs.api.skins.SkinData;
 import de.oliver.fancynpcs.api.utils.NpcEquipmentSlot;
 import org.bukkit.Bukkit;
@@ -89,6 +90,29 @@ public final class FancyNpcService implements Listener, AutoCloseable {
 
     public boolean ownsEntity(int entityId) {
         return handles.stream().anyMatch(handle -> handle.entityId() == entityId);
+    }
+
+    public boolean isRegistered(int entityId) {
+        return handles.stream().anyMatch(handle -> handle.entityId() == entityId
+                && fancy.getNpcManager().getNpcById(handle.npc.getData().getId()) == handle.npc);
+    }
+
+    @EventHandler
+    public void onNpcsLoaded(NpcsLoadedEvent event) {
+        // Fancy loads its YAML after startup and clears even nonpersistent NPCs.
+        // Keep our existing objects/IDs so native clicks can find the visible NPCs again.
+        Runnable restore = () -> {
+            if (closed || !owner.isEnabled()) return;
+            for (NpcHandle handle : List.copyOf(handles)) {
+                if (handle.deleted) continue;
+                if (fancy.getNpcManager().getNpcById(handle.npc.getData().getId()) != handle.npc) {
+                    fancy.getNpcManager().registerNpc(handle.npc);
+                }
+                handle.refresh();
+            }
+        };
+        if (Bukkit.isPrimaryThread()) restore.run();
+        else if (!closed && owner.isEnabled()) Bukkit.getScheduler().runTask(owner, restore);
     }
 
     @EventHandler

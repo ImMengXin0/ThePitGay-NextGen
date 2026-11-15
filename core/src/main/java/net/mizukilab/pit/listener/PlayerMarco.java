@@ -46,6 +46,7 @@ import org.bukkit.block.Block;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.Event;
@@ -55,6 +56,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
+import org.bukkit.event.entity.ItemSpawnEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.*;
@@ -280,8 +283,47 @@ public class PlayerMarco implements Listener {
         goldenHeadCooldown.remove(uniqueId);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onArrowLaunch(ProjectileLaunchEvent event) {
+        if (event.isCancelled() || !(event.getEntity() instanceof AbstractArrow arrow)) return;
+        // Normalize before Paper checks inventory capacity, including partially full default-arrow stacks.
+        ItemStack item = arrow.getItemStack();
+        if (isUnmarkedArrow(item)) arrow.setItemStack(defaultArrows(item.getAmount()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onArrowItemSpawn(ItemSpawnEvent event) {
+        if (event.isCancelled()) return;
+        ItemStack item = event.getEntity().getItemStack();
+        if (isUnmarkedArrow(item)) event.getEntity().setItemStack(defaultArrows(item.getAmount()));
+    }
+
+    private static boolean isUnmarkedArrow(ItemStack item) {
+        return item.getType() == Material.ARROW && ItemUtil.getInternalName(item) == null;
+    }
+
+    private static ItemStack defaultArrows(int amount) {
+        return new ItemBuilder(Material.ARROW).internalName("default_arrow").defaultItem()
+                .canDrop(false).canSaveToEnderChest(false).amount(amount).build();
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerPickupItem(PlayerPickupItemEvent event) {
+        if (event.isCancelled()) return;
+        ItemStack pickup = event.getItem().getItemStack();
+        if (event instanceof PlayerPickupArrowEvent || pickup.getType() == Material.ARROW) {
+            if (PlayerUtil.isStaffSpectating(event.getPlayer())) {
+                event.setCancelled(true);
+                return;
+            }
+            // An arrow event exposes a temporary Item, not the projectile. Cancelling and
+            // manually awarding arrows leaves that projectile available for infinite retries.
+            // Paper reads this stack after the event and handles insertion/removal together.
+            if (isUnmarkedArrow(pickup)) {
+                event.getItem().setItemStack(defaultArrows(pickup.getAmount() + event.getRemaining()));
+            }
+            return;
+        }
         final String internalName = ItemUtil.getInternalName(event.getItem().getItemStack());
         if (internalName != null && (internalName.contains("fish") || internalName.equals("fishing_dia_armor") || internalName.contains("mythic"))) {
             return;
@@ -357,10 +399,6 @@ public class PlayerMarco implements Listener {
                 player.getInventory().setArmorContents(armorContents);
                 player.playSound(player.getLocation(), Sound.ENTITY_HORSE_ARMOR, 1F, 1F);
             }
-        } else if (stack.getType() == Material.ARROW) {
-            ItemBuilder arrowBuilder = new ItemBuilder(Material.ARROW).internalName("default_arrow").defaultItem().canDrop(false).canSaveToEnderChest(false);
-            player.getInventory().addItem(arrowBuilder.build());
-            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1F, 1F);
         } else if ((stack.getType() == Material.BOW || ItemKinds.isSword(Utils.toNMStackQuick(stack))) && !event.isCancelled()) {
             InventoryUtil.addInvReverse(player.getInventory(), event.getItem().getItemStack());
         } else if (stack.getType() == Material.GOLD_INGOT) {
