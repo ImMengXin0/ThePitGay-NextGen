@@ -62,7 +62,8 @@ public final class FancyNpcService implements Listener, AutoCloseable {
         data.setTurnToPlayer(false);
         data.setVisibilityDistance(50);
         data.setVisibility(NpcVisibility.MANUAL);
-        data.setInteractionCooldown(0.25f);
+        // The game bridge silently debounces duplicate use-entity packets itself.
+        data.setInteractionCooldown(0.0f);
         Npc npc = fancy.getNpcAdapter().apply(data);
         npc.setSaveToFile(false);
         NpcHandle handle = new NpcHandle(npc);

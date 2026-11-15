@@ -136,6 +136,20 @@ public class FancyNpcServiceTest extends net.mizukilab.pit.BukkitDataTestSupport
     @Test public void villagerRendersWithoutOptionalAttributeProviders() { assertRenders(EntityType.VILLAGER); }
     @Test public void silverfishRendersWithoutOptionalAttributeProviders() { assertRenders(EntityType.SILVERFISH); }
 
+    @Test public void repeatedNativeClicksNeverSendFancyCooldownMessages() {
+        AtomicInteger clicks = new AtomicInteger();
+        var handle = service.create("click", new Location(world, 0, 64, 0), EntityType.PLAYER,
+                ignored -> clicks.incrementAndGet());
+        handle.show(player);
+        try (var actions = mockStatic(de.oliver.fancynpcs.api.actions.executor.ActionExecutor.class)) {
+            var npc = npcs.getFirst();
+            npc.interact(player);
+            npc.interact(player);
+        }
+        assertEquals(2, clicks.get());
+        verify(player, never()).sendMessage(anyString());
+    }
+
     @Test public void positionalClickReachesTheActualPerkMenuThroughRegisteredListeners() throws Exception {
         assertPerkMenuOpens(true, false, false);
     }

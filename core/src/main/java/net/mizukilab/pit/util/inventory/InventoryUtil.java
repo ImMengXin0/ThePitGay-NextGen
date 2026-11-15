@@ -4,6 +4,7 @@ import net.mizukilab.pit.util.item.ItemKinds;
 
 import cn.charlotte.pit.data.PlayerProfile;
 import cn.charlotte.pit.data.sub.PlayerInv;
+import net.mizukilab.pit.item.UberDropStacking;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.nbt.*;
 import net.mizukilab.pit.util.PlayerUtil;
@@ -16,6 +17,7 @@ import org.bukkit.Material;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.jetbrains.annotations.NotNull;
@@ -364,9 +366,14 @@ public class InventoryUtil {
         int illegalItems = 0;
         PlayerInventory inventory = player.getInventory();
         for (ItemStack item : inventory) {
-            if (item == null) {
+            if (isEmpty(item)) {
                 slot++;
                 continue;
+            }
+            ItemStack normalized = UberDropStacking.normalize(item);
+            if (normalized != item) {
+                item = normalized;
+                inventory.setItem(slot, item);
             }
             if (ItemUtil.isIllegalItem(item)) {
                 player.getInventory().remove(item);
@@ -419,16 +426,16 @@ public class InventoryUtil {
                 inventory.addItem(new ItemBuilder(Material.COBBLESTONE).deathDrop(true).amount(32 - cobblestone).canDrop(false).canSaveToEnderChest(false).internalName("perk_miner").build());
             }
         }
-        for (ArmorType type : ArmorType.values()) {
-            ItemStack armorPiece = inventory.getItem(type.ordinal());
-            if (armorPiece == null) {
+        for (EquipmentSlot armorSlot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+            ItemStack armorPiece = inventory.getItem(armorSlot);
+            if (isEmpty(armorPiece)) {
                 continue;
             }
             boolean isIllegal = ItemUtil.isIllegalItem(armorPiece);
             boolean isRemoved = ItemUtil.isRemovedOnJoin(armorPiece);
 
             if (isIllegal || isRemoved) {
-                inventory.setItem(type.ordinal(), null);
+                inventory.setItem(armorSlot, null);
                 if (isIllegal) {
                     illegalItems++;
                 }
@@ -490,21 +497,21 @@ public class InventoryUtil {
         if (playerProfile.getPlayerOption().isOutfit()) {
             int ironArmorSlot = random.nextInt(3);
 
-            if (inventory.getChestplate() == null || (ItemUtil.isDefaultItem(inventory.getChestplate()) && ItemUtil.canReplace(inventory.getChestplate()))) {
+            if (isEmpty(inventory.getChestplate()) || (ItemUtil.isDefaultItem(inventory.getChestplate()) && ItemUtil.canReplace(inventory.getChestplate()))) {
                 if (ironArmorSlot == 0) {
                     inventory.setChestplate(new ItemBuilder(Material.IRON_CHESTPLATE).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 } else {
                     inventory.setChestplate(new ItemBuilder(Material.CHAINMAIL_CHESTPLATE).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 }
             }
-            if (inventory.getLeggings() == null || (ItemUtil.isDefaultItem(inventory.getLeggings()) && ItemUtil.canReplace(inventory.getLeggings()))) {
+            if (isEmpty(inventory.getLeggings()) || (ItemUtil.isDefaultItem(inventory.getLeggings()) && ItemUtil.canReplace(inventory.getLeggings()))) {
                 if (ironArmorSlot == 1) {
                     inventory.setLeggings(new ItemBuilder(Material.IRON_LEGGINGS).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 } else {
                     inventory.setLeggings(new ItemBuilder(Material.CHAINMAIL_LEGGINGS).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 }
             }
-            if (inventory.getBoots() == null || (ItemUtil.isDefaultItem(inventory.getBoots()) && ItemUtil.canReplace(inventory.getBoots()))) {
+            if (isEmpty(inventory.getBoots()) || (ItemUtil.isDefaultItem(inventory.getBoots()) && ItemUtil.canReplace(inventory.getBoots()))) {
                 if (ironArmorSlot == 2) {
                     inventory.setBoots(new ItemBuilder(Material.IRON_BOOTS).defaultItem().internalName("default_armor").canDrop(false).canSaveToEnderChest(true).buildWithUnbreakable());
                 } else {
@@ -514,8 +521,8 @@ public class InventoryUtil {
         }
     }
 
-    enum ArmorType {
-        HELMET, CHESTPLATE, LEGGINGS, BOOTS
+    private static boolean isEmpty(ItemStack item) {
+        return item == null || item.getType().isAir();
     }
 
     public static int getArmorSlot(Material material) {

@@ -21,6 +21,7 @@
 - 根据 spark 中无人在线仍持续扩张的区块统计，移除无界区块票，并避免历史全息图区块事件隐式加载其他区块。修复 MongoJack 读声望时误发同步奖励事件，以及失败读档的无尽等待；补充 NPC 主手 `INTERACT_AT` 右键路径。证据和重复实体存档的处理边界见 [TPS 与读档补丁](HIGH-SPARK-2026-11-15.md)。
 - 根据 20:05 点击日志，定位 Fancy 启动后延迟加载会清空注册表，造成核心 NPC 仍显示但原生点击查找失败。监听 `NpcsLoadedEvent` 恢复核心持有的 NPC，并保留 ID、个人文字和可见策略；诊断新增 `fancyRegistered`。回归改用真实 Fancy 管理器的加载和重载流程，普通右键与身体右键在清空后均进入实际天赋菜单。使用步骤和证据边界见 [NPC 点击排查](HIGH-NPC-CLICK-2026-11-15.md)。
 - 修复落地箭无法拾取却反复往背包加箭：旧方法误把箭矢事件中的临时 Item 当作实际箭矢删除。现在由 Paper 完成入包与箭矢移除，保留默认箭标记、堆叠数量和拾取限制；使用真实 Paper 碰撞及物品容器验证。详见 [箭矢拾取补丁](HIGH-ARROW-PICKUP-2026-11-15.md)。
+- 去除核心 NPC 的 Fancy 冷却消息，保留桥接的静默去重；普通和不朽登峰造极掉落物取消每件不同的堆叠分隔标记，并在登录补给与打开容器时处理已有物品；默认护甲补给识别现代空气空槽，清理改用实际护甲槽位。详见 [NPC、掉落物与默认护甲补丁](HIGH-GAMEPLAY-2026-11-15.md)。
 
 ## 物品与历史数据
 
@@ -43,11 +44,11 @@
 
 | 模块 | 测试总数 | 通过 | 跳过 | 失败或错误 |
 | --- | ---: | ---: | ---: | ---: |
-| core | 541 | 436 | 105 | 0 |
+| core | 552 | 447 | 105 | 0 |
 | mythic-framework-core | 22 | 22 | 0 | 0 |
 | mythic-framework-bukkit | 7 | 7 | 0 | 0 |
 | paper-platform | 6 | 6 | 0 | 0 |
-| **合计** | **576** | **471** | **105** | **0** |
+| **合计** | **587** | **482** | **105** | **0** |
 
 105 项外部扩展检查按用户要求暂不纳入本次验收；默认测试样本路径未配置，测试明确记录为跳过。核心弓连击等可独立运行的检查仍执行。历史 1.8 扩展中依赖旧 Bukkit/NMS 的代码需要单独迁移源码并重编译；这些跳过项不构成扩展兼容性证明。
 
@@ -57,18 +58,18 @@
 
 NPC 另新增 5 项回归：人物、村民、蠹虫缺少可选属性时的显示更新，普通属性应用及清理，以及显示失败后的清理与重试。默认构建使用 FancyNpcs 2.9.2；额外使用本地 `2.10.1-java21+2` JAR 运行同组回归，5 项全部通过。测试调用两版真实的 `Npc_1_21_11.update()`，模拟实体、移动、元数据传输和玩家连接；尚未在用户实服复测。该本地变体的 SHA-256 为 `c95eabf27f721d076ff114aaea757d4d7b062949dc1d8cb21c8d61fc92c4a72a`，日志为 `audit/high-fancy-npc-2.10.1-regression.log`。
 
-此前针对 spark、读档和点击新增 10 项 Java 回归，随后增加原生监听器到实际菜单及临时诊断的 6 项。本轮再增加 4 项 Fancy 加载生命周期回归与 9 项箭矢拾取回归，均已计入上述 576 项总数。用户版 Fancy 兼容任务现有 23 项显示、交互和诊断测试，全部通过，独立报告在 `core/build/reports/tests/fancyNpcCompatibilityTest/`，不重复加入完整构建总数。另有此前 4 项 Python 只读实体扫描工具测试，全部通过，单独统计；本轮未修改扫描工具。
+此前针对 spark、读档和点击新增 10 项 Java 回归，随后增加原生监听器到实际菜单及临时诊断的 6 项、Fancy 加载生命周期 4 项与箭矢拾取 9 项。本轮增加连续点击无冷却提示 1 项、登峰造极物品堆叠与历史标记处理 5 项、现代默认护甲补给 5 项，均已计入上述 587 项总数。用户版 Fancy 兼容任务现有 24 项显示、交互和诊断测试，全部通过，独立报告在 `core/build/reports/tests/fancyNpcCompatibilityTest/`，不重复加入完整构建总数。另有此前 4 项 Python 只读实体扫描工具测试，全部通过，单独统计；本轮未修改扫描工具。
 
 另执行独立 `paperLibrarySmoke` 检查，使用目标 Paper 真实 `LibraryLoader` 从空缓存下载 21 个运行库，逐一比对构建时 SHA-256，并验证薄 JAR 类加载、Jackson JSON 和 Nashorn 脚本。随后切换离线会话验证缓存复用、JAR 未被重写，以及空缓存离线启动被拒绝。结果为 `core/build/paper-library-smoke/result.txt`；生产代码使用 Paper 原生加载器，不包含这项验证所用的反射设置。
 
-最新完整构建和用户版 Fancy 兼容日志为 `audit/high-npc-registry-arrow-build.log`，本轮定向回归为 `audit/high-npc-registry-arrow-targeted.log`，前次 Paper 依赖下载验证日志为 `audit/high-paper-libraries-build.log`；运行库配置未变，本轮未重复联网缓存验证。HTML 报告在各模块 `build/reports/tests/test/`。这些构建输出不入库。GitHub Actions 工作流 `.github/workflows/high-build.yml` 在本分支推送及 PR 时使用 JDK 21 构建、Java 25 测试并保存 JAR、测试报告和依赖缓存验证结果；本地结果不代表远程 CI 已通过。
+最新完整构建和用户版 Fancy 兼容日志为 `audit/high-npc-uber-armor-build.log`，本轮定向回归为 `audit/high-npc-uber-armor-targeted.log`，前次 Paper 依赖下载验证日志为 `audit/high-paper-libraries-build.log`；运行库配置未变，本轮未重复联网缓存验证。HTML 报告在各模块 `build/reports/tests/test/`。这些构建输出不入库。GitHub Actions 工作流 `.github/workflows/high-build.yml` 在本分支推送及 PR 时使用 JDK 21 构建、Java 25 测试并保存 JAR、测试报告和依赖缓存验证结果；本地结果不代表远程 CI 已通过。
 
 ## 交付产物与依赖
 
 - 核心 JAR：`core/build/libs/ThePitGay-High.jar`
 - 插件版本：`5.0.0-HIGH-SNAPSHOT`
-- 文件大小：`7,788,979` 字节
-- SHA-256：`6c643c01eca95390bb61aca52e6ffa11283e24a0c55b9e2aae7d10001dbafc15`
+- 文件大小：`7,789,823` 字节
+- SHA-256：`9a7b3c05b35a03a2b272e943750262cd25f682a3ee99a0caa21c83329ed9615b`
 - 映射命名空间：`mojang`
 
 打包检查未发现对 `net/minecraft/server/v1_8_R3` 或 `org/bukkit/craftbukkit/v1_8_R3` 的类链接。历史 facade 的部分包名仍保留 `v1_8_R3`，其实现已迁移；这不表示旧 NMS 仍被打包。

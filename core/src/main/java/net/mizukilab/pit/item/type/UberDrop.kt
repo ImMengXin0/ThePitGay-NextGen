@@ -2,6 +2,7 @@ package net.mizukilab.pit.item.type
 
 import cn.charlotte.pit.ThePit
 import net.mizukilab.pit.item.AbstractPitItem
+import net.mizukilab.pit.item.UberDropStacking
 import net.mizukilab.pit.parm.AutoRegister
 import net.mizukilab.pit.util.PlayerUtil
 import net.mizukilab.pit.util.chat.CC
@@ -16,6 +17,7 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.event.inventory.InventoryOpenEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.scheduler.BukkitRunnable
 import kotlin.random.Random
@@ -24,6 +26,16 @@ import kotlin.random.Random
 @AutoRegister
 class UberDrop : AbstractPitItem(), Listener {
     var index = -1
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    fun onInventoryOpen(event: InventoryOpenEvent) {
+        val inventory = event.inventory
+        for (slot in 0 until inventory.size) {
+            val item = inventory.getItem(slot)
+            val normalized = UberDropStacking.normalize(item)
+            if (normalized !== item) inventory.setItem(slot, normalized)
+        }
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onInteract(event: BlockPlaceEvent) {
@@ -94,7 +106,6 @@ class UberDrop : AbstractPitItem(), Listener {
                 "",
                 "&e拿着并右键获得物品!"
             )
-            .dontStack()
             .build()
     }
 

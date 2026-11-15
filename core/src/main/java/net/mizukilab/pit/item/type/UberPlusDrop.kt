@@ -54,9 +54,8 @@ class UberPlusDrop : AbstractPitItem(), Listener {
             "",
             "&e拿着并右键获得物品!"
         )
-            .dontStack()
             .enchantment(Enchantment.THORNS).flags(ItemFlag.HIDE_ENCHANTS)
-            .internalName(internalName).name(itemDisplayName).dontStack().deathDrop(false).build()
+            .internalName(internalName).name(itemDisplayName).deathDrop(false).build()
     }
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onInteract(event: BlockPlaceEvent) {
