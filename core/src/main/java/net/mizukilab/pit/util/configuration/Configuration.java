@@ -15,10 +15,11 @@ import java.util.List;
 
 public class Configuration {
 
-    private final YamlConfiguration config;
+    private YamlConfiguration config;
     private final JavaPlugin plugin;
     private final File file;
     private final File directory;
+    private YamlConfiguration fieldDefaults;
 
     public Configuration(JavaPlugin plugin) {
         this(plugin, "config.yml");
@@ -115,6 +116,17 @@ public class Configuration {
     }
 
     public void load() {
+        String resource = this.file.getName();
+        if (this.directory.getName().equals("worlds")) resource = "worlds/world.yml";
+        this.config = ConfigFiles.load(this.plugin, this.file, resource);
+        if (this.fieldDefaults == null) this.fieldDefaults = captureFieldDefaults();
+        if (cn.mythicland.framework.bukkit.config.YamlConfigSynchronizer.backfill(this.config, this.fieldDefaults)) {
+            try {
+                this.config.save(this.file);
+            } catch (IOException exception) {
+                throw new IllegalStateException("Cannot update configuration: " + this.file, exception);
+            }
+        }
         Field[] toLoad = this.getClass().getDeclaredFields();
         int var3 = toLoad.length;
 
@@ -183,6 +195,33 @@ public class Configuration {
 
     public File getFile() {
         return this.file;
+    }
+
+    private YamlConfiguration captureFieldDefaults() {
+        YamlConfiguration defaults = new YamlConfiguration();
+        for (Field field : getClass().getDeclaredFields()) {
+            ConfigData data = field.getAnnotation(ConfigData.class);
+            if (data == null) continue;
+            try {
+                field.setAccessible(true);
+                Object value = field.get(this);
+                // Null and sentinel coordinates have no canonical default on disk.
+                if (value == null || value instanceof Double number && !Double.isFinite(number)
+                        || value instanceof Integer intNumber && intNumber == Integer.MIN_VALUE) continue;
+                if (field.isAnnotationPresent(ConfigSerializer.class)) {
+                    AbstractSerializer serializer = (AbstractSerializer) field.getAnnotation(ConfigSerializer.class).serializer().newInstance();
+                    if (value instanceof List<?> values) {
+                        List<String> serialized = new ArrayList<>();
+                        for (Object entry : values) serialized.add(serializer.toString(entry));
+                        value = serialized;
+                    } else value = serializer.toString(value);
+                }
+                defaults.set(data.path(), value);
+            } catch (ReflectiveOperationException exception) {
+                throw new IllegalStateException("Cannot read default for " + data.path(), exception);
+            }
+        }
+        return defaults;
     }
 
     public Object deserializeValue(Field f, Object value) throws IllegalAccessException, InstantiationException {
